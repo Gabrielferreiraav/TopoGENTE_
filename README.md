@@ -44,6 +44,7 @@ Funcionalidades principais
   - Tabela com todos os pontos (nome, X, Y, Z), perímetro da poligonal, erro de fechamento (se houver) e precisão.
 - Desenho simples:
   - Exibe a poligonal e pontos irradiados em um Canvas com legendas e tooltips.
+  - Conseguimos aumentar ou diminuir o zoom, além de poder movimentar o desenho no visualizador.
 - Relatórios básicos:
   - Listagem de pontos calculados (pode ser copiada/exportada no futuro).
 
@@ -77,8 +78,8 @@ Guia prático de uso (passo-a-passo)
    - Se algo estiver errado, editar a grade (seção das leituras) e reprocessar.
 
 Fluxo de trabalho típico na equipe
-- Instrumentista: gera caderneta no campo (formato suportado) e passa arquivo ao técnico.
-- Técnico/engenheiro: roda o TopoGente, verifica fecho e erros; corrige ou reprocessa se necessário.
+- Instrumentista: gera caderneta no campo e passa arquivo ao técnico.
+- Técnico/engenheiro: altera o arquivo para quie esteja no padrão de entrada , roda o TopoGente, verifica fecho e erros; corrige ou reprocessa se necessário.
 - Documentação: exporta ou registra coordenadas para planta ou cadastro.
 
 FAQ
