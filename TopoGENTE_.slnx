@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="TopoGente.Core/TopoGente.Core.csproj" />
+  <Project Path="TopoGENTE.Test/TopoGENTE.Test.csproj" />
+  <Project Path="TopoGente.UI/TopoGente.UI.csproj" Id="37ff1564-044d-4d0e-bb2b-348183b97b42" />
+</Solution>
