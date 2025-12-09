@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="TopoGente - Processamento Topográfico Profissional" Height="650" Width="950"
+        Title="TopoGente - Processamento Topográfico" Height="650" Width="950"
         WindowStartupLocation="CenterScreen">
 
     <Grid Margin="10">
@@ -48,14 +48,15 @@
         </GroupBox>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button x:Name="btnCarregarArquivo" Content="📂 Carregar Caderneta" 
+            <Button x:Name="btnCarregarArquivo" Content="📂 1. Carregar Caderneta" 
                     Width="180" Height="30" Click="btnCarregarArquivo_Click" FontWeight="Bold"/>
 
             <TextBlock x:Name="lblArquivo" Text="Nenhum arquivo selecionado" 
                        VerticalAlignment="Center" Margin="15,0" FontStyle="Italic" Foreground="Gray"/>
 
-            <Button x:Name="btnProcessar" Content="⚙️ Calcular Coordenadas" 
+            <Button x:Name="btnProcessar" Content="⚙️ 2. Calcular Coordenadas" 
                     Width="180" Height="30" Margin="10,0" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold"/>
+            
         </StackPanel>
 
         <TabControl x:Name="tabsPrincipal" Grid.Row="2" Margin="0,0,0,5">
@@ -87,27 +88,47 @@
                             <DataGridTextColumn Header="Este (X)" Binding="{Binding X, StringFormat=F3}" Width="*"/>
                             <DataGridTextColumn Header="Norte (Y)" Binding="{Binding Y, StringFormat=F3}" Width="*"/>
                             <DataGridTextColumn Header="Cota (Z)" Binding="{Binding Z, StringFormat=F3}" Width="*"/>
-
                             <DataGridTextColumn Header="Descrição" Binding="{Binding TipoDescricao}" Width="150"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
             </TabItem>
+
             <TabItem Header=" 🗺️ Visualização Gráfica " FontSize="14">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" BorderBrush="#CCC" BorderThickness="1" Margin="5" Background="#FAFAFA">
-                        <Canvas x:Name="canvasDesenho" ClipToBounds="True" Background="Transparent"/>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#EEE" Margin="0,0,0,5">
+                        <TextBlock Text="Controles: Roda do Mouse (Zoom) | Clique e Arraste (Mover)" 
+                                   VerticalAlignment="Center" Foreground="Gray" Margin="10,5,20,5" FontSize="11"/>
+
+                        <Button Content="Recentralizar Poligonal" Click="bntResetZoom_Click" Padding="5,2" Margin="0,2,10,2"/>
+
+                        <CheckBox x:Name="chkMostrarNomes" Content="Mostrar Nomes" 
+                                  VerticalAlignment="Center" IsChecked="True"
+                                  Checked="chkMostrarNomes_Changed" Unchecked="chkMostrarNomes_Changed"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" BorderBrush="#CCC" BorderThickness="1" Margin="5" Background="#FAFAFA" ClipToBounds="True"
+                            MouseWheel="Canvas_MouseWheel"
+                            MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                            MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                            MouseMove="Canvas_MouseMove">
+
+                        <Canvas x:Name="canvasDesenho" Background="Transparent">
+                            <Canvas.RenderTransform>
+                                <MatrixTransform x:Name="transformacaoCanvas"/>
+                            </Canvas.RenderTransform>
+                        </Canvas>
                     </Border>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
                         <Rectangle Width="15" Height="15" Fill="Blue" Margin="0,0,5,0"/>
                         <TextBlock Text="Estações (Poligonal)" VerticalAlignment="Center" Margin="0,0,15,0"/>
-
                         <Rectangle Width="15" Height="15" Fill="Green" Margin="0,0,5,0"/>
                         <TextBlock Text="Irradiações" VerticalAlignment="Center"/>
                     </StackPanel>
