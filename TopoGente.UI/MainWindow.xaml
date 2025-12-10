@@ -137,17 +137,31 @@
 
         </TabControl>
 
-        <Border Grid.Row="3" Background="#F5F5F5" Padding="10" CornerRadius="5" BorderBrush="#DDDDDD" BorderThickness="1">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Perímetro: " FontWeight="Bold" Foreground="#333"/>
-                <TextBlock x:Name="txtPerimetro" Text="-" Margin="0,0,20,0"/>
+        <Border Grid.Row="3" Background="#F5F5F5" Padding="5" CornerRadius="0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Erro Linear: " FontWeight="Bold" Foreground="#333"/>
-                <TextBlock x:Name="txtErro" Text="-" Margin="0,0,20,0" Foreground="Red" FontWeight="DemiBold"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Perímetro: " FontWeight="Bold" Foreground="#333" FontSize="11"/>
+                    <TextBlock x:Name="txtPerimetro" Text="-" Margin="0,0,15,0" FontSize="11"/>
 
-                <TextBlock Text="Precisão: " FontWeight="Bold" Foreground="#333"/>
-                <TextBlock x:Name="txtPrecisao" Text="-" Foreground="Blue"/>
-            </StackPanel>
+                    <TextBlock Text="Erro Linear: " FontWeight="Bold" Foreground="#333" FontSize="11"/>
+                    <TextBlock x:Name="txtErro" Text="-" Margin="0,0,15,0" Foreground="Red" FontWeight="DemiBold" FontSize="11"/>
+
+                    <TextBlock Text="Precisão: " FontWeight="Bold" Foreground="#333" FontSize="11"/>
+                    <TextBlock x:Name="txtPrecisao" Text="-" Foreground="Blue" FontSize="11"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
+                    <TextBlock Text="topoGENTE" FontWeight="Bold" Foreground="Gray" FontSize="10"/>
+                    <TextBlock Text=" - " Foreground="Gray" FontSize="10"/>
+                    <TextBlock Text="Gabriel.f.viana@ufv.br" Foreground="Gray" FontStyle="Italic" FontSize="10"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>

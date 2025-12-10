@@ -35,79 +35,81 @@ namespace TopoGente.Core.Services
         {
             var resultado = new ResultadoLevantamento();
 
-            //Separar Poligonal de Irradiações 
             var leiturasPoligonal = leiturasBrutas.Where(x => x.EhLeituraDePoligonal).ToList();
             var leiturasIrradiadas = leiturasBrutas.Where(x => !x.EhLeituraDePoligonal).ToList();
 
-            resultado.Poligonal = _calculoService.CalcularPoligonal(pontoPartida, azimuteInicial, leiturasPoligonal);
+            // Calculamos primeiro como se não houvesse erro
+            var poligonalBruta = _calculoService.CalcularPoligonal(pontoPartida, azimuteInicial, leiturasPoligonal);
 
-            // Calcular Irradiações para cada estação da poligonal calculada
+            bool fechouNoInicio = false;
+            double erroX = 0, erroY = 0;
+            double perimetro = 0;
+
+            if (poligonalBruta.Count > 1)
+            {
+                foreach (var leitura in leiturasPoligonal)
+                {
+                    perimetro += _calculoService.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                }
+                resultado.Perimetro = perimetro;
+
+                var pontoChegada = poligonalBruta.Last();
+                fechouNoInicio = pontoChegada.Nome.Equals(pontoPartida.Nome, StringComparison.OrdinalIgnoreCase);
+
+                if (fechouNoInicio)
+                {
+                    // Calcula os erros brutos
+                    var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
+
+                    resultado.PoligonalFechada = true;
+                    resultado.ErroLinear = erros.erroLinearTotal;
+                    resultado.Precisao = erros.precisaoRelativa;
+
+                    erroX = erros.erroX;
+                    erroY = erros.erroY;
+
+                    // Substituímos a poligonal bruta pela ajustada
+                    resultado.Poligonal = _calculoService.CompensarPoligonal(poligonalBruta, erroX, erroY, perimetro);
+                }
+                else
+                {
+                    // Aberta usa a bruta
+                    resultado.Poligonal = poligonalBruta;
+                    resultado.PoligonalFechada = false;
+                }
+            }
+            else
+            {
+                // caso base com apenas 1 ponto (início)
+                resultado.Poligonal = poligonalBruta;
+            }
+
+            //  Calcular irradiações apos o ajuste da poligonal
             foreach (var estacao in resultado.Poligonal)
             {
-                // Busca todas as leituras de detalhe feitas nesta estação
                 var irradiacoesDestaEstacao = leiturasIrradiadas
                     .Where(l => l.EstacaoOcupada == estacao.Nome)
                     .ToList();
 
                 if (!irradiacoesDestaEstacao.Any()) continue;
 
-                // AZIMUTE DE RÉ 
                 double azimuteOrientacao;
-
-                if (estacao == pontoPartida)
+                if (estacao == resultado.Poligonal.First()) 
                 {
                     azimuteOrientacao = azimuteInicial;
                 }
                 else
                 {
-                    // Se é uma estação de vante, a orientação é a Ré para a estação anterior.
-                    // AzimuteChegada (M1->M2) +/- 180 = AzimuteRé (M2->M1)
                     azimuteOrientacao = estacao.AzimuteChegada < 180
                         ? estacao.AzimuteChegada + 180
                         : estacao.AzimuteChegada - 180;
                 }
 
-                // irradiação usando a orientação descoberta
                 foreach (var leitura in irradiacoesDestaEstacao)
                 {
                     var pontoIrradiado = _calculoService.CalcularPontoIrradiado(estacao, leitura, azimuteOrientacao);
                     resultado.Irradiacoes.Add(pontoIrradiado);
                 }
-            }
-            // Assumindo que é uma poligonal fechada
-            if (resultado.Poligonal.Count > 1)
-            {
-
-                var pontoChegada = resultado.Poligonal.Last();
-
-                // supor fechamento no ponto de partida
-                var pontoAlvo = pontoPartida;
-
-                // calcular o perímetro somando as distâncias das pernas da poligonal
-                double perimetro = 0;
-                foreach (var leitura in leiturasPoligonal)
-                {
-                    perimetro += _calculoService.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
-                }
-
-                resultado.Perimetro = perimetro;
-
-                bool fechouNoInicio = pontoChegada.Nome.Equals(pontoPartida.Nome, StringComparison.OrdinalIgnoreCase);
-
-                if (fechouNoInicio)
-                {
-                    var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoAlvo, perimetro);
-                    resultado.PoligonalFechada = true;
-                    resultado.ErroLinear = erros.erroLinearTotal;
-                    resultado.Precisao = erros.precisaoRelativa;
-                }
-                else
-                {
-                    resultado.PoligonalFechada = false;
-                    resultado.ErroLinear = 0;
-                    resultado.Precisao = 0;
-                }
-
             }
 
             return resultado;

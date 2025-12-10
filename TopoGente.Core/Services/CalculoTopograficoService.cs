@@ -159,10 +159,8 @@ namespace TopoGente.Core.Services
         /// </summary>
         public PontoCoordenada CalcularPontoIrradiado(PontoCoordenada estacao, LeituraEstacaoTotal leitura, double azimuteRe)
         {
-            // Calcular o Azimute deste ponto (Vante)
             double azimuteVante = SomarAngulos(azimuteRe, leitura.AnguloHorizontal);
 
-            // Distância (Inclinada -> Horizontal)
             double distHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
 
             // Calcular as Coordenadas
@@ -234,6 +232,71 @@ namespace TopoGente.Core.Services
             }
 
             return pontosCalculados;
+        }
+
+        /// <summary>
+        /// Aplica a Compensação de Bowditch na poligonal. (Bowditch)
+        /// </summary>
+        public List<PontoCoordenada> CompensarPoligonal(List<PontoCoordenada> poligonalOriginal, double erroX, double erroY, double perimetroTotal)
+        {
+            if (perimetroTotal == 0 || (Math.Abs(erroX) < 0.0001 && Math.Abs(erroY) < 0.0001))
+            {
+                return new List<PontoCoordenada>(poligonalOriginal);
+            }
+
+            var poligonalAjustada = new List<PontoCoordenada>();
+
+            // O primeiro ponto (M1) é fixo
+            var pInicial = poligonalOriginal[0];
+            poligonalAjustada.Add(new PontoCoordenada
+            {
+                Nome = pInicial.Nome,
+                X = pInicial.X,
+                Y = pInicial.Y,
+                Z = pInicial.Z,
+                EhPontoPoligonal = true,
+                AzimuteChegada = pInicial.AzimuteChegada
+            });
+
+            // Acumuladores de correção
+            double correcaoAcumuladaX = 0;
+            double correcaoAcumuladaY = 0;
+
+            //  ajustamos até o fim para garantir que o último ponto fique igual ao primeiro matematicamente.
+
+            for (int i = 1; i < poligonalOriginal.Count; i++)
+            {
+                var pAnterior = poligonalOriginal[i - 1];
+                var pAtual = poligonalOriginal[i];
+
+                // d = sqrt((X2-X1)² + (Y2-Y1)²)
+                double dx = pAtual.X - pAnterior.X;
+                double dy = pAtual.Y - pAnterior.Y;
+                double distPerna = Math.Sqrt(dx * dx + dy * dy);
+
+                // Correção Unitária para esta perna
+                // cx = -ErroTotalX * (dist / Perimetro)
+                double cx = -erroX * (distPerna / perimetroTotal);
+                double cy = -erroY * (distPerna / perimetroTotal);
+
+                correcaoAcumuladaX += cx;
+                correcaoAcumuladaY += cy;
+
+                //  ponto ajustado
+                var novoPonto = new PontoCoordenada
+                {
+                    Nome = pAtual.Nome,
+                    X = pAtual.X + correcaoAcumuladaX, 
+                    Y = pAtual.Y + correcaoAcumuladaY,
+                    Z = pAtual.Z,  // mantemos Z original.
+                    EhPontoPoligonal = true,
+                    AzimuteChegada = pAtual.AzimuteChegada
+                };
+
+                poligonalAjustada.Add(novoPonto);
+            }
+
+            return poligonalAjustada;
         }
     }
 }
