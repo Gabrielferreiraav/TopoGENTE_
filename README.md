@@ -22,7 +22,7 @@ Um aplicativo desktop leve que processa dados de levantamento topográfico (poli
 
 Reproduzir funcionalidades essenciais de programas clássicos (ex.: topoGRAPH 98 SE) de forma leve e didática. Permitir que equipes de topografia processem cadernetas de campo rapidamente e visualizem coordenadas e desenhos básicos. Facilitar ensino e validação de conceitos topográficos (azimutes, projeções, fechos).
 
-## Comparação com topoGRAPH 98 SE : 
+## Comparação com topoGRAPH 98 SE  
 
 Similaridades: Processa leituras de estação (ângulos, distâncias). Gera poligonais e calcula pontos irradiados. Exibe resultados numéricos e desenho básico. 
 
@@ -30,7 +30,7 @@ Diferenças: TopoGente é mais leve, código aberto/educacional e sem todas as o
 
 Objetivo principal: aprendizado, análise e processamento rápido, não substituição completa de suítes comerciais.
 
-## Funcionalidades principais :
+## Funcionalidades principais 
 
 Importar caderneta de campo (.txt ou .csv): Arquivo com linhas que descrevem leituras; o sistema interpreta automaticamente (separador vírgula ou ponto-e-vírgula). 
 
@@ -46,7 +46,7 @@ Desenho simples: Exibe a poligonal e pontos irradiados em um Canvas com legendas
 
 Relatórios básicos: Listagem de pontos calculados (pode ser copiada/exportada no futuro).
 
-## Benefícios para o trabalho de topografia :
+## Benefícios para o trabalho de topografia
 
 Agilidade: processamento rápido de cadernetas em campo ou escritório. 
 
@@ -56,7 +56,7 @@ Economia: ferramenta sem custo e leve para máquinas simples.
 
 Ensino: excelente para treinamento de instrumentistas e estagiários, mostrando passo-a-passo os cálculos.
 
-## Requisitos mínimos (sistema) :
+## Requisitos mínimos
 
 SO recomendado: Windows 10/11 (WPF nativo). Possível executar em outras plataformas apenas para testes do Core. 
 
@@ -66,7 +66,7 @@ Espaço em disco: < 200 MB para instalação base. .NET SDK/Runtime 10 (para rod
 
 Tela: resolução mínima 1024x768 para conforto.
 
-## Guia prático de uso (passo-a-passo) :
+## Guia prático de uso
 
 Abrir o aplicativo (TopoGente.UI). 
 
@@ -80,7 +80,7 @@ Visualizar: Aba de resultados mostra tabela e desenho. Tooltip nos pontos exibe 
 
 Corrigir input: Se algo estiver errado, editar a grade (seção das leituras) e reprocessar.
 
-## Fluxo de trabalho típico na equipe :
+## Integração operacional
 
 Instrumentista: gera caderneta no campo e passa arquivo ao técnico. 
 
@@ -88,9 +88,9 @@ Técnico/engenheiro: altera o arquivo para quie esteja no padrão de entrada , r
 
 Documentação: exporta ou registra coordenadas para planta ou cadastro.
 
-## FAQ Q: 
+## FAQ
 
-Que formatos de arquivo são suportados? 
+Q : Que formatos de arquivo são suportados? 
 
 A: Arquivos de texto .txt e .csv com separador , ou ;. Cabeçalhos com "Estação" ou linhas começando com # são ignorados. 
 
@@ -106,7 +106,7 @@ Q: Ele gera arquivos para CAD (DXF) ou GIS?
 
 A: Agora não; exportação é um recurso futuro planejado.
 
-## Glossário rápido:
+## Glossário rápido
 
 Poligonal: sequência de estações ligadas por distâncias e ângulos. 
 
@@ -118,6 +118,6 @@ Ré / Vante: Ré = direção de chegada (do ponto anterior); Vante = direção d
 
 Erro de fechamento: a discrepância entre ponto esperado e ponto calculado no final da poligonal.
 
-## Observações:
+## Suporte e contato
 
 Entrar em contato **gabriel.f.viana@ufv.br** para detalhes.
