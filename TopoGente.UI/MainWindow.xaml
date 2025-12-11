@@ -115,8 +115,8 @@
 
                     <Border Grid.Row="1" BorderBrush="#CCC" BorderThickness="1" Margin="5" Background="#FAFAFA" ClipToBounds="True"
                             MouseWheel="Canvas_MouseWheel"
-                            MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
-                            MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                            MouseDown="Canvas_MouseDown"
+                            MouseUp="Canvas_MouseUp"
                             MouseMove="Canvas_MouseMove">
 
                         <Canvas x:Name="canvasDesenho" Background="Transparent">

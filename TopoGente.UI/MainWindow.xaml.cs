@@ -60,47 +60,52 @@ namespace TopoGente.UI
 
             e.Handled = true; // Impede que o scroll propague
         }
-        private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            // pega o mouse para começar a arrastar
-            var border = sender as IInputElement;
-            if (border != null)
+            if (e.ChangedButton == MouseButton.Middle && e.ButtonState == MouseButtonState.Pressed )
             {
-                _origemMouse = e.GetPosition(border);
-                _estaArrastando = true;
-                border.CaptureMouse();
-
-                // indicar movimento
-                Cursor = Cursors.SizeAll;
+                var border = sender as IInputElement;
+                if (border != null)
+                {
+                    _origemMouse = e.GetPosition(border);
+                    _estaArrastando = true;
+                    border.CaptureMouse();
+                    // indicar movimento
+                    Cursor = Cursors.SizeAll;
+                }
             }
         }
-        private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void Canvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (_estaArrastando)
+            if (_estaArrastando && e.ChangedButton == MouseButton.Middle)
             {
-                _estaArrastando = false;
                 var border = sender as IInputElement;
-                border?.ReleaseMouseCapture();
-                Cursor = Cursors.Arrow;
+                if (border != null)
+                {
+                    _estaArrastando = false;
+                    border?.ReleaseMouseCapture();
+                    Cursor = Cursors.Arrow;
+                }
             }
         }
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_estaArrastando)
+            if (_estaArrastando && e.MiddleButton == MouseButtonState.Pressed )
             {
                 var border = sender as IInputElement;
-                var posicaoAtual = e.GetPosition(border);
+                if (border != null)
+                {
+                    var posicaoAtual = e.GetPosition(border);
 
-                // deslocamento do mouse
-                var delta = posicaoAtual - _origemMouse;
+                    // deslocamento do mouse
+                    var delta = posicaoAtual - _origemMouse;
 
-                // aplica o deslocamento na matriz
-                var mat = transformacaoCanvas.Matrix;
-                mat.Translate(delta.X, delta.Y);
-                transformacaoCanvas.Matrix = mat;
-
-                // mouse agora tem sua posição atual como origem
-                _origemMouse = posicaoAtual;
+                    // aplica o deslocamento na matriz
+                    var mat = transformacaoCanvas.Matrix;
+                    mat.Translate(delta.X, delta.Y);
+                    transformacaoCanvas.Matrix = mat;
+                    _origemMouse = posicaoAtual;
+                }
             }
         }
         private void bntResetZoom_Click(object sender, RoutedEventArgs e)
@@ -185,7 +190,7 @@ namespace TopoGente.UI
             // Define a visibilidade baseada no estado atual do CheckBox
             Visibility visibilidadeTexto = (chkMostrarNomes.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
 
-            // 5. Desenhar Linhas da Poligonal (Esqueleto Azul)
+            // Desenhar Linhas da Poligonal
             // Filtra apenas os pontos que fazem parte da poligonal principal
             var poligonal = pontos.Where(p => p.EhPontoPoligonal).ToList();
 
@@ -211,7 +216,6 @@ namespace TopoGente.UI
             {
                 Point pos = ParaTela(p.X, p.Y);
 
-                // A Bolinha 
                 Ellipse pontoGeo = new Ellipse
                 {
                     Width = 6,
@@ -271,7 +275,6 @@ namespace TopoGente.UI
         }
         private void btnProcessar_Click(object sender, RoutedEventArgs e)
         {
-            var cronometro = new Stopwatch();
             try
             {
                 // Depois utilizar TryParse para evitar erros de digitação.
@@ -291,14 +294,9 @@ namespace TopoGente.UI
 
                 // Converter o Arquivo em Objetos
                 var listaParaProcessar = _leituraEmMemoria.ToList();
-                cronometro.Start();
                 var resultado = _processadorService.Processar(pM1,azimuteInicial, listaParaProcessar);
-                long tempoCalculo = cronometro.ElapsedMilliseconds;
                 gridResultados.ItemsSource = resultado.TodosOsPontos;
-                cronometro.Restart();
                 canvasDesenho.UpdateLayout();
-                cronometro.Stop();
-                long tempoDesenho = cronometro.ElapsedMilliseconds;
                 DesenharLevantamento(resultado.TodosOsPontos);
 
                 txtPerimetro.Text = $"{resultado.Perimetro:F2} m";
@@ -316,7 +314,6 @@ namespace TopoGente.UI
 
                 tabsPrincipal.SelectedIndex = 1;
                 MessageBox.Show("Cálculo realizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
-                MessageBox.Show($"Cálculo Matemático: {tempoCalculo} ms\n" + $"Renderização Gráfica: {tempoDesenho} ms\n");
             }
             catch (Exception ex)
             {
