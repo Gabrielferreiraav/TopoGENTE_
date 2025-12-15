@@ -61,19 +61,36 @@
 
         <TabControl x:Name="tabsPrincipal" Grid.Row="2" Margin="0,0,0,5">
 
-            <TabItem Header=" 📝 Caderneta de Campo (Editável) " FontSize="14">
+            <TabItem Header=" 📝 Caderneta (Por Estação) " FontSize="14">
                 <Grid Background="#FCFCFC">
-                    <DataGrid x:Name="gridCaderneta" AutoGenerateColumns="False" 
-                              CanUserAddRows="False" Margin="5" BorderThickness="0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Estação" Binding="{Binding EstacaoOcupada}" Width="70" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Ponto Visado" Binding="{Binding PontoVisado}" Width="100" IsReadOnly="True" FontWeight="Bold"/>
-                            <DataGridTextColumn Header="Ang. Horiz." Binding="{Binding AnguloHorizontal, StringFormat=F4}" Width="90" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Dist. Inc." Binding="{Binding DistanciaInclinada, StringFormat=F3}" Width="80" IsReadOnly="True"/>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                            <DataGridComboBoxColumn Header="Tipo de Ponto (Clique para Alterar)" 
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                        <TextBlock Text="Selecione a Estação:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
+
+                        <ComboBox x:Name="cmbEstacoes" Width="300" 
+                                  DisplayMemberPath="Nome" 
+                                  SelectionChanged="cmbEstacoes_SelectionChanged"/>
+
+                        <TextBlock x:Name="txtInfoEstacao" Text="Hi: -" VerticalAlignment="Center" Margin="15,0" Foreground="Gray"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="gridCaderneta" Grid.Row="1" AutoGenerateColumns="False" 
+                              CanUserAddRows="False" Margin="5" BorderThickness="1" BorderBrush="#DDD">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ponto Visado" Binding="{Binding PontoVisado}" Width="100" FontWeight="Bold"/>
+                            <DataGridTextColumn Header="Ang. Horiz." Binding="{Binding AnguloHorizontal, StringFormat=F4}" Width="90"/>
+                            <DataGridTextColumn Header="Ang. Vert." Binding="{Binding AnguloVertical, StringFormat=F4}" Width="90"/>
+                            <DataGridTextColumn Header="Dist. Inc." Binding="{Binding DistanciaInclinada, StringFormat=F3}" Width="80"/>
+                            <DataGridTextColumn Header="HS (Prisma)" Binding="{Binding AlturaPrisma, StringFormat=F3}" Width="80"/>
+                            <DataGridTextColumn Header="Descrição" Binding="{Binding Observacao}" Width="150"/>
+
+                            <DataGridComboBoxColumn Header="Tipo" 
                                                     SelectedItemBinding="{Binding Tipo}"
-                                                    Width="200"/>
+                                                    Width="120"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>

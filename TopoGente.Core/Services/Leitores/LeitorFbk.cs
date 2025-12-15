@@ -19,6 +19,7 @@ namespace TopoGente.Core.Services.Leitores
             var estacoes = new List<Estacao>();
             Estacao estacoAtual = null;
             double alturaPrisma = 0.0;
+            var coordenadasConhecidas = new Dictionary<string, PontoCoordenada>();
             var cultura = System.Globalization.CultureInfo.InvariantCulture;
             foreach (var linhaRaw in linhas)
             {
@@ -32,7 +33,24 @@ namespace TopoGente.Core.Services.Leitores
 
                 try
                 {
-                    if (comando == "STN")
+                    if (comando == "NEZ" || comando == "NE")
+                    {
+                        string nomePonto = partes[1].Replace("\"", "");
+                        double y = double.Parse(partes[2], cultura);
+                        double x = double.Parse(partes[3], cultura);
+                        double z = partes.Length > 4 ? double.Parse(partes[4], cultura) : 0.0;
+                        if (!coordenadasConhecidas.ContainsKey(nomePonto))
+                        {
+                            coordenadasConhecidas.Add(nomePonto, new PontoCoordenada
+                            {
+                                Nome = nomePonto,
+                                X = x,
+                                Y = y,
+                                Z = z,
+                            });
+                        }
+                    }
+                    else if (comando == "STN")
                     {
                         string nome = partes[1].Replace("\"", "");
                         double hi = double.Parse(partes[2], cultura);
@@ -41,6 +59,10 @@ namespace TopoGente.Core.Services.Leitores
                             Nome = nome,
                             AlturaInstrumento = hi
                         };
+                        if (coordenadasConhecidas.ContainsKey(nome))
+                        {
+                            estacoAtual.CoordenadaConhecida = coordenadasConhecidas[nome];
+                        }
                         estacoes.Add(estacoAtual);
                     }
                     else if (comando == "PRISMA")
@@ -49,7 +71,8 @@ namespace TopoGente.Core.Services.Leitores
                     }
                     else if (comando == "BS")
                     {
-                        if (estacoAtual == null) continue;
+                        if (estacoAtual == null)
+                            continue;
                         string alvoNome = partes[1].Replace("\"", "");
                         double angulo = double.Parse(partes[2], cultura);
                         estacoAtual.Leituras.Add(new LeituraEstacaoTotal
@@ -65,12 +88,12 @@ namespace TopoGente.Core.Services.Leitores
                     }
                     else if (comando == "AD" && partes.Length > 2 && partes[1] == "VA")
                     {
-                        if (estacoAtual == null) continue;
+                        if (estacoAtual == null)
+                            continue;
                         string alvoNome = partes[2].Replace("\"", "");
                         double angH = double.Parse(partes[3], cultura);
                         double dist = double.Parse(partes[4], cultura);
                         double angV = double.Parse(partes[5], cultura);
-
                         string descricao = "";
                         if (partes.Length > 6)
                         {
@@ -82,10 +105,12 @@ namespace TopoGente.Core.Services.Leitores
                         {
                             tipoLeitura = TipoLeitura.Poligonal;
                         }
+
                         if (descricao.ToUpper().Contains("RE") || descricao.ToUpper().Contains("R"))
                         {
                             tipoLeitura = TipoLeitura.Re;
                         }
+
                         estacoAtual.Leituras.Add(new LeituraEstacaoTotal
                         {
                             EstacaoOcupada = estacoAtual.Nome,

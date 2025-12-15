@@ -21,18 +21,18 @@ namespace TopoGente.UI
     public partial class MainWindow : Window
     {
         // Instâncias dos serviços
-        private readonly LeituraArquivoService _leitorService;
+        private readonly LeituraArquivoFactory _leitorService;
         private readonly LevantamentoProcessor _processadorService;
 
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
-
+        private List<Estacao> _estacoesEmMemoria;
         private Point _origemMouse;
         private bool _estaArrastando = false;
 
         public MainWindow()
         {
             InitializeComponent();
-            _leitorService = new LeituraArquivoService();
+            _leitorService = new LeituraArquivoFactory();
             _processadorService = new LevantamentoProcessor();
             _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
             ConfigurarComboTipo();
@@ -251,7 +251,7 @@ namespace TopoGente.UI
         {
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "Arquivos de Texto (*.txt;*.csv)|*.txt;*.csv|Todos os Arquivos (*.*)|*.*",
+                Filter = "Arquivos Topográficos (*.txt;*.csv;*.fbk)|*.txt;*.csv;*.fbk|Todos os Arquivos (*.*)|*.*",
                 Title = "Selecione a Caderneta de Campo"
             };
 
@@ -260,17 +260,42 @@ namespace TopoGente.UI
                 try
                 {
                     var linhas = File.ReadAllLines(openFileDialog.FileName);
-                    var listaLida = _leitorService.LerArquivo(linhas);
-                    _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>(listaLida);
-                    gridCaderneta.ItemsSource = _leituraEmMemoria;
+                    _estacoesEmMemoria = _leitorService.ProcessarArquivo(linhas);
+                    cmbEstacoes.ItemsSource = _estacoesEmMemoria;
+                    if (_estacoesEmMemoria.Count > 0)
+                    {
+                        var estacaoInicial = _estacoesEmMemoria[0];
+                        if (estacaoInicial.CoordenadaConhecida != null)
+                        {
+                            txtX.Text = estacaoInicial.CoordenadaConhecida.X.ToString("F3");
+                            txtY.Text = estacaoInicial.CoordenadaConhecida.Y.ToString("F3");
+                            txtZ.Text = estacaoInicial.CoordenadaConhecida.Z.ToString("F3");
+                            MessageBox.Show($"Coordenadas da estação {estacaoInicial.Nome} detectadas no arquivo!");
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Atenção: A estação {estacaoInicial.Nome} não possui coordenadas conhecidas. Por favor, insira manualmente as coordenadas iniciais.", "Atenção", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                        }
+                        cmbEstacoes.ItemsSource = _estacoesEmMemoria;
+                        cmbEstacoes.SelectedIndex = 0;
+                    }
                     lblArquivo.Text = System.IO.Path.GetFileName(openFileDialog.FileName);
-                    btnProcessar.IsEnabled = true; // Habilita o botão de calcular
+                    btnProcessar.IsEnabled = true;
                     tabsPrincipal.SelectedIndex = 0;
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Erro ao ler arquivo: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+        private void cmbEstacoes_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada )
+            {
+                gridCaderneta.ItemsSource = estacaoSelecionada.Leituras;
+                txtInfoEstacao.Text = "Altura do Instrumento: {estacaoSelecionada.AlturaInstrumento} m";
             }
         }
         private void btnProcessar_Click(object sender, RoutedEventArgs e)
@@ -290,11 +315,16 @@ namespace TopoGente.UI
                     Z = z,
                     EhPontoPoligonal = true
                 };
+                var listaUnica = new List<LeituraEstacaoTotal>();
+                foreach (var estacao in _estacoesEmMemoria)
+                {
+                    listaUnica.AddRange(estacao.Leituras);
+                }
 
 
                 // Converter o Arquivo em Objetos
                 var listaParaProcessar = _leituraEmMemoria.ToList();
-                var resultado = _processadorService.Processar(pM1,azimuteInicial, listaParaProcessar);
+                var resultado = _processadorService.Processar(pM1,azimuteInicial, listaUnica);
                 gridResultados.ItemsSource = resultado.TodosOsPontos;
                 canvasDesenho.UpdateLayout();
                 DesenharLevantamento(resultado.TodosOsPontos);

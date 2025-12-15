@@ -10,6 +10,7 @@ namespace TopoGente.Core.Entities
         public string Nome { get; set; } = string.Empty;
         public double AlturaInstrumento { get; set; } 
 
+        public PontoCoordenada? CoordenadaConhecida { get; set; } = null;
         public List<LeituraEstacaoTotal> Leituras { get; set; } = new List<LeituraEstacaoTotal>();
 
         public override string ToString()
