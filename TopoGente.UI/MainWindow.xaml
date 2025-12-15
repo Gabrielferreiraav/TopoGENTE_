@@ -47,16 +47,24 @@
             </Grid>
         </GroupBox>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button x:Name="btnCarregarArquivo" Content="📂 1. Carregar Caderneta" 
-                    Width="180" Height="30" Click="btnCarregarArquivo_Click" FontWeight="Bold"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
 
-            <TextBlock x:Name="lblArquivo" Text="Nenhum arquivo selecionado" 
-                       VerticalAlignment="Center" Margin="15,0" FontStyle="Italic" Foreground="Gray"/>
+            <TextBlock Text="PROJETO:" VerticalAlignment="Center" FontWeight="Bold" Margin="5,0"/>
+            <Button x:Name="btnSalvarProjeto" Content="💾 Salvar (.topo)" 
+                    Width="100" Height="25" Click="btnSalvarProjeto_Click" Margin="5,0"/>
+            <Button x:Name="btnAbrirProjeto" Content="📂 Abrir (.topo)" 
+                    Width="100" Height="25" Click="btnAbrirProjeto_Click" Margin="5,0"/>
 
-            <Button x:Name="btnProcessar" Content="⚙️ 2. Calcular Coordenadas" 
-                    Width="180" Height="30" Margin="10,0" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold"/>
-            
+            <Rectangle Width="1" Height="20" Fill="Gray" Margin="10,0"/>
+
+            <Button x:Name="btnCarregarArquivo" Content="📄 Importar Caderneta" 
+                    Width="130" Height="25" Click="btnCarregarArquivo_Click" FontWeight="SemiBold" Margin="5,0"/>
+
+            <Button x:Name="btnProcessar" Content="⚙️ CALCULAR" 
+                    Width="120" Height="25" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold" Background="#DDFFDD"/>
+
+            <TextBlock x:Name="lblArquivo" Text="Nenhum arquivo" 
+                       VerticalAlignment="Center" Margin="10,0" FontStyle="Italic" Foreground="Gray" FontSize="10"/>
         </StackPanel>
 
         <TabControl x:Name="tabsPrincipal" Grid.Row="2" Margin="0,0,0,5">

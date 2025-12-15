@@ -23,7 +23,8 @@ namespace TopoGente.UI
         // Instâncias dos serviços
         private readonly LeituraArquivoFactory _leitorService;
         private readonly LevantamentoProcessor _processadorService;
-
+        private readonly OrganizarCaminhamento _organizador;
+        private readonly ArquivoProjetoService _projetoService;
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
         private Point _origemMouse;
@@ -35,6 +36,8 @@ namespace TopoGente.UI
             _leitorService = new LeituraArquivoFactory();
             _processadorService = new LevantamentoProcessor();
             _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
+            _organizador = new OrganizarCaminhamento();
+            _projetoService = new ArquivoProjetoService();
             ConfigurarComboTipo();
         }
         private void ConfigurarComboTipo()
@@ -62,7 +65,7 @@ namespace TopoGente.UI
         }
         private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Middle && e.ButtonState == MouseButtonState.Pressed )
+            if (e.ChangedButton == MouseButton.Middle && e.ButtonState == MouseButtonState.Pressed)
             {
                 var border = sender as IInputElement;
                 if (border != null)
@@ -90,7 +93,7 @@ namespace TopoGente.UI
         }
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_estaArrastando && e.MiddleButton == MouseButtonState.Pressed )
+            if (_estaArrastando && e.MiddleButton == MouseButtonState.Pressed)
             {
                 var border = sender as IInputElement;
                 if (border != null)
@@ -260,7 +263,8 @@ namespace TopoGente.UI
                 try
                 {
                     var linhas = File.ReadAllLines(openFileDialog.FileName);
-                    _estacoesEmMemoria = _leitorService.ProcessarArquivo(linhas);
+                    var estacoesBrutas = _leitorService.ProcessarArquivo(linhas);
+                    _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
                     cmbEstacoes.ItemsSource = _estacoesEmMemoria;
                     if (_estacoesEmMemoria.Count > 0)
                     {
@@ -292,10 +296,15 @@ namespace TopoGente.UI
         }
         private void cmbEstacoes_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada )
+            if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
             {
                 gridCaderneta.ItemsSource = estacaoSelecionada.Leituras;
-                txtInfoEstacao.Text = "Altura do Instrumento: {estacaoSelecionada.AlturaInstrumento} m";
+                txtInfoEstacao.Text = $"Altura do Instrumento: {estacaoSelecionada.AlturaInstrumento:F3} m";
+            }
+            else
+            {
+                gridCaderneta.ItemsSource = null;
+                txtInfoEstacao.Text = "Hi: -";
             }
         }
         private void btnProcessar_Click(object sender, RoutedEventArgs e)
@@ -307,24 +316,36 @@ namespace TopoGente.UI
                 double y = double.Parse(txtY.Text);
                 double z = double.Parse(txtZ.Text);
                 double azimuteInicial = double.Parse(txtAzimute.Text);
+
+                string nomePontoInicial = "M1";
+                if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
+                {
+                    nomePontoInicial = estacaoSelecionada.Nome;
+                }
+                else if (_estacoesEmMemoria != null && _estacoesEmMemoria.Count > 0)
+                {
+                    nomePontoInicial = _estacoesEmMemoria[0].Nome;
+                }
+
                 var pM1 = new PontoCoordenada
                 {
-                    Nome = "M1",
+                    Nome = nomePontoInicial,
                     X = x,
                     Y = y,
                     Z = z,
                     EhPontoPoligonal = true
                 };
-                var listaUnica = new List<LeituraEstacaoTotal>();
-                foreach (var estacao in _estacoesEmMemoria)
+
+                var listaOrganizada = _organizador.OrganizarPorVante(_estacoesEmMemoria, nomePontoInicial);
+
+                if (listaOrganizada.Count == 0)
                 {
-                    listaUnica.AddRange(estacao.Leituras);
+                    MessageBox.Show("Não foi possível traçar um caminhamento a partir da estação selecionada.", "Aviso");
+                    return;
                 }
 
-
                 // Converter o Arquivo em Objetos
-                var listaParaProcessar = _leituraEmMemoria.ToList();
-                var resultado = _processadorService.Processar(pM1,azimuteInicial, listaUnica);
+                var resultado = _processadorService.Processar(pM1, azimuteInicial, listaOrganizada);
                 gridResultados.ItemsSource = resultado.TodosOsPontos;
                 canvasDesenho.UpdateLayout();
                 DesenharLevantamento(resultado.TodosOsPontos);
@@ -348,6 +369,90 @@ namespace TopoGente.UI
             catch (Exception ex)
             {
                 MessageBox.Show($"Erro no processamento: {ex.Message}", "Erro Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        public void btnSalvarProjeto_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0)
+                {
+                    MessageBox.Show("Nenhum projeto carregado para salvar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                double x = 0, y = 0, z = 0;
+                double.TryParse(txtX.Text, out x);
+                double.TryParse(txtY.Text, out y);
+                double.TryParse(txtZ.Text, out z);
+                double.TryParse(txtAzimute.Text, out double azimuteInicial);
+
+                var projeto = new ProjetoTopo
+                {
+                    StartX = x,
+                    StartY = y,
+                    StartZ = z,
+                    StartAzimute = azimuteInicial,
+                    Estacoes = _estacoesEmMemoria
+                };
+
+                var saveDialog = new SaveFileDialog
+                {
+                    Filter = "Arquivo de Projeto TopoGente (*.topo)|*.topo|Todos os Arquivos (*.*)|*.*",
+                    FileName = "ProjetoTopo.topo",
+                    DefaultExt = ".topo",
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    _projetoService.SalvarProjeto(projeto, saveDialog.FileName);
+                    MessageBox.Show("Projeto salvo com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao salvar projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        public void btnAbrirProjeto_Click(object sender, RoutedEventArgs e)
+        {
+            var openDialog = new OpenFileDialog
+            {
+                Filter = "Arquivo de Projeto TopoGente (*.topo)|*.topo|Todos os Arquivos (*.*)|*.*",
+            };
+
+            if (openDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var projeto = _projetoService.CarregarProjeto(openDialog.FileName);
+                    txtX.Clear();txtY.Clear();txtZ.Clear();txtAzimute.Clear();
+                    cmbEstacoes.ItemsSource = null;
+                    gridCaderneta.ItemsSource = null;
+                    gridResultados.ItemsSource = null;
+                    canvasDesenho.Children.Clear();
+                    txtPerimetro.Text = "-"; txtErro.Text = "-"; txtPrecisao.Text = "-";
+
+                    txtX.Text = projeto.StartX.ToString();
+                    txtY.Text = projeto.StartY.ToString();
+                    txtZ.Text = projeto.StartZ.ToString();
+                    txtAzimute.Text = projeto.StartAzimute.ToString();
+
+                    _estacoesEmMemoria = projeto.Estacoes;
+
+                    cmbEstacoes.ItemsSource = _estacoesEmMemoria;
+                    if (_estacoesEmMemoria.Count > 0)
+                    {
+                        cmbEstacoes.SelectedIndex = 0;
+                    }
+                    lblArquivo.Text = System.IO.Path.GetFileName(openDialog.FileName);
+                    btnProcessar.IsEnabled = true;
+                    tabsPrincipal.SelectedIndex = 0;
+
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erro ao abrir projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
     }
