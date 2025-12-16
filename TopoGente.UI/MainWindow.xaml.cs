@@ -25,6 +25,7 @@ namespace TopoGente.UI
         private readonly LevantamentoProcessor _processadorService;
         private readonly OrganizarCaminhamento _organizador;
         private readonly ArquivoProjetoService _projetoService;
+        private readonly ExportadorDxfService _dxfService;
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
         private Point _origemMouse;
@@ -38,6 +39,7 @@ namespace TopoGente.UI
             _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
             _organizador = new OrganizarCaminhamento();
             _projetoService = new ArquivoProjetoService();
+            _dxfService = new ExportadorDxfService();
             ConfigurarComboTipo();
         }
         private void ConfigurarComboTipo()
@@ -363,6 +365,8 @@ namespace TopoGente.UI
                     txtPrecisao.Text = "-";
                 }
 
+                btnExportarDxf.IsEnabled = true;
+
                 tabsPrincipal.SelectedIndex = 1;
                 MessageBox.Show("Cálculo realizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -425,7 +429,7 @@ namespace TopoGente.UI
                 try
                 {
                     var projeto = _projetoService.CarregarProjeto(openDialog.FileName);
-                    txtX.Clear();txtY.Clear();txtZ.Clear();txtAzimute.Clear();
+                    txtX.Clear(); txtY.Clear(); txtZ.Clear(); txtAzimute.Clear();
                     cmbEstacoes.ItemsSource = null;
                     gridCaderneta.ItemsSource = null;
                     gridResultados.ItemsSource = null;
@@ -452,6 +456,35 @@ namespace TopoGente.UI
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Erro ao abrir projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        public void btnExportarDxf_Click(object sender, RoutedEventArgs e)
+        {
+            var pontosParaExportar = gridResultados.ItemsSource as List<PontoCoordenada>;
+
+            if (pontosParaExportar == null || pontosParaExportar.Count == 0)
+            {
+                MessageBox.Show("Não há coordenadas calculadas para exportar !", "Aviso");
+                return;
+            }
+
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "Arquivo DXF (*.dxf)|*.dxf|Todos os Arquivos (*.*)|*.*",
+                FileName = "LevantamentoTopoGente.dxf",
+                DefaultExt = ".dxf",
+            };
+            if (saveDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    _dxfService.SalvarDxf(pontosParaExportar, saveDialog.FileName);
+                    MessageBox.Show("Arquivo DXF exportado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erro ao exportar DXF: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

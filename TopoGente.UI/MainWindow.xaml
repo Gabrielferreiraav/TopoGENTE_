@@ -62,6 +62,10 @@
 
             <Button x:Name="btnProcessar" Content="⚙️ CALCULAR" 
                     Width="120" Height="25" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold" Background="#DDFFDD"/>
+            
+            <Button x:Name="btnExportarDxf" Content="Exportar DXF" 
+                Width="120" Height="25" Click="btnExportarDxf_Click" 
+                IsEnabled="False" FontWeight="Bold" Margin="10,0,0,0" Background="#E0F7FA"/>
 
             <TextBlock x:Name="lblArquivo" Text="Nenhum arquivo" 
                        VerticalAlignment="Center" Margin="10,0" FontStyle="Italic" Foreground="Gray" FontSize="10"/>
