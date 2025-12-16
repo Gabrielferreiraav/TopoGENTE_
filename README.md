@@ -32,21 +32,25 @@ Objetivo principal: aprendizado, análise e processamento rápido, não substitu
 
 ## Funcionalidades principais 
 
-Importar caderneta de campo (.txt ou .csv): Arquivo com linhas que descrevem leituras; o sistema interpreta automaticamente (separador vírgula ou ponto-e-vírgula). 
+Importar caderneta de campo (.fbk, .txt ou .csv): Suporte nativo ao formato Autodesk Field Book (.fbk) e arquivos de texto delimitados. O sistema identifica automaticamente o formato, agrupa estações duplicadas e organiza o caminhamento.
 
-Caderneta de Campo Editável: Permite alterar a classificação dos pontos (Ré, Vante, Irradiação) diretamente na interface antes do cálculo, facilitando correções sem necessidade de editar o arquivo original. 
+Identificação Automática de Coordenadas: Ao ler arquivos como o .fbk, o sistema detecta se existem coordenadas de partida (NEZ) e preenche automaticamente os campos de configuração inicial.
 
-Calcular poligonal: A partir de um ponto inicial (M1) com coordenadas e um azimute inicial é calculada a sequência de estações (M2, M3...). 
+Visualização e Edição por Estação: Interface organizada hierarquicamente. O usuário seleciona a estação desejada em uma lista para visualizar apenas as leituras daquele ponto, facilitando a conferência.
 
-Calcular pontos irradiados: Pontos de detalhe (poste, árvore, elementos) são calculados a partir da estação com ângulo e distância lida. 
+Persistência de Projeto (.topo): Permite salvar todo o trabalho (dados importados, coordenadas configuradas e cálculos) em um formato próprio (.topo) para continuar depois, sem perder a organização das estações.
 
-Mostrar resultados: Tabela com todos os pontos (nome, X, Y, Z), perímetro da poligonal, erro de fechamento (se houver) e precisão. 
+Exportação DXF: Gera arquivos universais (.dxf) compatíveis com AutoCAD (R12/2000 em diante), Civil 3D e QGIS. Exporta camadas separadas para poligonal, irradiações, nomes de pontos e cotas (Z real).
 
-Desenho simples: Exibe a poligonal e pontos irradiados em um Canvas com legendas e tooltips. Conseguimos aumentar ou diminuir o zoom, além de poder movimentar o desenho no visualizador. 
+Calcular poligonal e irradiados: Processamento inteligente que identifica a sequência da poligonal (caminhamento por vante) e calcula as coordenadas X, Y, Z de todos os pontos irradiados.
 
-Relatórios básicos: Listagem de pontos calculados (pode ser copiada/exportada no futuro).
+Resultados e Desenho: Tabela completa com coordenadas e desenho gráfico interativo (zoom, pan) da poligonal e pontos.
 
 ## Benefícios para o trabalho de topografia
+
+Interoperabilidade: aceita formatos de equipamentos (FBK) e entrega formatos de engenharia (DXF).
+
+Segurança: possibilidade de salvar o estado do projeto e continuar posteriormente.
 
 Agilidade: processamento rápido de cadernetas em campo ou escritório. 
 
@@ -68,31 +72,29 @@ Tela: resolução mínima 1024x768 para conforto.
 
 ## Guia prático de uso
 
-Abrir o aplicativo (TopoGente.UI). 
+Abrir o aplicativo (TopoGente.UI).
 
-Carregar caderneta: Botão "Carregar Arquivo" → selecionar arquivo .txt/.csv. O sistema lista as leituras na grade. 
+Carregar caderneta: Botão "Importar Caderneta" -> selecionar arquivo .fbk, .txt ou .csv. O sistema carregará as estações.
 
-Inserir ponto de partida: Preencha X, Y, Z do marco inicial (M1) e azimute inicial. 
+Verificar Estações: Utilize a caixa de seleção para navegar entre as estações carregadas e conferir os dados brutos.
 
-Processar: Clicar em "Processar". O programa calcula automaticamente a poligonal, pontos irradiados, perímetro e erro. 
+Configurar Partida: Se o arquivo tiver coordenadas (NEZ), elas aparecerão automaticamente nos campos X, Y, Z e Azimute. Caso contrário, digite manualmente.
 
-Visualizar: Aba de resultados mostra tabela e desenho. Tooltip nos pontos exibe coordenadas e nome. 
+Calcular: Clicar em "CALCULAR". O programa processa a poligonal e gera os resultados na grade e no desenho.
 
-Corrigir input: Se algo estiver errado, editar a grade (seção das leituras) e reprocessar.
+Exportar ou Salvar: Utilize "Exportar DXF" para gerar o arquivo para CAD, ou "Salvar (.topo)" para guardar o projeto para edição futura.
+
+Abrir Projeto: Utilize "Abrir (.topo)" para restaurar um trabalho anterior exatamente como foi salvo.
 
 ## Integração operacional
 
-Instrumentista: gera caderneta no campo e passa arquivo ao técnico. 
+Instrumentista: exporta a caderneta da estação total (formato FBK ou CSV/TXT).
 
-Técnico/engenheiro: altera o arquivo para quie esteja no padrão de entrada , roda o TopoGente, verifica fecho e erros; corrige ou reprocessa se necessário. 
+Técnico/engenheiro: importa no TopoGente, verifica a geometria, fecha a poligonal e gera o DXF.
 
-Documentação: exporta ou registra coordenadas para planta ou cadastro.
+Projetista: abre o DXF no AutoCAD/Civil 3D para desenhar a planta final com camadas já separadas.
 
 ## FAQ
-
-Q : Que formatos de arquivo são suportados? 
-
-A: Arquivos de texto .txt e .csv com separador , ou ;. Cabeçalhos com "Estação" ou linhas começando com # são ignorados. 
 
 Q: O que significa "Erro de Fechamento"? 
 
@@ -102,9 +104,22 @@ Q: Posso usar em campo com um laptop simples?
 
 A: Sim — aplicação é leve. Evite telas muito pequenas; recomenda-se pelo menos 4 GB RAM. 
 
-Q: Ele gera arquivos para CAD (DXF) ou GIS? 
+Q: Que formatos de arquivo são suportados?
 
-A: Agora não; exportação é um recurso futuro planejado.
+A: Autodesk Field Book (.fbk) e arquivos de texto/CSV padronizados (separador vírgula ou ponto-e-vírgula).
+
+Q: O programa corrige erros de sequência no arquivo?
+
+A: Sim. O sistema possui um organizador de caminhamento que conecta as estações pela leitura de Vante, mesmo que estejam gravadas fora de ordem no arquivo.
+
+Q: Ele gera arquivos para CAD (DXF)?
+
+A: Sim. Gera arquivos DXF compatíveis com versões antigas e novas do AutoCAD, com elevações (Z) corretas nos textos e geometrias.
+
+Q: Posso salvar meu trabalho para continuar depois?
+
+A: Sim, através da funcionalidade "Salvar Projeto" que cria arquivos .topo.
+
 
 ## Glossário rápido
 
@@ -118,6 +133,10 @@ Ré / Vante: Ré = direção de chegada (do ponto anterior); Vante = direção d
 
 Erro de fechamento: a discrepância entre ponto esperado e ponto calculado no final da poligonal.
 
+FBK: formato de arquivo de caderneta de campo da Autodesk.
+
+DXF: formato de intercâmbio de desenho vetorial (CAD).
+
 ## Suporte e contato
 
-Entrar em contato **gabriel.f.viana@ufv.br** para detalhes.
+Entrar em contato com **gabriel.f.viana@ufv.br** para detalhes.
