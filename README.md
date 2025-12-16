@@ -1,5 +1,5 @@
 **Versão:** 1.0 
-**Ultima atualização: 2025-12-10**
+**Ultima atualização: 2025-12-16**
 
 ## Sumário
 - [O que é o TopoGente?](#o-que-é-o-topogente)
