@@ -305,22 +305,22 @@ namespace TopoGente.Tests
             var leituras = new List<LeituraEstacaoTotal>
             {
                 // M1 -> M2 (Norte 100m)
-                new LeituraEstacaoTotal { PontoVisado="M2", AnguloHorizontal=180, DistanciaInclinada=100, AnguloVertical=90, EhLeituraDePoligonal=true },
+                new LeituraEstacaoTotal { PontoVisado="M2", AnguloHorizontal=180, DistanciaInclinada=100, AnguloVertical=90, Tipo = Core.Entities.TipoLeitura.Poligonal},
                 // M2 -> M3 (Leste 100m)
-                new LeituraEstacaoTotal { PontoVisado="M3", AnguloHorizontal=270, DistanciaInclinada=100, AnguloVertical=90, EhLeituraDePoligonal=true },
+                new LeituraEstacaoTotal { PontoVisado="M3", AnguloHorizontal=270, DistanciaInclinada=100, AnguloVertical=90, Tipo = Core.Entities.TipoLeitura.Poligonal},
                 // M3 -> M4 (Sul 100m)
-                new LeituraEstacaoTotal { PontoVisado="M4", AnguloHorizontal=270, DistanciaInclinada=100, AnguloVertical=90, EhLeituraDePoligonal=true },
+                new LeituraEstacaoTotal { PontoVisado="M4", AnguloHorizontal=270, DistanciaInclinada=100, AnguloVertical=90, Tipo = Core.Entities.TipoLeitura.Poligonal},
                 
                 // M4 -> M1 (Oeste 100m) - AQUI VAMOS INTRODUZIR O ERRO
                 // Se fosse perfeito seria 270 (curva a direita vindo do Sul).
                 // Vamos colocar 270.01 (Erro angular pequeno)
                 // Isso vai fazer o ponto final não cair exatamente em 1000,1000
                 new LeituraEstacaoTotal {
-                    PontoVisado="M1_Fech",
+                    PontoVisado="M1",
                     AnguloHorizontal=270.01, // Erro proposital
                     DistanciaInclinada=100,
                     AnguloVertical=90,
-                    EhLeituraDePoligonal=true
+                    Tipo = Core.Entities.TipoLeitura.Poligonal  
                 }
             };
 
