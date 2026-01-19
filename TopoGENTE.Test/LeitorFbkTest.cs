@@ -9,13 +9,6 @@ namespace TopoGENTE.Test
 {
     public class LeitorFbkTest
     {
-        [Fact]
-        public void DeveLerCabecalho_E_RetornarTrue()
-        {
-            var leitor = new LeitorFbk();
-            string cabecalho = "UNIT METER DECDEG \n NEZ \"A11\" 100 100 10";
-            Assert.True(leitor.IdentificarFormato(cabecalho));
-        }
 
         [Fact]
         public void Ler_IdentificarCoordenadas()

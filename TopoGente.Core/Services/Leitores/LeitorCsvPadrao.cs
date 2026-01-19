@@ -12,11 +12,6 @@ namespace TopoGente.Core.Services.Leitores
     public class LeitorCsvPadrao : ILeitorArquivo
     {
         public string NomeFormato => "Texto/CSV Padrão";
-        public bool IdentificarFormato(string cabecalhoArquivo)
-        {
-            return ( (cabecalhoArquivo.Contains(",") || cabecalhoArquivo.Contains(";"))
-                && cabecalhoArquivo.ToUpper().Contains("ESTAÇÃO") );
-        }
         public List<Estacao> Ler(string[] linhas)
         {
             var leiturasBrutas = new List<LeituraEstacaoTotal>();
@@ -42,6 +37,21 @@ namespace TopoGente.Core.Services.Leitores
                     double ahDecimal = ConversorAngulos.DeFormatoCompacto(ahCompacto);
                     double avDecimal = ConversorAngulos.DeFormatoCompacto(avCompacto);
 
+                    TipoLeitura tipo = TipoLeitura.Irradiacao;
+                    string descUpper = int.Parse(colunas[8]).ToString().ToUpper();
+
+                    if (descUpper.Contains("VANTE") || descUpper.Contains("-V") || descUpper.StartsWith("M"))
+                    {
+                        tipo = TipoLeitura.Poligonal;
+                    }
+                    if (descUpper.Contains("RE") || descUpper.Contains("RÉ") || descUpper.Contains("BS"))
+                    {
+                        tipo = TipoLeitura.Re;
+                    }
+
+                    if (int.TryParse(colunas[8], out int tipoInt))
+                        tipo = (TipoLeitura)tipoInt;
+
                     var leitura = new LeituraEstacaoTotal
                     {
                         EstacaoOcupada = colunas[0].Trim(),
@@ -52,14 +62,14 @@ namespace TopoGente.Core.Services.Leitores
                         AnguloVertical = avDecimal,
                         DistanciaInclinada = double.Parse(colunas[6], cultura),
                         AlturaPrisma = double.Parse(colunas[7], cultura),
-                        Tipo = (TipoLeitura)int.Parse(colunas[8])
+                        Tipo = tipo
                     };
 
                     leiturasBrutas.Add(leitura);
                 }
                 catch
                 {
-
+                    continue;
                 }
             }
             
@@ -70,7 +80,24 @@ namespace TopoGente.Core.Services.Leitores
                 Leituras = grupo.ToList()
             }).ToList();
 
-                return estacoes;
+            if (estacoes.Count > 0)
+            {
+                var primeiraEstacao = estacoes.First();
+
+                // Verifica se já não foi setada
+                if (primeiraEstacao.CoordenadaConhecida == null)
+                {
+                    primeiraEstacao.CoordenadaConhecida = new PontoCoordenada
+                    {
+                        Nome = primeiraEstacao.Nome,
+                        X = 1000.0,
+                        Y = 1000.0,
+                        Z = 100.0
+                    };
+                }
+            }
+
+            return estacoes;
 
         }
     }

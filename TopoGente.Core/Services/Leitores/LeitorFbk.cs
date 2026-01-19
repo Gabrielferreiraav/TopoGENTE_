@@ -9,10 +9,6 @@ namespace TopoGente.Core.Services.Leitores
     public class LeitorFbk : ILeitorArquivo
     {
         public string NomeFormato => "FBK";
-        public bool IdentificarFormato(string cabecalhoArquivo)
-        {
-            return cabecalhoArquivo.Contains("UNIT") || cabecalhoArquivo.Contains("STN") || cabecalhoArquivo.Contains("AD VA");
-        }
 
         public List<Estacao> Ler(string[] linhas)
         {

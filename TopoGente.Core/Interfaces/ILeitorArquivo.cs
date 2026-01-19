@@ -9,8 +9,6 @@ namespace TopoGente.Core.Interfaces
     {
         string NomeFormato { get; }
 
-        bool IdentificarFormato(string cabecalhoArquivo);
-
         List<Estacao> Ler(string[] linhas);
 
     }

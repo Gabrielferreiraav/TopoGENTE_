@@ -16,4 +16,10 @@ namespace TopoGente.Core.Entities
         Irradiacao = 1, 
         Poligonal = 2   
     }
+
+    public enum FormatoArquivoEntrada
+    {
+        CsvPadrao = 0,
+        Fbk = 1
+    }
 }

@@ -252,6 +252,16 @@ namespace TopoGente.UI
             }
         }
 
+        private static FormatoArquivoEntrada ObterFormatoEntrada(ComboBox cmbFormatoArquivo)
+        {
+            return cmbFormatoArquivo.SelectedIndex switch
+            {
+                0 => FormatoArquivoEntrada.CsvPadrao,
+                1 => FormatoArquivoEntrada.Fbk,
+                _ => FormatoArquivoEntrada.CsvPadrao,
+            };
+        }
+
         private void btnCarregarArquivo_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
@@ -264,8 +274,9 @@ namespace TopoGente.UI
             {
                 try
                 {
+                    var formato = ObterFormatoEntrada(cmbFormatoArquivo);
                     var linhas = File.ReadAllLines(openFileDialog.FileName);
-                    var estacoesBrutas = _leitorService.ProcessarArquivo(linhas);
+                    var estacoesBrutas = _leitorService.ProcessarArquivo(formato,linhas);
                     _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
                     cmbEstacoes.ItemsSource = _estacoesEmMemoria;
                     if (_estacoesEmMemoria.Count > 0)

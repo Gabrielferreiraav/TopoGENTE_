@@ -20,19 +20,19 @@ namespace TopoGente.Core.Services
                 new LeitorCsvPadrao()
             };
         }
-        public List<Estacao> ProcessarArquivo(string[] linhasArquivo)
+        public List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato,string[] linhasArquivo)
         {
             if (linhasArquivo == null || linhasArquivo.Length == 0)
                 throw new ArgumentException("O arquivo fornecido está vazio.");
-            string cabecalho = string.Join("\n", linhasArquivo.Take(20));
-            foreach (var leitor in _leitorArquivos)
+
+
+            ILeitorArquivo? leitor = formato switch
             {
-                if (leitor.IdentificarFormato(cabecalho))
-                {
-                    return leitor.Ler(linhasArquivo);
-                }
-            }
-            throw new NotSupportedException("O formato do arquivo não é suportado por nenhum dos leitores disponíveis.");
+                FormatoArquivoEntrada.Fbk => _leitorArquivos.OfType<LeitorFbk>().FirstOrDefault(),
+                FormatoArquivoEntrada.CsvPadrao => _leitorArquivos.OfType<LeitorCsvPadrao>().FirstOrDefault(),
+                _ => null
+            };
+            return leitor.Ler(linhasArquivo);
         }
     }
 }

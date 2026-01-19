@@ -57,6 +57,11 @@
 
             <Rectangle Width="1" Height="20" Fill="Gray" Margin="10,0"/>
 
+            <TextBlock Text="Formato : " VerticalAlignment="Center" Margin="5,0"/>
+            <ComboBox x:Name="cmbFormatoArquivo" Width="160" Height="25" Margin="5,0" SelectedIndex="0">
+                <ComboBoxItem Content=" Csv/txt"/>
+                <ComboBoxItem Content="Fbk"/>
+            </ComboBox>
             <Button x:Name="btnCarregarArquivo" Content="📄 Importar Caderneta" 
                     Width="130" Height="25" Click="btnCarregarArquivo_Click" FontWeight="SemiBold" Margin="5,0"/>
 
