@@ -20,6 +20,7 @@ namespace TopoGente.Core.Entities
     public enum FormatoArquivoEntrada
     {
         CsvPadrao = 0,
-        Fbk = 1
+        Fbk = 1,
+        LandXml = 2
     }
 }
