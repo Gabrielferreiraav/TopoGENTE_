@@ -32,7 +32,7 @@ namespace TopoGente.Core.Services.Leitores
             string conteudoXXML = string.Join(Environment.NewLine, linhas); //Transforma XML em um texto unico
 
             int indexXml = conteudoXXML.IndexOf("<");
-            if (indexXml > 0 ) 
+            if (indexXml > 0)
             {
                 conteudoXXML = conteudoXXML.Substring(indexXml);
             }
@@ -70,6 +70,35 @@ namespace TopoGente.Core.Services.Leitores
         private FatoresConversao LerUnidadesProjeto(XDocument doc) // incompleto
         {
             var fatores = new FatoresConversao();
+
+            var unitsTag = doc.Root?.Element(_ns + "Units"); //Busca a Tag <Units>
+            if (unitsTag == null)
+            {
+                return fatores;
+            }
+
+            var metricTag = unitsTag.Element(_ns + "Metric"); //Busca a Tag <Metric>
+            if (metricTag != null)
+            {
+                //verificar unidade angular
+                string angUni = metricTag.Attribute("angularUnit")?.Value.ToLower() ?? "degress";
+                fatores.Angular = ObterFatorAngular(angUni);
+            }
+            else
+            {
+                var imperialTag = unitsTag.Element(_ns + "Imperial"); //Busca a Tag <Imperial>
+                if (imperialTag != null)
+                {
+                    //verificar unidade angular
+                    string linearUnit = imperialTag.Attribute("linearUnit")?.Value.ToLower() ?? "foot";
+                    string angUni = imperialTag.Attribute("angularUnit")?.Value.ToLower() ?? "degress";
+
+                    fatores.Angular = ObterFatorAngular(angUni);
+
+                    if (linearUnit == "ussurveyfoot") fatores.Linear = 1200.0 / 3937.0; //1 US Survey Foot = 1200/3937 metros
+                    else if (linearUnit == "foot" || linearUnit == "internationalfoot") fatores.Linear = 0.3048; //1 foot = 0.3048 metros
+                }
+            }
             return fatores;
         }
 
@@ -79,19 +108,19 @@ namespace TopoGente.Core.Services.Leitores
             {
                 "radians" => 180.0 / Math.PI, //rad -> graus
                 "grads" or "gon" => 0.9, //100 gons = 90 graus
-                "degress" => 1.0, //´graus
+                "degress" => 1.0, // graus
                 _ => 1.0
             };
         }
 
-        
 
-        private Dictionary<string,PontoCoordenada> MapearCgPoints(XDocument doc, FatoresConversao fatores)
+
+        private Dictionary<string, PontoCoordenada> MapearCgPoints(XDocument doc, FatoresConversao fatores)
         {
             var dict = new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
             var cultura = CultureInfo.InvariantCulture;
             var pontos = doc.Descendants(_ns + "CgPoint");
-            foreach(var p in pontos)
+            foreach (var p in pontos)
             {
                 var nomeOriginal = p.Attribute("name")?.Value?.Trim();
                 if (string.IsNullOrEmpty(nomeOriginal)) continue;
@@ -105,7 +134,7 @@ namespace TopoGente.Core.Services.Leitores
 
                 var nomeFinal = GarantirNomeUnico(dict, nomeOriginal);
 
-                if (!string.Equals(nomeFinal,nomeOriginal, StringComparison.OrdinalIgnoreCase)
+                if (!string.Equals(nomeFinal, nomeOriginal, StringComparison.OrdinalIgnoreCase))
                 {
                     _ultimosAvisos.Add($"CgPoint duplicado '{nomeOriginal} renomeado para {nomeFinal}'.");
                 }
@@ -122,7 +151,7 @@ namespace TopoGente.Core.Services.Leitores
             return dict;
         }
 
-        private string GarantirNomeUnico (Dictionary<string, PontoCoordenada> dict, string nomeOriginal)
+        private string GarantirNomeUnico(Dictionary<string, PontoCoordenada> dict, string nomeOriginal)
         {
             if (!dict.ContainsKey(nomeOriginal))
             {
@@ -141,10 +170,118 @@ namespace TopoGente.Core.Services.Leitores
 
         }
         //incompleto
-        private Estacao ProcessarInstrumentSetup(XElement setup, Dictionary<string,PontoCoordenada> coords, FatoresConversao fatores)
+        private Estacao ProcessarInstrumentSetup(XElement setup, Dictionary<string, PontoCoordenada> coords, FatoresConversao fatores)
         {
-            var esatacao = new Estacao();
-            return esatacao;
+            var cultura = CultureInfo.InvariantCulture;
+            string idSetup = setup.Attribute("id")?.Value;
+            string nomeEstacao = setup.Attribute("stationName")?.Value ?? idSetup;
+
+            double hi = 0.0;
+            // altura do instrumento tbm sofre conversao do fator linear
+            if (setup.Attribute("instrumentHeigth") != null)
+            {
+                hi = double.Parse(setup.Attribute("instrumentHeigth").Value, cultura) * fatores.Linear;
+            }
+
+            var novaEstacao = new Estacao
+            {
+                Nome = nomeEstacao,
+                AlturaInstrumento = hi,
+                Id = idSetup,
+                Leituras = new List<LeituraEstacaoTotal>()
+            };
+
+            if (coords.ContainsKey(nomeEstacao))
+            {
+                novaEstacao.CoordenadaConhecida = coords[nomeEstacao];
+            }
+
+            var backsights = setup.Descendants(_ns + "Backsight");
+            foreach (var bs in backsights)
+            {
+                string alvoBs = bs.Attribute("targetPoint").Value;
+                double anguloBs = 0.0;
+                // se tiver leitura angular no BS
+                if (bs.Attribute("azimuth") != null)
+                {
+                    anguloBs = double.Parse(bs.Attribute("azimuth").Value, cultura) * fatores.Angular;
+                }
+                else if (bs.Attribute("circle") != null)
+                {
+                    anguloBs = double.Parse(bs.Attribute("circle").Value, cultura) * fatores.Angular;
+                }
+
+                if (!string.IsNullOrEmpty(alvoBs))
+                {
+                    novaEstacao.Leituras.Add((new LeituraEstacaoTotal
+                    {
+                        EstacaoOcupada = nomeEstacao,
+                        PontoVisado = alvoBs,
+                        AnguloHorizontal = anguloBs,
+                        AlturaInstrumento = hi,
+                        Tipo = TipoLeitura.Re,
+                        Observacao = "Leitura de Backsight"
+                    }));
+                }
+            }
+
+            // processar as observações
+            var observacoes = setup.Descendants(_ns + "Observation");
+            foreach (var obs in observacoes)
+            {
+                string alvo = obs.Attribute("targetPoint")?.Value;
+
+                if (string.IsNullOrEmpty(alvo)) continue;
+
+                double horizAngle = 0, zenithAngle = 0, slopeDist = 0, targetHeigth = 0;
+
+                // conversao angular
+
+                if (obs.Attribute("horizAngle") != null)
+                {
+                    horizAngle = double.Parse(obs.Attribute("horizAngle").Value, cultura) * fatores.Angular;
+                }
+
+                if (obs.Attribute("zenithAngle") != null)
+                {
+                    zenithAngle = double.Parse(obs.Attribute("zenithAngle").Value, cultura) * fatores.Angular;
+                }
+
+                // conversao linear
+
+                if (obs.Attribute("slopeDist") != null)
+                {
+                    slopeDist = double.Parse(obs.Attribute("slopeDist").Value, cultura) * fatores.Linear;
+                }
+
+                if (obs.Attribute("targetHeigth") != null)
+                {
+                    targetHeigth = double.Parse(obs.Attribute("targetHeigth").Value, cultura) * fatores.Linear;
+                }
+
+                string desc = obs.Attribute("desc").Value ?? "";
+
+                TipoLeitura tipo = TipoLeitura.Irradiacao;
+
+                if (!string.IsNullOrEmpty(desc) && (desc.ToUpper().Contains("VANTE") || desc.ToUpper().Contains("V")))
+                {
+                    tipo = TipoLeitura.Poligonal;
+                }
+
+                novaEstacao.Leituras.Add((new LeituraEstacaoTotal
+                {
+                    EstacaoOcupada = nomeEstacao,
+                    PontoVisado = alvo,
+                    AlturaInstrumento = hi,
+                    AlturaPrisma = targetHeigth,
+                    AnguloHorizontal = horizAngle,
+                    AnguloVertical = zenithAngle,
+                    DistanciaInclinada = slopeDist,
+                    Tipo = tipo,
+                    Observacao = desc
+                }));
+            }
+            return novaEstacao;
         }
     }
 }
