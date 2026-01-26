@@ -258,6 +258,7 @@ namespace TopoGente.UI
             {
                 0 => FormatoArquivoEntrada.CsvPadrao,
                 1 => FormatoArquivoEntrada.Fbk,
+                2 => FormatoArquivoEntrada.LandXml,
                 _ => FormatoArquivoEntrada.CsvPadrao,
             };
         }
@@ -266,7 +267,7 @@ namespace TopoGente.UI
         {
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "Arquivos Topográficos (*.txt;*.csv;*.fbk)|*.txt;*.csv;*.fbk|Todos os Arquivos (*.*)|*.*",
+                Filter = "Arquivos Topográficos (*.txt;*.csv;*.fbk, *.xml)|*.txt;*.csv;*.fbk;*.xml|Todos os Arquivos (*.*)|*.*",
                 Title = "Selecione a Caderneta de Campo"
             };
 

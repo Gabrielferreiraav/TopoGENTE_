@@ -17,7 +17,8 @@ namespace TopoGente.Core.Services
             _leitorArquivos = new List<ILeitorArquivo>
             {
                 new LeitorFbk(),
-                new LeitorCsvPadrao()
+                new LeitorCsvPadrao(),
+                new LeitorLandXml()
             };
         }
         public List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato,string[] linhasArquivo)
@@ -30,8 +31,12 @@ namespace TopoGente.Core.Services
             {
                 FormatoArquivoEntrada.Fbk => _leitorArquivos.OfType<LeitorFbk>().FirstOrDefault(),
                 FormatoArquivoEntrada.CsvPadrao => _leitorArquivos.OfType<LeitorCsvPadrao>().FirstOrDefault(),
+                FormatoArquivoEntrada.LandXml => _leitorArquivos.OfType<LeitorLandXml>().FirstOrDefault(),
                 _ => null
             };
+
+            if (leitor == null)
+                throw new NotSupportedException($"O formato de arquivo '{formato}' não é suportado.");
             return leitor.Ler(linhasArquivo);
         }
     }
