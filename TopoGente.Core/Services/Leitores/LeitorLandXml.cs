@@ -17,7 +17,7 @@ namespace TopoGente.Core.Services.Leitores
         public string NomeFormato => "LandXML 1.2";
 
         private readonly XNamespace _ns = "http://www.landxml.org/schema/LandXML-1.2";
-        private IReadOnlyList<string> UltimosAvisos => _ultimosAvisos;
+        public IReadOnlyList<string> UltimosAvisos => _ultimosAvisos;
         private readonly List<string> _ultimosAvisos = new();
 
         private class FatoresConversao
@@ -81,7 +81,7 @@ namespace TopoGente.Core.Services.Leitores
             if (metricTag != null)
             {
                 //verificar unidade angular
-                string angUni = metricTag.Attribute("angularUnit")?.Value.ToLower() ?? "degress";
+                string angUni = metricTag.Attribute("angularUnit")?.Value.ToLower() ?? "degrees";
                 fatores.Angular = ObterFatorAngular(angUni);
             }
             else
@@ -91,7 +91,7 @@ namespace TopoGente.Core.Services.Leitores
                 {
                     //verificar unidade angular
                     string linearUnit = imperialTag.Attribute("linearUnit")?.Value.ToLower() ?? "foot";
-                    string angUni = imperialTag.Attribute("angularUnit")?.Value.ToLower() ?? "degress";
+                    string angUni = imperialTag.Attribute("angularUnit")?.Value.ToLower() ?? "degrees";
 
                     fatores.Angular = ObterFatorAngular(angUni);
 
@@ -108,7 +108,7 @@ namespace TopoGente.Core.Services.Leitores
             {
                 "radians" => 180.0 / Math.PI, //rad -> graus
                 "grads" or "gon" => 0.9, //100 gons = 90 graus
-                "degress" => 1.0, // graus
+                "degrees" => 1.0, // graus
                 _ => 1.0
             };
         }

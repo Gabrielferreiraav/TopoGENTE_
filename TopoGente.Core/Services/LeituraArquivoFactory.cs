@@ -21,11 +21,13 @@ namespace TopoGente.Core.Services
                 new LeitorLandXml()
             };
         }
-        public List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato,string[] linhasArquivo)
+
+        public ResultadoLeituraArquivo ProcessarArquivoComResultado(FormatoArquivoEntrada formato, string[] linhasArquivo)
         {
             if (linhasArquivo == null || linhasArquivo.Length == 0)
-                throw new ArgumentException("O arquivo fornecido está vazio.");
-
+            {
+                throw new ArgumentException("O arquivo fornecido está vazio");
+            }
 
             ILeitorArquivo? leitor = formato switch
             {
@@ -37,7 +39,23 @@ namespace TopoGente.Core.Services
 
             if (leitor == null)
                 throw new NotSupportedException($"O formato de arquivo '{formato}' não é suportado.");
-            return leitor.Ler(linhasArquivo);
+
+            var estacoes = leitor.Ler(linhasArquivo);
+
+            var avisos = new List<string>();
+
+            if (leitor is LeitorLandXml landXml)
+            {
+                avisos.AddRange(landXml.UltimosAvisos);
+            }
+
+            return new ResultadoLeituraArquivo
+            {
+                Estacoes = estacoes,
+                Avisos = avisos
+            };
         }
+        public List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato,string[] linhasArquivo)
+        => ProcessarArquivoComResultado(formato, linhasArquivo).Estacoes;
     }
 }

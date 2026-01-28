@@ -15,6 +15,7 @@ using System.Windows;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Diagnostics;
+using TopoGente.Core.Validators;
 
 namespace TopoGente.UI
 {
@@ -267,7 +268,7 @@ namespace TopoGente.UI
         {
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "Arquivos Topográficos (*.txt;*.csv;*.fbk, *.xml)|*.txt;*.csv;*.fbk;*.xml|Todos os Arquivos (*.*)|*.*",
+                Filter = "Arquivos Topográficos (*.txt;*.csv;*.fbk;*.xml)|*.txt;*.csv;*.fbk;*.xml|Todos os Arquivos (*.*)|*.*",
                 Title = "Selecione a Caderneta de Campo"
             };
 
@@ -277,8 +278,10 @@ namespace TopoGente.UI
                 {
                     var formato = ObterFormatoEntrada(cmbFormatoArquivo);
                     var linhas = File.ReadAllLines(openFileDialog.FileName);
-                    var estacoesBrutas = _leitorService.ProcessarArquivo(formato,linhas);
+
+                    var estacoesBrutas = _leitorService.ProcessarArquivo(formato, linhas);
                     _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
+
                     cmbEstacoes.ItemsSource = _estacoesEmMemoria;
                     if (_estacoesEmMemoria.Count > 0)
                     {
@@ -288,19 +291,9 @@ namespace TopoGente.UI
                             txtX.Text = estacaoInicial.CoordenadaConhecida.X.ToString("F3");
                             txtY.Text = estacaoInicial.CoordenadaConhecida.Y.ToString("F3");
                             txtZ.Text = estacaoInicial.CoordenadaConhecida.Z.ToString("F3");
-                            MessageBox.Show($"Coordenadas da estação {estacaoInicial.Nome} detectadas no arquivo!");
                         }
-                        else
-                        {
-                            MessageBox.Show($"Atenção: A estação {estacaoInicial.Nome} não possui coordenadas conhecidas. Por favor, insira manualmente as coordenadas iniciais.", "Atenção", MessageBoxButton.OK, MessageBoxImage.Warning);
-
-                        }
-                        cmbEstacoes.ItemsSource = _estacoesEmMemoria;
-                        cmbEstacoes.SelectedIndex = 0;
                     }
-                    lblArquivo.Text = System.IO.Path.GetFileName(openFileDialog.FileName);
-                    btnProcessar.IsEnabled = true;
-                    tabsPrincipal.SelectedIndex = 0;
+                    AplicarGateUIAposCarregarouAbrir(formato, System.IO.Path.GetFileName(openFileDialog.FileName));
                 }
                 catch (Exception ex)
                 {
@@ -441,6 +434,7 @@ namespace TopoGente.UI
                 try
                 {
                     var projeto = _projetoService.CarregarProjeto(openDialog.FileName);
+
                     txtX.Clear(); txtY.Clear(); txtZ.Clear(); txtAzimute.Clear();
                     cmbEstacoes.ItemsSource = null;
                     gridCaderneta.ItemsSource = null;
@@ -455,14 +449,7 @@ namespace TopoGente.UI
 
                     _estacoesEmMemoria = projeto.Estacoes;
 
-                    cmbEstacoes.ItemsSource = _estacoesEmMemoria;
-                    if (_estacoesEmMemoria.Count > 0)
-                    {
-                        cmbEstacoes.SelectedIndex = 0;
-                    }
-                    lblArquivo.Text = System.IO.Path.GetFileName(openDialog.FileName);
-                    btnProcessar.IsEnabled = true;
-                    tabsPrincipal.SelectedIndex = 0;
+                    AplicarGateUIAposCarregarouAbrir(null, System.IO.Path.GetFileName(openDialog.FileName));
 
                 }
                 catch (Exception ex)
@@ -500,5 +487,120 @@ namespace TopoGente.UI
                 }
             }
         }
+
+        private sealed class GateResultado
+        {
+            public bool PodeCalcular { get; init; }
+            public string Motivo { get; init; } = string.Empty;
+        }
+
+        private static List<LeituraEstacaoTotal> ColetarLeituras(List<Estacao> estacoes)
+            => estacoes?.SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>()).ToList()
+            ?? new List<LeituraEstacaoTotal>();
+
+        private static List<PontoCoordenada> ColetarPontosCoordenada(List<Estacao> estacoes)
+            => estacoes?
+            .Where(e => e.CoordenadaConhecida != null)
+            .Select(e => e.CoordenadaConhecida!)
+            .Select(p => new PontoCoordenada
+            {
+                Nome = p.Nome,
+                X = p.X,
+                Y = p.Y,
+                Z = p.Z,
+                EhPontoPoligonal = false
+            }).ToList() ?? new List<PontoCoordenada>();
+
+        private static GateResultado AvaliarGateCalculo(List<Estacao> estacoes)
+        {
+            if (estacoes == null || estacoes.Count ==0)
+            {
+                return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma estacao encontrada" };
+            }
+
+            var leituras = ColetarLeituras(estacoes);
+
+            if (leituras.Count == 0)
+            {
+                return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma leitura encontrada" };
+            }
+
+            if (!leituras.Any(l => l.Tipo == TipoLeitura.Re))
+            {
+                return new GateResultado { PodeCalcular = false, Motivo = "Não há leituras de Re" };
+            }
+
+            if (!leituras.Any(l => l.Tipo == TipoLeitura.Poligonal))
+            {
+                return new GateResultado { PodeCalcular = false, Motivo = "Não há leituras de Poligonal" };
+            }
+
+            foreach (var leitura in leituras.Where(l => l.Tipo is TipoLeitura.Re or TipoLeitura.Poligonal))
+            {
+                var valid = LeituraValidator.Validar(leitura);
+                if (!valid.IsValid)
+                {
+                    return new GateResultado
+                    {
+                        PodeCalcular = false,
+                        Motivo = " Leituras invalidas " + string.Join(" | ", valid.Errors)
+                    };
+                }
+            }
+
+            return new GateResultado { PodeCalcular = true };
+        }
+
+        private void EntraModoPontos(string mensagem, List<PontoCoordenada> pontos)
+        {
+            btnProcessar.IsEnabled = false;
+            btnExportarDxf.IsEnabled = pontos.Count > 0;
+
+            gridResultados.ItemsSource = pontos;
+            canvasDesenho.UpdateLayout();
+            DesenharLevantamento(pontos);
+
+            tabsPrincipal.SelectedIndex = 1; // Coordenadas Calculadas
+            MessageBox.Show(mensagem, "Importacao", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void AplicarGateUIAposCarregarouAbrir(FormatoArquivoEntrada? formato, string nomeArquivoParaLabel)
+        {
+            cmbEstacoes.ItemsSource = _estacoesEmMemoria;
+            if (_estacoesEmMemoria != null && _estacoesEmMemoria.Count > 0 )
+            {
+                cmbEstacoes.SelectedIndex = 0;
+            }
+
+            var gate = AvaliarGateCalculo(_estacoesEmMemoria);
+
+            if (gate.PodeCalcular)
+            {
+                btnProcessar.IsEnabled = true;
+                btnExportarDxf.IsEnabled = false;
+                return;
+            }
+
+            var pontos = ColetarPontosCoordenada(_estacoesEmMemoria);
+
+            // abrir modo caso ja tenha pontos conhecidos
+
+            if (pontos.Count > 0)
+            {
+                EntraModoPontos(
+                    "Dados carregados, porem sem observacoes suficientes para calculode poligonal. \n \n" +
+                    "Use exportação/visualização ou importe outro formato. \n \n" +
+                    $"Motivo : {gate.Motivo}", pontos);
+                return;
+            }
+
+            btnProcessar.IsEnabled = false;
+            btnExportarDxf.IsEnabled = false;
+
+            MessageBox.Show(
+                "Dados carregados, porem na há observacoes suficientes para calculo e nem pontos conhecidos suficientes para exibicao \n \n" +
+                $"Motivo : {gate.Motivo}", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
     }
 }

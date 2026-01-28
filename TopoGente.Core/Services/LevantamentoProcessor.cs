@@ -10,6 +10,8 @@ namespace TopoGente.Core.Services
     {
         private readonly CalculoTopograficoService _calculoService;
 
+        private const double ToleranciaFechamento = 0.05; // 5 cm por km
+
         public LevantamentoProcessor()
         {
             _calculoService = new CalculoTopograficoService();
@@ -34,14 +36,15 @@ namespace TopoGente.Core.Services
         public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial, List<LeituraEstacaoTotal> leiturasBrutas)
         {
             var resultado = new ResultadoLevantamento();
-
-            var leiturasPoligonal = leiturasBrutas.Where(x => x.EhLeituraDePoligonal).ToList();
-            var leiturasIrradiadas = leiturasBrutas.Where(x => !x.EhLeituraDePoligonal).ToList();
+            // evitar re ser considerada irradiacao ou poligonal
+            var leiturasPoligonal = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Poligonal).ToList();
+            var leiturasRe = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Re).ToList();
+            var leiturasIrradiadas = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Irradiacao).ToList();
 
             // Calculamos primeiro como se não houvesse erro
             var poligonalBruta = _calculoService.CalcularPoligonal(pontoPartida, azimuteInicial, leiturasPoligonal);
 
-            bool fechouNoInicio = false;
+            bool fechou = false;
             double erroX = 0, erroY = 0;
             double perimetro = 0;
 
@@ -54,9 +57,17 @@ namespace TopoGente.Core.Services
                 resultado.Perimetro = perimetro;
 
                 var pontoChegada = poligonalBruta.Last();
-                fechouNoInicio = pontoChegada.Nome.Equals(pontoPartida.Nome, StringComparison.OrdinalIgnoreCase);
+                bool fechouPorNome = pontoChegada.Nome.Equals(pontoPartida.Nome, StringComparison.OrdinalIgnoreCase);
 
-                if (fechouNoInicio)
+                double dx = pontoChegada.X - pontoPartida.X;
+                double dy = pontoChegada.Y - pontoPartida.Y;
+                double distanciaFechamento = Math.Sqrt(dx * dx + dy * dy);
+
+                bool fechouPorCoordenada = distanciaFechamento <= ToleranciaFechamento;
+
+                fechou = fechouPorNome || fechouPorCoordenada;
+
+                if (fechou)
                 {
                     // Calcula os erros brutos
                     var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
