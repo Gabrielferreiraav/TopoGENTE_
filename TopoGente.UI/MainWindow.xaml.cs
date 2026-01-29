@@ -350,9 +350,15 @@ namespace TopoGente.UI
                     MessageBox.Show("Não foi possível traçar um caminhamento a partir da estação selecionada.", "Aviso");
                     return;
                 }
+                var pontosConhecidos = _estacoesEmMemoria
+                    .Where(e => e.CoordenadaConhecida != null)
+                    .Select(e => e.CoordenadaConhecida!)
+                    .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g=> g.Key, g=> g.First(), StringComparer.OrdinalIgnoreCase);
+
 
                 // Converter o Arquivo em Objetos
-                var resultado = _processadorService.Processar(pM1, azimuteInicial, listaOrganizada);
+                var resultado = _processadorService.Processar(pM1, azimuteInicial, listaOrganizada, pontosConhecidos);
                 gridResultados.ItemsSource = resultado.TodosOsPontos;
                 canvasDesenho.UpdateLayout();
                 DesenharLevantamento(resultado.TodosOsPontos);

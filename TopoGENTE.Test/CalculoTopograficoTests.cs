@@ -7,7 +7,6 @@ using TopoGente.Core.Services;
 using Xunit;
 using Xunit.Abstractions;
 
-
 namespace TopoGente.Tests
 {
     public class CalculoTopograficoTests
@@ -52,6 +51,7 @@ namespace TopoGente.Tests
 
             Assert.Equal(0.0, dy, precision: 3);
         }
+
         [Fact]
         public void Azimute_AntiHorario_Deve_Ser_Calculado_Corretamente()
         {
@@ -60,17 +60,15 @@ namespace TopoGente.Tests
             // Viramos 90° para a ESQUERDA (Anti-horário)
             // Se Az=0 (Norte) e viramos 90 à esquerda no vértice...
             // Azimute Ré = 180 (vindo do Sul), Ângulo interno à esquerda = 90.
-    
 
             double azimuteAnterior = 90; // Olhando pro Leste
             double anguloEsquerda = 90;  // Virou 90 pra esquerda
 
-
             double resultado = _servico.CalcularProximoAzimute(90, 90, SentidoAngulo.AntiHorario);
-
 
             Assert.Equal(0, resultado);
         }
+
         [Fact]
         public void Deve_Calcular_Nova_Coordenada_Corretamente()
         {
@@ -89,6 +87,7 @@ namespace TopoGente.Tests
             Assert.Equal(1070.711, novoX, precision: 3);
             Assert.Equal(1070.711, novoY, precision: 3);
         }
+
         [Fact]
         public void Deve_Calcular_Ponto_Irradiado_Completo_Com_Objetos()
         {
@@ -124,6 +123,7 @@ namespace TopoGente.Tests
             // Nivelado (90 graus), hi e hp iguais -> Z deve manter 500.
             Assert.Equal(500.0, pontoCalculado.Z, precision: 3);
         }
+
         [Fact]
         public void Deve_Calcular_Poligonal_Em_L_Corretamente()
         {
@@ -175,124 +175,83 @@ namespace TopoGente.Tests
             Assert.Equal("P1", resultado[1].Nome);
             Assert.Equal(0.0, resultado[1].X, precision: 3);
             Assert.Equal(100.0, resultado[1].Y, precision: 3);
-
+            
             Assert.Equal("P2", resultado[2].Nome);
             Assert.Equal(100.0, resultado[2].X, precision: 3);
             Assert.Equal(100.0, resultado[2].Y, precision: 3);
         }
-    [Fact]
-    public void Deve_Processar_Levantamento_Misto_Com_GMS_E_Gerar_Relatorio()
-    {
 
-        // Ponto de Partida (Marco M1)
-        var estacaoAtual = new PontoCoordenada { Nome = "M1", X = 5000, Y = 10000, Z = 100 };
-        double azimuteOrientacao = 0; // Zerei o aparelho no Norte
-
-        _output.WriteLine($"INÍCIO: Estação {estacaoAtual.Nome} | X={estacaoAtual.X} Y={estacaoAtual.Y}");
-
-        var cadernetaCampo = new List<(TipoLeitura Tipo, string Nome, int G, int M, double S, double Dist)>
-            {
-                // ESTAÇÃO M1
-
-                // Pontos Irradiados (Poste, Árvore, Cerca)
-                (TipoLeitura.Irradiacao, "P1_Poste",  45,  0, 0, 15.50), // 45° à direita
-                (TipoLeitura.Irradiacao, "P2_Arvore", 315, 30, 0, 22.10), // 45° à esquerda (360-45)
-                
-                // Vante para mudar de estação (M1 -> M2) - Anda 100m a 90° (Leste)
-                (TipoLeitura.Poligonal,  "M2",        90,  0, 0, 100.00),
-
-
-                // assumir que o azimute transportado foi mantido.
-                // Irradiações a partir de M2
-                (TipoLeitura.Irradiacao, "P3_Bueiro", 0,   0, 0,  10.00), // Olhando para frente
-
-                (TipoLeitura.Irradiacao, "P4_Casa",   180, 0, 0,  50.00), // Sul
-
-                // Vante para fechar ou avançar (M2 -> M3) - Anda 100m a 180° (Sul)
-                (TipoLeitura.Poligonal,  "M3",        180, 0, 0, 100.00),
-
-                // ESTAÇÃO M3
-                // Irradiação
-                (TipoLeitura.Irradiacao, "P5_Muro",   270, 0, 0,  12.00), // Oeste
-
-                // Vante para Fechar no M4 (que seria Oeste de M3)
-                (TipoLeitura.Poligonal,  "M4",        270, 0, 0, 100.00),
-                
-                    // Vante para Fechar no INÍCIO (M4 -> M1)
-                (TipoLeitura.Poligonal,  "M1_Fech",   0,   0, 0, 100.00),
-            };
-
-
-        var listaPontosCalculados = new List<PontoCoordenada>();
-        listaPontosCalculados.Add(estacaoAtual); // Adiciona o M1
-
-        double azimuteAnterior = azimuteOrientacao; // 0
-
-        foreach (var linha in cadernetaCampo)
+        [Fact]
+        public void Deve_Processar_Orientacao_Da_Irradiacao_Por_Re_Quando_Disponivel_E_Manter_Fallback_Quando_Nao()
         {
-            // Converter GMS para Decimal usando seu Utilitário
-            double anguloDecimal = TopoGente.Core.Utilities.ConversorAngulos.ParaDecimal(linha.G, linha.M, linha.S);
+            // Objetivo do teste:
+            // 1) Quando existe Ré conhecida para a estação, azimuteOrientacao deve ser calculado por coordenadas (CalcularAzimutePorCoordenadas)
+            //    e isso deve alterar a posição da irradiação.
+            // 2) Quando NÃO existe Ré conhecida, deve cair no comportamento antigo (azimuteInicial / AzimuteChegada±180).
+            //
+            // Vamos usar 1 estação só (M1), com uma irradiação de 90° (para "leste" relativo à orientação).
+            // - Sem ré: orientação = azimuteInicial = 0 => ponto vai para Leste (X+)
+            // - Com ré conhecida ao Norte (azimute 0), continuaria igual (não prova mudança)
+            // - Então usamos uma ré conhecida ao Leste => azimuteOrientacao=90, e a irradiação 90 vira azimute 180 (Sul), mudando o ponto.
 
-            // Criar o objeto de leitura
-            var leitura = new LeituraEstacaoTotal
+            var processador = new LevantamentoProcessor();
+
+            var m1 = new PontoCoordenada { Nome = "M1", X = 1000, Y = 1000, Z = 100 };
+            double azimuteInicial = 0; // Norte
+
+            // Irradiação: 90° a partir da orientação (DI=100, zenith=90 => DH=100)
+            var leituraIrrad = new LeituraEstacaoTotal
             {
-                PontoVisado = linha.Nome,
-                AnguloHorizontal = anguloDecimal,
-                DistanciaInclinada = linha.Dist,
+                EstacaoOcupada = "M1",
+                PontoVisado = "P1",
+                Tipo = Core.Entities.TipoLeitura.Irradiacao,
+                AnguloHorizontal = 90,
                 AnguloVertical = 90,
+                DistanciaInclinada = 100,
                 AlturaInstrumento = 1.5,
                 AlturaPrisma = 1.5
             };
 
-            PontoCoordenada pontoCalculado;
-
-            if (linha.Tipo == TipoLeitura.Irradiacao)
+            // Uma leitura de Ré que aponta para "RE1" (nome do ponto de ré)
+            var leituraRe = new LeituraEstacaoTotal
             {
-                pontoCalculado = _servico.CalcularPontoIrradiado(estacaoAtual, leitura, azimuteAnterior);
+                EstacaoOcupada = "M1",
+                PontoVisado = "RE1",
+                Tipo = Core.Entities.TipoLeitura.Re,
+                AnguloHorizontal = 0,
+                AnguloVertical = 90,
+                DistanciaInclinada = 1, // não usado na orientação por coordenadas, mas evita validator/edge-cases futuros
+                AlturaInstrumento = 1.5,
+                AlturaPrisma = 1.5
+            };
 
-                _output.WriteLine($"[IRRAD] {pontoCalculado.Nome}: X={pontoCalculado.X:F3} Y={pontoCalculado.Y:F3}");
-            }
-            else // Poligonal
+            var leituras = new List<LeituraEstacaoTotal> { leituraRe, leituraIrrad };
+
+            // Caso A: sem mapa de pontos conhecidos => fallback (orientação = azimuteInicial = 0)
+            var resultadoSemReConhecida = processador.Processar(m1, azimuteInicial, leituras);
+            var pSem = Assert.Single(resultadoSemReConhecida.Irradiacoes);
+            Assert.Equal("P1", pSem.Nome);
+            Assert.Equal(1100.0, pSem.X, precision: 3); // Leste (X+100)
+            Assert.Equal(1000.0, pSem.Y, precision: 3);
+
+            // Caso B: com mapa de pontos conhecidos contendo RE1 ao Leste da estação => orientação por coordenadas (az=90)
+            // então irradiação 90° resultará em azimute 180 (Sul) => Y-100
+            var pontosConhecidos = new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase)
             {
-                double azimuteVante = leitura.AnguloHorizontal;
+                ["RE1"] = new PontoCoordenada { Nome = "RE1", X = 1100, Y = 1000, Z = 100 }
+            };
 
-                // Calcula Coord
-                double distHz = _servico.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, 90);
-                var (nx, ny) = _servico.CalcularCoordenada(estacaoAtual.X, estacaoAtual.Y, distHz, azimuteVante);
+            var resultadoComReConhecida = processador.Processar(m1, azimuteInicial, leituras, pontosConhecidos);
+            var pCom = Assert.Single(resultadoComReConhecida.Irradiacoes);
+            Assert.Equal("P1", pCom.Nome);
 
-                pontoCalculado = new PontoCoordenada
-                {
-                    Nome = linha.Nome,
-                    X = nx,
-                    Y = ny,
-                    Z = 100,
-                    EhPontoPoligonal = true
-                };
+            Assert.Equal(1000.0, pCom.X, precision: 3);
+            Assert.Equal(900.0, pCom.Y, precision: 3); // Sul (Y-100)
 
-                _output.WriteLine($"[VANTE] {pontoCalculado.Nome}: X={pontoCalculado.X:F3} Y={pontoCalculado.Y:F3} (Nova Estação)");
-
-                // Atualiza o estado para a próxima iteração
-                estacaoAtual = pontoCalculado;
-                azimuteAnterior = azimuteVante;
-            }
-
-            listaPontosCalculados.Add(pontoCalculado);
+            // Prova de mudança: coordenadas diferem entre os casos
+            Assert.NotEqual(pSem.X, pCom.X);
+            Assert.NotEqual(pSem.Y, pCom.Y);
         }
-
-
-        // Verificar o fechamento da poligonal (M1 -> M2 -> M3 -> M4 -> M1)
-        // M1 original: 5000, 10000
-        var pontoFechamento = listaPontosCalculados.Last();
-
-        Assert.Equal("M1_Fech", pontoFechamento.Nome);
-
-        // Quadrado de 100x100.
-        Assert.Equal(5000.0, pontoFechamento.X, precision: 1); // Precisão de decímetro para erros de double
-        Assert.Equal(10000.0, pontoFechamento.Y, precision: 1);
-    }
-
-    // Enum auxiliar apenas para este teste organizar a "Caderneta"
-    private enum TipoLeitura { Poligonal, Irradiacao }
 
         [Fact]
         public void Deve_Calcular_Erro_De_Fechamento_Em_Poligonal()
@@ -310,7 +269,7 @@ namespace TopoGente.Tests
                 new LeituraEstacaoTotal { PontoVisado="M3", AnguloHorizontal=270, DistanciaInclinada=100, AnguloVertical=90, Tipo = Core.Entities.TipoLeitura.Poligonal},
                 // M3 -> M4 (Sul 100m)
                 new LeituraEstacaoTotal { PontoVisado="M4", AnguloHorizontal=270, DistanciaInclinada=100, AnguloVertical=90, Tipo = Core.Entities.TipoLeitura.Poligonal},
-                
+
                 // M4 -> M1 (Oeste 100m) - AQUI VAMOS INTRODUZIR O ERRO
                 // Se fosse perfeito seria 270 (curva a direita vindo do Sul).
                 // Vamos colocar 270.01 (Erro angular pequeno)
@@ -320,7 +279,7 @@ namespace TopoGente.Tests
                     AnguloHorizontal=270.01, // Erro proposital
                     DistanciaInclinada=100,
                     AnguloVertical=90,
-                    Tipo = Core.Entities.TipoLeitura.Poligonal  
+                    Tipo = Core.Entities.TipoLeitura.Poligonal
                 }
             };
 

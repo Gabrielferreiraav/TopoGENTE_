@@ -20,7 +20,7 @@ namespace TopoGente.Core.Services
         /// <summary>
         /// Sobrecarga para processar quando temos Coordenada de Ré em vez de Azimute
         /// </summary>
-        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, PontoCoordenada pontoRe, List<LeituraEstacaoTotal> leiturasBrutas)
+        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, PontoCoordenada pontoRe, List<LeituraEstacaoTotal> leiturasBrutas, List<LeituraEstacaoTotal> leiturasBruas)
         {
             double azimuteInicialCalculado = _calculoService.CalcularAzimutePorCoordenadas(
                 pontoPartida.X, pontoPartida.Y,
@@ -30,10 +30,13 @@ namespace TopoGente.Core.Services
             return Processar(pontoPartida, azimuteInicialCalculado, leiturasBrutas);
         }
 
+        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial,List<LeituraEstacaoTotal> leiturasBrutas)
+            => Processar(pontoPartida, azimuteInicial, leiturasBrutas,pontosConhecidos:null);
+
         /// <summary>
         /// Método principal que processa a caderneta dado um Azimute Inicial conhecido.
         /// </summary>
-        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial, List<LeituraEstacaoTotal> leiturasBrutas)
+        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial, List<LeituraEstacaoTotal> leiturasBrutas,Dictionary<string,PontoCoordenada>? pontosConhecidos)
         {
             var resultado = new ResultadoLevantamento();
             // evitar re ser considerada irradiacao ou poligonal
@@ -105,17 +108,49 @@ namespace TopoGente.Core.Services
                 if (!irradiacoesDestaEstacao.Any()) continue;
 
                 double azimuteOrientacao;
-                if (estacao == resultado.Poligonal.First()) 
+                
+                // Tenta por Ré Real
+                var leituraRe = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == estacao.Nome);
+                if (leituraRe != null)
                 {
-                    azimuteOrientacao = azimuteInicial;
+                    PontoCoordenada? pontoReCoord = null;
+
+                    // ponto conhecido
+                    if (pontosConhecidos != null && pontosConhecidos.TryGetValue(leituraRe.PontoVisado, out var pk))
+                    {
+                        pontoReCoord = pk;
+                    }
+                    else
+                    {
+                        // ponto na poligonal
+                        pontoReCoord = resultado.Poligonal.FirstOrDefault(p =>
+                        p.Nome.Equals(leituraRe.PontoVisado, StringComparison.OrdinalIgnoreCase));
+                    }
+                    if (pontoReCoord != null)
+                    {
+                        azimuteOrientacao = _calculoService.CalcularAzimutePorCoordenadas(
+                            estacao.X, estacao.Y,
+                            pontoReCoord.X, pontoReCoord.Y
+                        );
+                    }
+                    else
+                    {
+                        // regra anterior
+                        azimuteOrientacao = estacao == resultado.Poligonal.First()
+                            ? azimuteInicial
+                            : (estacao.AzimuteChegada < 180
+                                ? estacao.AzimuteChegada + 180
+                                : estacao.AzimuteChegada - 180);
+                    }
                 }
                 else
                 {
-                    azimuteOrientacao = estacao.AzimuteChegada < 180
-                        ? estacao.AzimuteChegada + 180
-                        : estacao.AzimuteChegada - 180;
+                    // regra atual
+                    azimuteOrientacao = estacao == resultado.Poligonal.First() ? azimuteInicial :
+                        (estacao.AzimuteChegada < 180
+                            ? estacao.AzimuteChegada + 180
+                            : estacao.AzimuteChegada - 180);
                 }
-
                 foreach (var leitura in irradiacoesDestaEstacao)
                 {
                     var pontoIrradiado = _calculoService.CalcularPontoIrradiado(estacao, leitura, azimuteOrientacao);
