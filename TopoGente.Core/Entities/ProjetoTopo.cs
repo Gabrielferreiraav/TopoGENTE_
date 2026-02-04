@@ -15,5 +15,7 @@ namespace TopoGente.Core.Entities
         public double StartAzimute { get; set; }
         public List<Estacao> Estacoes { get; set; } = new List<Estacao>();
 
+       
+        public RelatorioQA? RelatorioQA { get; set; }
     }
 }

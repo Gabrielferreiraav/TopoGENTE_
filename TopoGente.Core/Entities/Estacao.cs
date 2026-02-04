@@ -12,6 +12,7 @@ namespace TopoGente.Core.Entities
 
         public PontoCoordenada? CoordenadaConhecida { get; set; } = null;
         public List<LeituraEstacaoTotal> Leituras { get; set; } = new List<LeituraEstacaoTotal>();
+        public List<PontoCoordenada> PontosCalculados { get; set; } = new List<PontoCoordenada>();
 
         public override string ToString()
         {

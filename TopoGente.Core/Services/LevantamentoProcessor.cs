@@ -160,7 +160,50 @@ namespace TopoGente.Core.Services
 
             return resultado;
         }
-    }
+
+    public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial,List<Estacao> estacoesOrganizadas,Dictionary<string,PontoCoordenada>? pontosConhecidos)
+        {
+            estacoesOrganizadas ??= new List<Estacao>();
+
+            foreach (var e in estacoesOrganizadas)
+            {
+                e.PontosCalculados = new List<PontoCoordenada>();
+            }
+            var leiturasBrutas = estacoesOrganizadas
+                .SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>()).ToList();
+
+            var resultado = Processar(pontoPartida, azimuteInicial, leiturasBrutas, pontosConhecidos);
+
+            // indice da poligonal 
+            var poligonalPorNome = resultado.Poligonal
+                .GroupBy(p => p.Nome ,StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(G => G.Key, G => G.Last(), StringComparer.OrdinalIgnoreCase);
+
+            // para cada estacao, adiciona o porpio ponto e as irradiacoes estaoOcupada == nome estacao
+            foreach (var estacao in estacoesOrganizadas)
+            {
+                if (poligonalPorNome.TryGetValue(estacao.Nome, out var pontoDaEstacao))
+                {
+                    estacao.PontosCalculados.Add(pontoDaEstacao);
+                }
+
+                var irradiacoes = leiturasBrutas
+                    .Where(l => l.Tipo == TipoLeitura.Irradiacao && l.EstacaoOcupada.Equals(estacao.Nome, StringComparison.OrdinalIgnoreCase))
+                    .Select(l => {
+                        if (!poligonalPorNome.TryGetValue(estacao.Nome, out var pEst)) return null;
+
+                        var az = pEst == resultado.Poligonal.First() ? azimuteInicial :
+                            (pEst.AzimuteChegada < 180
+                                ? pEst.AzimuteChegada + 180
+                                : pEst.AzimuteChegada - 180);
+                        return _calculoService.CalcularPontoIrradiado(pEst, l, az);
+                    }).Where(p => p != null).Select(p => p!).ToList();
+
+                estacao.PontosCalculados.AddRange(irradiacoes);
+            }
+                return resultado;
+            }
+    }            
 
     public class ResultadoLevantamento
     {

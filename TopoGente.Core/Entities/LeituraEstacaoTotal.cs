@@ -4,6 +4,10 @@
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
+        // Para o LandXml
+        public string? SetupId { get; set; } 
+        public DateTime? TimeStamp { get; set; }
+
         // Dados de Identificação
         public string EstacaoOcupada { get; set; } = string.Empty;
         public string PontoVisado { get; set; } = string.Empty;
