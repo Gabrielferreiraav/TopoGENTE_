@@ -325,6 +325,12 @@ namespace TopoGente.UI
                 double z = double.Parse(txtZ.Text);
                 double azimuteInicial = double.Parse(txtAzimute.Text);
 
+                if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0)
+                {
+                    MessageBox.Show("Nenhuma estação carregada.", "Aviso");
+                    return;
+                }
+
                 string nomePontoInicial = "M1";
                 if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
                 {
@@ -343,12 +349,6 @@ namespace TopoGente.UI
                     Z = z,
                     EhPontoPoligonal = true
                 };
-
-                if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0 )
-                {
-                    MessageBox.Show("Nenhuma estação carregada.", "Aviso");
-                    return;
-                }
 
                 var estacoesOrganizadas = _estacoesEmMemoria;
 
