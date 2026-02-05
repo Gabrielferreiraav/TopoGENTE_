@@ -26,7 +26,7 @@ namespace TopoGENTE.Test
                 string conteudo = File.ReadAllText(caminhoArquivo);
                 Assert.Contains("SECTION", conteudo);
                 Assert.Contains("HEADER", conteudo);
-                Assert.Contains("M1", conteudo);
+                Assert.Contains("A1", conteudo);
                 Assert.Contains("TOPO_POLIGONAL", conteudo);
             }
             finally

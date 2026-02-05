@@ -28,24 +28,23 @@ namespace TopoGENTE.Test
             Assert.Equal("A1", resultado[0].Nome);
             Assert.Equal(2, resultado[0].Leituras.Count);
         }
+
         [Fact]
         public void OrganizarVante_OrdemSequencial()
         {
             var estacaoA = new Estacao { Nome = "A" };
-            estacaoA.Leituras.Add(new LeituraEstacaoTotal { PontoVisado = "B", Tipo = TipoLeitura.Poligonal });
+            estacaoA.Leituras.Add(new LeituraEstacaoTotal { EstacaoOcupada = "A", PontoVisado = "B", Tipo = TipoLeitura.Poligonal });
 
             var estacaoB = new Estacao { Nome = "B" };
-            estacaoB.Leituras.Add(new LeituraEstacaoTotal { PontoVisado = "C", Tipo = TipoLeitura.Poligonal });
+            estacaoB.Leituras.Add(new LeituraEstacaoTotal { EstacaoOcupada = "B", PontoVisado = "C", Tipo = TipoLeitura.Poligonal });
 
             var estacaoC = new Estacao { Nome = "C" };
             var listaBruta = new List<Estacao> { estacaoB, estacaoC, estacaoA };
             var organizador = new OrganizarCaminhamento();
-            var resultado = organizador.OrganizarPorVante(listaBruta,"A");
+            var resultado = organizador.OrganizarPorVante(listaBruta, "A");
 
             Assert.Contains(resultado, l => l.EstacaoOcupada == "A" && l.PontoVisado == "B");
             Assert.NotEmpty(resultado);
-
-
         }
     }
 }
