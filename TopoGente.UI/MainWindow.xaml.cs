@@ -30,6 +30,7 @@ namespace TopoGente.UI
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
         private RelatorioQA? _relatorioQaAtual;
+        private readonly QaCheckService _qaCheckService;
         private Point _origemMouse;
         private bool _estaArrastando = false;
 
@@ -42,6 +43,7 @@ namespace TopoGente.UI
             _organizador = new OrganizarCaminhamento();
             _projetoService = new ArquivoProjetoService();
             _dxfService = new ExportadorDxfService();
+            _qaCheckService = new QaCheckService();
             ConfigurarComboTipo();
         }
         private void ConfigurarComboTipo()
@@ -362,7 +364,7 @@ namespace TopoGente.UI
                 // Converter o Arquivo em Objetos
                 var resultado = _processadorService.Processar(pM1, azimuteInicial, estacoesOrganizadas, pontosConhecidos);
                 
-                _relatorioQaAtual = GerarRelatorioQaChecks(estacoesOrganizadas, resultado, pontosConhecidos);
+                _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(estacoesOrganizadas, resultado, pontosConhecidos);
 
                 gridResultados.ItemsSource = resultado.TodosOsPontos;
                 canvasDesenho.UpdateLayout();
@@ -390,78 +392,6 @@ namespace TopoGente.UI
             {
                 MessageBox.Show($"Erro no processamento: {ex.Message}", "Erro Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private RelatorioQA GerarRelatorioQaChecks(List<Estacao> estacoesOrganizadas, ResultadoLevantamento resultado, Dictionary<string, PontoCoordenada> pontosConhecidos)
-        {
-            var rel = new RelatorioQA
-            {
-                ToleranciaCheckDeltaXY = 0.01,
-                ToleranciaCheckDeltaZ = 0.02,
-            };
-            // indices
-            var poligonalPorNome = resultado.Poligonal.GroupBy(p => p.Nome,StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
-
-            // para purpose =check, compara ponto calculado com conhecido
-            foreach (var estacao in estacoesOrganizadas)
-            {
-                if (!poligonalPorNome.TryGetValue(estacao.Nome, out var pEstacao))
-                {
-                    pEstacao = estacao.CoordenadaConhecida;
-                }
-
-                if (pEstacao == null) continue;
-
-                // se tiver re conhecida usa ela, se nao azimute de chegada
-                double azimuteOrientacao = pEstacao == resultado.Poligonal.First() 
-                    ? resultado.Poligonal.First().AzimuteChegada 
-                    : pEstacao.AzimuteChegada < 180 ? pEstacao.AzimuteChegada + 180 : pEstacao.AzimuteChegada - 180;
-
-                //leituras check
-                var checks = estacao.Leituras
-                    .Where(l => l.Observacao !=null && l.Observacao.Contains("purpose=check", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                foreach (var check in checks)
-                {
-                    if (!pontosConhecidos.TryGetValue(check.PontoVisado, out var pConhecido))
-                    {
-                        rel.Checks.Add(new EventoQACheck
-                        {
-                            SetupId = check.SetupId ?? estacao.Id,
-                            TargetPoint = check.PontoVisado,// Podendo adicionar lambdar para null
-                            TimeStamp = check.TimeStamp,
-                            EstacaoOcupada = estacao.Nome,
-                            Mensagem = "Ponto conhecido para check não encontrado"
-                        });
-                        continue;
-                    }
-
-
-                    var pObs = new CalculoTopograficoService().CalcularPontoIrradiado(pEstacao, check, azimuteOrientacao);
-
-                    var dx = pObs.X - pConhecido.X;
-                    var dy = pObs.Y - pConhecido.Y;
-                    var deltaXY = Math.Sqrt(dx * dx + dy * dy);
-                    var deltaZ = Math.Abs(pObs.Z - pConhecido.Z);
-
-                    rel.Checks.Add(new EventoQACheck
-                    {
-                        SetupId = check.SetupId ?? estacao.Id,
-                        TargetPoint = check.PontoVisado,// Podendo adicionar lambdar para null
-                        TimeStamp = check.TimeStamp,
-                        EstacaoOcupada = estacao.Nome,
-                        DeltaXY = deltaXY,
-                        DeltaZ = deltaZ,
-                        ExcedeuDeltaXY = deltaXY > rel.ToleranciaCheckDeltaXY,
-                        ExcedeuDeltaZ = deltaZ > rel.ToleranciaCheckDeltaZ,
-                        Mensagem = $"Check '{estacao.Nome}' -> '{check.PontoVisado}' :ΔXY={deltaXY:F3}m, ΔZ={deltaZ:F3}m "
-                    });
-
-                }
-            }
-            return rel;
         }
         public void btnSalvarProjeto_Click(object sender, RoutedEventArgs e)
         {
