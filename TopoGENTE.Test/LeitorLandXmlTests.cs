@@ -109,7 +109,7 @@ namespace TopoGENTE.Test
             Assert.True(leitura.TimeStamp.HasValue);
             Assert.Equal(DateTime.Parse("2026-02-04T10:00:00Z", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind), leitura.TimeStamp!.Value);
 
-            Assert.Contains("purpose=check", leitura.Observacao, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("check", leitura.Purpose, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

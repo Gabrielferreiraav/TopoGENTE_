@@ -45,8 +45,7 @@ namespace TopoGente.Core.Services
                     : (pEstacao.AzimuteChegada < 180 ? pEstacao.AzimuteChegada + 180 : pEstacao.AzimuteChegada - 180);
 
                 var checks = estacao.Leituras
-                    .Where(l => l.Observacao != null &&
-                                l.Observacao.Contains("purpose=check", StringComparison.OrdinalIgnoreCase))
+                    .Where(l => string.Equals(l.Purpose,"check", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 foreach (var check in checks)

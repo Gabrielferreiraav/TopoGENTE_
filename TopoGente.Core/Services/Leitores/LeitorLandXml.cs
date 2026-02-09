@@ -330,6 +330,8 @@ namespace TopoGente.Core.Services.Leitores
                 }
             }
 
+            var cultura =
+
             // processar as observações brutas (RawObservation) e as que estão dentro de ObservationGroup
             var rawObservacoes = setup.Descendants(_ns + "RawObservation");
             foreach (var raw in rawObservacoes)
@@ -365,13 +367,6 @@ namespace TopoGente.Core.Services.Leitores
                 TipoLeitura tipo = MapearTipoLeituraPorPurpose(purpose);
 
                 var timeStamp = ObterTimeStampDoTargetPoint(raw);
-                string observacao = string.IsNullOrWhiteSpace(purpose) ? "" : $"purpose={purpose}";
-                if (timeStamp.HasValue)
-                {
-                    observacao = string.IsNullOrWhiteSpace(observacao)
-                        ? $"timeStamp={timeStamp:O}"
-                        : $"{observacao}; timeStamp={timeStamp:O}";
-                }
 
                 novaEstacao.Leituras.Add(new LeituraEstacaoTotal
                 {
@@ -385,7 +380,8 @@ namespace TopoGente.Core.Services.Leitores
                     AnguloVertical = zenithAngle,
                     DistanciaInclinada = slopeDist,
                     Tipo = tipo,
-                    Observacao = observacao
+                    Observacao = string.Empty,
+                    Purpose = purpose
                 });
             }
 

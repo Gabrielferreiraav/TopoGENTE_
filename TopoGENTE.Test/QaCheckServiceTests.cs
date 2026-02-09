@@ -41,7 +41,8 @@ namespace TopoGente.Test
                         DistanciaInclinada = 0.000,
                         AlturaInstrumento = 00,
                         AlturaPrisma = 00,
-                        Observacao = "purpose=check"
+                        Observacao = "purpose=check",
+                        Purpose = "check"
                     }
                 }
             };
