@@ -40,9 +40,6 @@ namespace TopoGente.Core.Services.Leitores
             {
                 var doc = XDocument.Parse(conteudoXXML);
 
-                var fatores = LerUnidadesProjeto(doc);
-                var dicionarioCoordenadas = MapearCgPoints(doc, fatores);
-
                 var surveys = doc.Descendants(_ns + "Survey").ToList();
                 if (surveys.Count > 1)
                 {
@@ -56,7 +53,11 @@ namespace TopoGente.Core.Services.Leitores
                     return estacoes;
                 }
 
-                var setups = survey.Descendants(_ns + "InstrumentSetup");
+                var fatores = LerUnidadesProjeto(doc);
+                var dicionarioCoordenadas = MapearCgPoints(survey, fatores);
+
+                // pelo schema, InstrumentSetup aparece como filho direto (dentro do choice) de Survey
+                var setups = survey.Elements(_ns + "InstrumentSetup");
                 foreach (var setup in setups)
                 {
                     var estacao = ProcessarInstrumentSetup(setup, dicionarioCoordenadas, fatores);
@@ -130,11 +131,13 @@ namespace TopoGente.Core.Services.Leitores
             };
         }
 
-        private Dictionary<string, PontoCoordenada> MapearCgPoints(XDocument doc, FatoresConversao fatores)
+        private Dictionary<string, PontoCoordenada> MapearCgPoints(XElement survey, FatoresConversao fatores)
         {
             var dict = new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
             var cultura = CultureInfo.InvariantCulture;
-            var pontos = doc.Descendants(_ns + "CgPoint");
+
+            // escopo: apenas CgPoints dentro do Survey processado (inclui CgPoints aninhados)
+            var pontos = survey.Descendants(_ns + "CgPoint");
             foreach (var p in pontos)
             {
                 var nomeOriginal = p.Attribute("name")?.Value?.Trim();
@@ -152,7 +155,7 @@ namespace TopoGente.Core.Services.Leitores
 
                 if (!string.Equals(nomeFinal, nomeOriginal, StringComparison.OrdinalIgnoreCase))
                 {
-                    _ultimosAvisos.Add($"CgPoint duplicado '{nomeOriginal} renomeado para {nomeFinal}'.");
+                    _ultimosAvisos.Add($"CgPoint duplicado '{nomeOriginal} renomeado para {nomeFinal}'. ");
                 }
 
                 dict[nomeFinal] = new PontoCoordenada { Nome = nomeFinal, X = x, Y = y, Z = z };
@@ -172,7 +175,7 @@ namespace TopoGente.Core.Services.Leitores
             string candidato;
             do
             {
-                candidato = $"{nomeOriginal}+{i}";
+                candidato = $"{nomeOriginal}_{i}";
                 i++;
             }
             while (dict.ContainsKey(candidato));
@@ -191,7 +194,6 @@ namespace TopoGente.Core.Services.Leitores
             {
                 "traverse" => TipoLeitura.Poligonal,
                 "sideshot" => TipoLeitura.Irradiacao,
-                // check por enquanto como Irradiacao, mas fica marcado em Observacao
                 "check" => TipoLeitura.Irradiacao,
                 _ => TipoLeitura.Irradiacao
             };
@@ -205,20 +207,29 @@ namespace TopoGente.Core.Services.Leitores
                 return alvo;
             }
 
-            return rawObs.Element(rawObs.Name.Namespace + "TargetPoint")?.Attribute("name")?.Value?.Trim();
+            // Schema: RawObservationType tem TargetPoint obrigatório; PointType possui @name e @pntRef
+            return rawObs.Element(rawObs.Name.Namespace + "TargetPoint")?.Attribute("name")?.Value?.Trim()
+                   ?? rawObs.Element(rawObs.Name.Namespace + "TargetPoint")?.Attribute("pntRef")?.Value?.Trim();
         }
 
-        private static DateTime? ObterTimeStampDoTargetPoint(XElement rawObs)
+        private static DateTime? ObterTimeStampRawObservation(XElement rawObs)
         {
-            var tp = rawObs.Element(rawObs.Name.Namespace + "TargetPoint");
-            if (tp == null) return null;
-
-            var ts = tp.Attribute("timeStamp")?.Value?.Trim();
-            if (string.IsNullOrWhiteSpace(ts)) return null;
-
-            if (DateTime.TryParse(ts, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
+            // Prova no XSD: RawObservationType tem @timeStamp (LandXML-1.2.xsd linha 2164).
+            var ts = rawObs.Attribute("timeStamp")?.Value?.Trim();
+            if (!string.IsNullOrWhiteSpace(ts) &&
+                DateTime.TryParse(ts, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dtRaw))
             {
-                return dt;
+                return dtRaw;
+            }
+
+            // Fallback: TargetPoint é PointType e também pode ter @timeStamp.
+            var tp = rawObs.Element(rawObs.Name.Namespace + "TargetPoint");
+            var tsTp = tp?.Attribute("timeStamp")?.Value?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(tsTp) &&
+                DateTime.TryParse(tsTp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dtTp))
+            {
+                return dtTp;
             }
 
             return null;
@@ -273,7 +284,6 @@ namespace TopoGente.Core.Services.Leitores
             string nomeEstacao = setup.Attribute("stationName")?.Value ?? idSetup;
 
             double hi = 0.0;
-            // altura do instrumento tbm sofre conversao do fator linear
             if (setup.Attribute("instrumentHeight") != null)
             {
                 hi = double.Parse(setup.Attribute("instrumentHeight")!.Value, cultura) * fatores.Linear;
@@ -288,23 +298,22 @@ namespace TopoGente.Core.Services.Leitores
                 PontosCalculados = new List<PontoCoordenada>()
             };
 
-            // Coordenada de estação InstrumentPoint (coords diretas ou pntRef)
             var instrumentPoint = setup.Elements(_ns + "InstrumentPoint").FirstOrDefault();
             novaEstacao.CoordenadaConhecida = ResolverPointTypeParaCoordenada(instrumentPoint, coords, fatores, nomeEstacao);
 
-            // compatibilidade com método anterior (nome da estação igual a CgPoint)
             if (novaEstacao.CoordenadaConhecida == null && coords.TryGetValue(nomeEstacao, out var pk2))
             {
                 novaEstacao.CoordenadaConhecida = new PontoCoordenada { Nome = nomeEstacao, X = pk2.X, Y = pk2.Y, Z = pk2.Z, EhPontoPoligonal = true };
             }
 
-            var backsights = setup.Descendants(_ns + "Backsight");
+            var backsights = setup.Elements(_ns + "Backsight");
             foreach (var bs in backsights)
             {
-                // Backsight geralmente referencia o alvo via TargetPoint e não necessariamente por targetPoint
-                string alvoBs = bs.Attribute("targetPoint")?.Value
-                                ?? bs.Element(_ns + "TargetPoint")?.Attribute("name")?.Value
-                                ?? bs.Element(_ns + "TargetPoint")?.Attribute("pntRef")?.Value;
+                // Schema: Backsight tem BacksightPoint (PointType). Não há TargetPoint aqui.
+                var bsPoint = bs.Element(_ns + "BacksightPoint");
+                string? alvoBs =
+                    bsPoint?.Attribute("name")?.Value?.Trim()
+                    ?? bsPoint?.Attribute("pntRef")?.Value?.Trim();
 
                 double anguloBs = 0.0;
                 if (bs.Attribute("azimuth") != null)
@@ -316,6 +325,12 @@ namespace TopoGente.Core.Services.Leitores
                     anguloBs = double.Parse(bs.Attribute("circle")!.Value, cultura) * fatores.Angular;
                 }
 
+                double targetHeightBs = 0.0;
+                if (bs.Attribute("targetHeight") != null)
+                {
+                    targetHeightBs = double.Parse(bs.Attribute("targetHeight")!.Value, cultura) * fatores.Linear;
+                }
+
                 if (!string.IsNullOrEmpty(alvoBs))
                 {
                     novaEstacao.Leituras.Add(new LeituraEstacaoTotal
@@ -324,15 +339,13 @@ namespace TopoGente.Core.Services.Leitores
                         PontoVisado = alvoBs,
                         AnguloHorizontal = anguloBs,
                         AlturaInstrumento = hi,
+                        AlturaPrisma = targetHeightBs,
                         Tipo = TipoLeitura.Re,
                         Observacao = "Backsight"
-                    });
+                    });                                                                 
                 }
             }
 
-            var cultura =
-
-            // processar as observações brutas (RawObservation) e as que estão dentro de ObservationGroup
             var rawObservacoes = setup.Descendants(_ns + "RawObservation");
             foreach (var raw in rawObservacoes)
             {
@@ -341,7 +354,6 @@ namespace TopoGente.Core.Services.Leitores
 
                 double horizAngle = 0, zenithAngle = 0, slopeDist = 0, targetHeight = 0;
 
-                // conversao angular
                 if (raw.Attribute("horizAngle") != null)
                 {
                     horizAngle = double.Parse(raw.Attribute("horizAngle")!.Value, cultura) * fatores.Angular;
@@ -352,7 +364,6 @@ namespace TopoGente.Core.Services.Leitores
                     zenithAngle = double.Parse(raw.Attribute("zenithAngle")!.Value, cultura) * fatores.Angular;
                 }
 
-                // conversao linear
                 if (raw.Attribute("slopeDistance") != null)
                 {
                     slopeDist = double.Parse(raw.Attribute("slopeDistance")!.Value, cultura) * fatores.Linear;
@@ -366,7 +377,7 @@ namespace TopoGente.Core.Services.Leitores
                 string? purpose = raw.Attribute("purpose")?.Value;
                 TipoLeitura tipo = MapearTipoLeituraPorPurpose(purpose);
 
-                var timeStamp = ObterTimeStampDoTargetPoint(raw);
+                var timeStamp = ObterTimeStampRawObservation(raw);
 
                 novaEstacao.Leituras.Add(new LeituraEstacaoTotal
                 {

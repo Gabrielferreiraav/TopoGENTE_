@@ -12,6 +12,7 @@ namespace TopoGente.Core.Services.Leitores
     public class LeitorCsvPadrao : ILeitorArquivo
     {
         public string NomeFormato => "Texto/CSV Padrão";
+
         public List<Estacao> Ler(string[] linhas)
         {
             var leiturasBrutas = new List<LeituraEstacaoTotal>();
@@ -27,7 +28,9 @@ namespace TopoGente.Core.Services.Leitores
                 char separador = linha.Contains(";") ? ';' : ',';
                 var colunas = linha.Split(separador);
 
-                if (colunas.Length < 9) continue;
+                // Formato mínimo utilizado aqui:
+                // 0 EstacaoOcupada, 1 Hi, 2 PontoVisado, 3 Observacao, 4 AngH, 5 AngV(Zenite), 6 DI, 7 Hp
+                if (colunas.Length < 8) continue;
 
                 try
                 {
@@ -37,27 +40,36 @@ namespace TopoGente.Core.Services.Leitores
                     double ahDecimal = ConversorAngulos.DeFormatoCompacto(ahCompacto);
                     double avDecimal = ConversorAngulos.DeFormatoCompacto(avCompacto);
 
-                    TipoLeitura tipo = TipoLeitura.Irradiacao;
-                    string descUpper = int.Parse(colunas[8]).ToString().ToUpper();
+                    string observacao = colunas[3].Trim();
+                    string descUpper = observacao.ToUpperInvariant();
 
+                    TipoLeitura tipo = TipoLeitura.Irradiacao;
+
+                    // Fechamento/check deve ser Poligonal (vante de fechamento)
+                    if (descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
+                        descUpper.Contains("CHECK") || descUpper.Contains("CHK"))
+                    {
+                        tipo = TipoLeitura.Poligonal;
+                    }
+
+                    // Vante/Poligonal
                     if (descUpper.Contains("VANTE") || descUpper.Contains("-V") || descUpper.StartsWith("M"))
                     {
                         tipo = TipoLeitura.Poligonal;
                     }
-                    if (descUpper.Contains("RE") || descUpper.Contains("RÉ") || descUpper.Contains("BS"))
+
+                    // Ré (prioridade semântica: se marcar Ré, é Ré)
+                    if (descUpper.Contains("RE") || descUpper.Contains("RÉ") || descUpper.Contains("BS") || descUpper.Contains("BACKSIGHT"))
                     {
                         tipo = TipoLeitura.Re;
                     }
-
-                    if (int.TryParse(colunas[8], out int tipoInt))
-                        tipo = (TipoLeitura)tipoInt;
 
                     var leitura = new LeituraEstacaoTotal
                     {
                         EstacaoOcupada = colunas[0].Trim(),
                         AlturaInstrumento = double.Parse(colunas[1], cultura),
                         PontoVisado = colunas[2].Trim(),
-                        Observacao = colunas[3].Trim(),
+                        Observacao = observacao,
                         AnguloHorizontal = ahDecimal,
                         AnguloVertical = avDecimal,
                         DistanciaInclinada = double.Parse(colunas[6], cultura),
@@ -72,7 +84,7 @@ namespace TopoGente.Core.Services.Leitores
                     continue;
                 }
             }
-            
+
             var estacoes = leiturasBrutas.GroupBy(l => l.EstacaoOcupada).Select(grupo => new Estacao
             {
                 Nome = grupo.Key,
@@ -98,8 +110,6 @@ namespace TopoGente.Core.Services.Leitores
             }
 
             return estacoes;
-
         }
     }
-
 }
