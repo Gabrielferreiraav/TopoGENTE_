@@ -169,17 +169,43 @@ namespace TopoGente.Core.Services
             {
                 e.PontosCalculados = new List<PontoCoordenada>();
             }
+
             var leiturasBrutas = estacoesOrganizadas
-                .SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>()).ToList();
+                .SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>())
+                .ToList();
 
             var resultado = Processar(pontoPartida, azimuteInicial, leiturasBrutas, pontosConhecidos);
 
-            // indice da poligonal 
+            // índice da poligonal (pega o último ponto quando há duplicidade por nome)
             var poligonalPorNome = resultado.Poligonal
-                .GroupBy(p => p.Nome ,StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(G => G.Key, G => G.Last(), StringComparer.OrdinalIgnoreCase);
+                .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
 
-            // para cada estacao, adiciona o porpio ponto e as irradiacoes estaoOcupada == nome estacao
+            // Mapa: PontoVisado -> fila (para consumir na mesma ordem das leituras)
+            var irradiacoesPorVisado = resultado.Irradiacoes
+                .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => new Queue<PontoCoordenada>(g), StringComparer.OrdinalIgnoreCase);
+
+            // Mapa: EstacaoOcupada -> lista de pontos irradiados (sem recalcular)
+            var irradiacoesPorEstacao = new Dictionary<string, List<PontoCoordenada>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var leitura in leiturasBrutas.Where(l => l.Tipo == TipoLeitura.Irradiacao))
+            {
+                if (!irradiacoesPorVisado.TryGetValue(leitura.PontoVisado, out var fila) || fila.Count == 0)
+                    continue;
+
+                var pontoCalculado = fila.Dequeue();
+
+                if (!irradiacoesPorEstacao.TryGetValue(leitura.EstacaoOcupada, out var lista))
+                {
+                    lista = new List<PontoCoordenada>();
+                    irradiacoesPorEstacao[leitura.EstacaoOcupada] = lista;
+                }
+
+                lista.Add(pontoCalculado);
+            }
+
+            // Para cada estação, adiciona o próprio ponto e as irradiações já calculadas
             foreach (var estacao in estacoesOrganizadas)
             {
                 if (poligonalPorNome.TryGetValue(estacao.Nome, out var pontoDaEstacao))
@@ -187,22 +213,14 @@ namespace TopoGente.Core.Services
                     estacao.PontosCalculados.Add(pontoDaEstacao);
                 }
 
-                var irradiacoes = leiturasBrutas
-                    .Where(l => l.Tipo == TipoLeitura.Irradiacao && l.EstacaoOcupada.Equals(estacao.Nome, StringComparison.OrdinalIgnoreCase))
-                    .Select(l => {
-                        if (!poligonalPorNome.TryGetValue(estacao.Nome, out var pEst)) return null;
-
-                        var az = pEst == resultado.Poligonal.First() ? azimuteInicial :
-                            (pEst.AzimuteChegada < 180
-                                ? pEst.AzimuteChegada + 180
-                                : pEst.AzimuteChegada - 180);
-                        return _calculoService.CalcularPontoIrradiado(pEst, l, az);
-                    }).Where(p => p != null).Select(p => p!).ToList();
-
-                estacao.PontosCalculados.AddRange(irradiacoes);
+                if (irradiacoesPorEstacao.TryGetValue(estacao.Nome, out var irradiacoes))
+                {
+                    estacao.PontosCalculados.AddRange(irradiacoes);
+                }
             }
-                return resultado;
-            }
+
+            return resultado;
+        }
     }            
 
     public class ResultadoLevantamento
