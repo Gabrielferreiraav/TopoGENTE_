@@ -1,0 +1,15 @@
+#TopoGente - Resultado do Levantamento
+# Fechamento bruto (antes do ajuste):
+# fx=102.6897; fy=-96.5028; fz=-1.5419
+# f_linear_xy=140.9183; perimetro=155.687; precisao_1_M=1.10
+# Nome;X;Y;Z;AzimuteChegada; Tipo Descrição 
+E2;1000.000;1000.000;100.000;0;Poligonal (Vante)
+E2;1042.304;957.188;98.724;135.34166666666667;Poligonal (Vante)
+E3;1053.624;913.119;98.538;165.59444444444443;Poligonal (Vante)
+E1;1102.690;903.497;98.458;101.09444444444443;Poligonal (Vante)
+200;1001.548;1008.352;99.559;0;Irradiação
+201;1005.999;1021.270;99.880;0;Irradiação
+200;1037.535;964.217;98.283;0;Irradiação
+201;1031.621;976.534;98.604;0;Irradiação
+100;1095.748;913.893;98.444;0;Irradiação
+101;1112.713;914.990;99.653;0;Irradiação

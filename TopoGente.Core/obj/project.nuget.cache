@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "AEXFZUZiOXI=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\gabri\\source\\repos\\TopoGENTE_\\TopoGente.Core\\TopoGente.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\gabri\\.nuget\\packages\\netdxf\\2023.11.10\\netdxf.2023.11.10.nupkg.sha512"
+  ],
+  "logs": []
+}

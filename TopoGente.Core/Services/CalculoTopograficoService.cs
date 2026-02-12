@@ -9,6 +9,29 @@ namespace TopoGente.Core.Services
     public class CalculoTopograficoService
     {
         /// <summary>
+        /// Normaliza ângulo para o intervalo [0, 360).
+        /// </summary>
+        private static double Normalizar360(double angulo)
+        {
+            angulo %= 360.0;
+            if (angulo < 0) angulo += 360.0;
+            return angulo;
+        }
+
+        /// <summary>
+        /// Calcula o azimute inverso (retorno) adicionando 180° e normalizando.
+        /// </summary>
+        private static double AzimuteInverso(double azimute)
+            => Normalizar360(azimute + 180.0);
+
+        /// <summary>
+        /// Soma um ângulo ao azimute base, normalizando para 0-360.
+        /// Usado para Irradiação e também para Poligonal no modelo "ângulo à direita a partir da Ré".
+        /// </summary>
+        private double SomarAngulos(double azimuteBase, double anguloLido)
+            => Normalizar360(azimuteBase + anguloLido);
+
+        /// <summary>
         /// Calcula o próximo azimute com base no anterior e no ângulo lido.
         /// </summary>
         public double CalcularProximoAzimute(double azimuteAnterior, double anguloHorizontal, SentidoAngulo sentido = SentidoAngulo.Horario)
@@ -101,17 +124,6 @@ namespace TopoGente.Core.Services
             return distanciaInclinada * Math.Cos(radianos);
         }
         /// <summary>
-        /// Soma um ângulo ao azimute base, apenas normalizando para 0-360.
-        /// Usado para Irradiação onde já temos o Azimute da Linha de Ré.
-        /// </summary>
-        private double SomarAngulos(double azimuteBase, double anguloLido)
-        {
-            double soma = azimuteBase + anguloLido;
-            soma = soma % 360;
-            if (soma < 0) soma += 360;
-            return soma;
-        }
-        /// <summary>
         /// Calcula a correção de Curvatura e Refração para distâncias longas.
         /// </summary>
         public double CalcularCorrecaoCurvaturaRefracao(double distHorizontal)
@@ -194,26 +206,28 @@ namespace TopoGente.Core.Services
         {
             var pontosCalculados = new List<PontoCoordenada>();
 
-            // O ponto de partida via azimute inicial (ou é a referência dele)
+            // Interpretação: azimuteInicial == Azimute(Estação inicial -> Ré)
             pontoPartida.AzimuteChegada = azimuteInicial;
             pontosCalculados.Add(pontoPartida);
 
             PontoCoordenada estacaoAtual = pontoPartida;
-            double azimuteAnterior = azimuteInicial;
+
+            // Azimute de orientação (Estação -> Ré) na estação atual
+            double azimuteReAtual = azimuteInicial;
 
             foreach (var leitura in leituras)
             {
-                // Calcular Azimute
-                double azimuteVante = CalcularProximoAzimute(azimuteAnterior, leitura.AnguloHorizontal);
+                // Para poligonal com AngH à direita referida à Ré (Ré = 0):
+                // Az(Estação->Vante) = Az(Estação->Ré) + AngH
+                double azimuteVante = SomarAngulos(azimuteReAtual, leitura.AnguloHorizontal);
 
-                // Cálculos geométricos
                 double distHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
                 double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
                 double correcaoCR = CalcularCorrecaoCurvaturaRefracao(distHorizontal);
+
                 var (novoX, novoY) = CalcularCoordenada(estacaoAtual.X, estacaoAtual.Y, distHorizontal, azimuteVante);
                 double novoZ = estacaoAtual.Z + leitura.AlturaInstrumento + desnivel + correcaoCR - leitura.AlturaPrisma;
 
-                // Criar Ponto (AZIMUTE CHEGADA)
                 var novoPonto = new PontoCoordenada
                 {
                     Nome = leitura.PontoVisado,
@@ -221,14 +235,14 @@ namespace TopoGente.Core.Services
                     Y = novoY,
                     Z = novoZ,
                     EhPontoPoligonal = true,
-                    AzimuteChegada = azimuteVante 
+                    AzimuteChegada = azimuteVante
                 };
 
                 pontosCalculados.Add(novoPonto);
 
-                // Atualiza loop
+                // Próxima estação: a Ré é a estação anterior, então o azimute de orientação vira o inverso do azimute de chegada.
                 estacaoAtual = novoPonto;
-                azimuteAnterior = azimuteVante;
+                azimuteReAtual = AzimuteInverso(azimuteVante);
             }
 
             return pontosCalculados;
