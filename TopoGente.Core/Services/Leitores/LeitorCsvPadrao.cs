@@ -92,23 +92,6 @@ namespace TopoGente.Core.Services.Leitores
                 Leituras = grupo.ToList()
             }).ToList();
 
-            if (estacoes.Count > 0)
-            {
-                var primeiraEstacao = estacoes.First();
-
-                // Verifica se já não foi setada
-                if (primeiraEstacao.CoordenadaConhecida == null)
-                {
-                    primeiraEstacao.CoordenadaConhecida = new PontoCoordenada
-                    {
-                        Nome = primeiraEstacao.Nome,
-                        X = 1000.0,
-                        Y = 1000.0,
-                        Z = 100.0
-                    };
-                }
-            }
-
             return estacoes;
         }
     }

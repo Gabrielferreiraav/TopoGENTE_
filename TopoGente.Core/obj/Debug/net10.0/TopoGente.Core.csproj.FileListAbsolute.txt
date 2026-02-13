@@ -11,3 +11,16 @@ C:\Users\gabri\source\repos\TopoGENTE_\TopoGente.Core\obj\Debug\net10.0\TopoGent
 C:\Users\gabri\source\repos\TopoGENTE_\TopoGente.Core\obj\Debug\net10.0\refint\TopoGente.Core.dll
 C:\Users\gabri\source\repos\TopoGENTE_\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.pdb
 C:\Users\gabri\source\repos\TopoGENTE_\TopoGente.Core\obj\Debug\net10.0\ref\TopoGente.Core.dll
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\bin\Debug\net10.0\TopoGente.Core.deps.json
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\bin\Debug\net10.0\TopoGente.Core.dll
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\bin\Debug\net10.0\TopoGente.Core.pdb
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.csproj.AssemblyReference.cache
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.AssemblyInfoInputs.cache
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.AssemblyInfo.cs
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.csproj.CoreCompileInputs.cache
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.sourcelink.json
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.dll
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\refint\TopoGente.Core.dll
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\TopoGente.Core.pdb
+D:\VISUAL STUDIO\source\repos\TopoGENTE.Core\TopoGente.Core\obj\Debug\net10.0\ref\TopoGente.Core.dll

@@ -8,6 +8,8 @@ namespace TopoGente.Core.Services
 {
     public class CalculoTopograficoService
     {
+        private const double ToleranciaAngularBaseGraus = 0.0; // NBR 13.133 (em graus)(sem bloqueio atualmente)
+
         /// <summary>
         /// Normaliza ângulo para o intervalo [0, 360).
         /// </summary>
@@ -18,6 +20,14 @@ namespace TopoGente.Core.Services
             return angulo;
         }
 
+        private static double NormalizarErroAngular(double erroGraus)
+        {
+            erroGraus %= 360.0;
+            if (erroGraus <= -180.0) erroGraus += 360.0;
+            if (erroGraus > 180.0) erroGraus -= 360.0;
+            return erroGraus;
+        }
+
         /// <summary>
         /// Calcula o azimute inverso (retorno) adicionando 180° e normalizando.
         /// </summary>
@@ -25,38 +35,32 @@ namespace TopoGente.Core.Services
             => Normalizar360(azimute + 180.0);
 
         /// <summary>
-        /// Soma um ângulo ao azimute base, normalizando para 0-360.
-        /// Usado para Irradiação e também para Poligonal no modelo "ângulo à direita a partir da Ré".
+        /// Fórmula clássica de transporte de azimute (Aula06):
+        ///   Az(n) = Az(n-1) + AngH(n) ± 180°
+        /// Se (Az_anterior + AngH) >= 180 → subtrai 180.
+        /// Se (Az_anterior + AngH) &lt; 180 → soma 180.
+        /// Resultado normalizado em [0, 360).
         /// </summary>
-        private double SomarAngulos(double azimuteBase, double anguloLido)
-            => Normalizar360(azimuteBase + anguloLido);
+        private static double TransportarAzimute(double azimuteAnterior, double anguloHorizontal)
+        {
+            double soma = azimuteAnterior + anguloHorizontal;
+
+            double novoAzimute = soma >= 180.0
+                ? soma - 180.0
+                : soma + 180.0;
+
+            return Normalizar360(novoAzimute);
+        }
 
         /// <summary>
         /// Calcula o próximo azimute com base no anterior e no ângulo lido.
+        /// Usa a fórmula clássica: Az(n) = Az(n-1) + AngH(n) ± 180°.
         /// </summary>
         public double CalcularProximoAzimute(double azimuteAnterior, double anguloHorizontal, SentidoAngulo sentido = SentidoAngulo.Horario)
         {
-            // Az(n) = Az(n-1) + Angulo(n) - 180°
-
-            double novoAzimute = azimuteAnterior + anguloHorizontal;
-
-            // Se a soma for maior que 180, subtraímos 180.
-            // Se for menor, somamos 180.
-            if (novoAzimute >= 180)
-            {
-                novoAzimute -= 180;
-            }
-            else
-            {
-                novoAzimute += 180;
-            }
-
-            // Normaliza para ficar sempre entre 0 e 360
-            novoAzimute = novoAzimute % 360;
-            if (novoAzimute < 0) novoAzimute += 360;
-
-            return novoAzimute;
+            return TransportarAzimute(azimuteAnterior, anguloHorizontal);
         }
+
         /// <summary>
         /// Calcula o Azimute de Orientação entre a Estação e um Ponto de Ré conhecido.
         /// Usa Atan2 para resolver o quadrante correto (0 a 360).
@@ -115,31 +119,13 @@ namespace TopoGente.Core.Services
             return distanciaInclinada * Math.Sin(radianos);
         }
         /// <summary>
-        /// Calculo para o Desnível.
-        /// DN = DI * Cos(Zenite)
+        /// Calcula o Desnível (Nivelamento Trigonométrico simplificado ).
+        /// DN = DI × cos(Zênite)
         /// </summary>
         public double CalcularDesnivel(double distanciaInclinada, double anguloVerticalGraus)
         {
             double radianos = ConversorAngulos.ParaRadianos(anguloVerticalGraus);
             return distanciaInclinada * Math.Cos(radianos);
-        }
-        /// <summary>
-        /// Calcula a correção de Curvatura e Refração para distâncias longas.
-        /// </summary>
-        public double CalcularCorrecaoCurvaturaRefracao(double distHorizontal)
-        {
-            if (distHorizontal <= 500)
-            {
-                return 0;
-            }
-
-            double k = 0.13; // Coeficiente de refração padrão 
-            double R = 6370000; // Raio da Terra em metros
-
-            // (1-k) * DH² / 2R
-            double correcao = ((1 - k) * Math.Pow(distHorizontal, 2)) / (2 * R);
-
-            return correcao;
         }
         /// <summary>
         /// Calcula os erros de fechamento linear da poligonal.
@@ -167,11 +153,14 @@ namespace TopoGente.Core.Services
             return (erroX, erroY, erroLinearTotal, precisaoRelativa);
         }
         /// <summary>
-        /// Recebe os objetos e devolve um novo Ponto calculado.
+        /// Recebe os objetos e devolve um novo Ponto calculado (Irradiação).
+        /// Fórmula Z (): Z_vante = Z_estação + (DI×cos(Zênite)) + Hi − Hp
         /// </summary>
         public PontoCoordenada CalcularPontoIrradiado(PontoCoordenada estacao, LeituraEstacaoTotal leitura, double azimuteRe)
         {
-            double azimuteVante = SomarAngulos(azimuteRe, leitura.AnguloHorizontal);
+            // Para irradiação: AngH é referenciado à Ré (Ré = 0°), então
+            // Az(Vante) = Az(Estação→Ré) + AngH, normalizado em [0,360).
+            double azimuteVante = Normalizar360(azimuteRe + leitura.AnguloHorizontal);
 
             double distHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
 
@@ -179,12 +168,11 @@ namespace TopoGente.Core.Services
             var (novoX, novoY) = CalcularCoordenada(estacao.X, estacao.Y, distHorizontal, azimuteVante);
 
             // Calcular Cota (Z) - Nivelamento Trigonométrico
-            // Z_novo = Z_ant + hi + dn - hp
-            // dn (Desnível) = DI * Cosseno(Zenite)
+            // Z_vante = Z_estação + DN + Hi - Hp
+            // DN (Desnível) = DI × cos(Zênite)
             double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
-            double correcaoCR = CalcularCorrecaoCurvaturaRefracao(distHorizontal);
 
-            double novoZ = estacao.Z + leitura.AlturaInstrumento + desnivel + correcaoCR - leitura.AlturaPrisma;
+            double novoZ = estacao.Z + leitura.AlturaInstrumento + desnivel - leitura.AlturaPrisma;
 
             return new PontoCoordenada
             {
@@ -196,37 +184,77 @@ namespace TopoGente.Core.Services
             };
         }
         /// <summary>
-        /// Calcula uma sequência de pontos.
+        /// Calcula a poligonal usando a fórmula clássica de transporte de azimute:
+        ///   Az(n) = Az(n-1) + AngH(n) ± 180°
+        /// com distribuição angular prévia (k = -ea / N) aplicada antes das projeções.
+        /// Fórmula Z ): Z_vante = Z_estação + DI×cos(Zênite) + Hi − Hp
         /// </summary>
-        /// <param name="pontoPartida">Coordenada do primeiro ponto (ex: Marcos Geodésico).</param>
-        /// <param name="azimuteInicial">Azimute de partida (Orientação inicial).</param>
-        /// <param name="leituras">Lista ordenada da poligonal.</param>
+        /// <param name="pontoPartida">Coordenada do primeiro ponto .</param>
+        /// <param name="azimuteInicial">Azimute do alinhamento de partida (Estação → Ré).</param>
+        /// <param name="leituras">Lista ordenada de leituras da poligonal.</param>
         /// <returns>Lista contendo o ponto de partida e todos os pontos calculados.</returns>
         public List<PontoCoordenada> CalcularPoligonal(PontoCoordenada pontoPartida, double azimuteInicial, List<LeituraEstacaoTotal> leituras)
         {
             var pontosCalculados = new List<PontoCoordenada>();
 
-            // Interpretação: azimuteInicial == Azimute(Estação inicial -> Ré)
-            pontoPartida.AzimuteChegada = azimuteInicial;
+                pontoPartida.AzimuteChegada = azimuteInicial;
             pontosCalculados.Add(pontoPartida);
 
-            PontoCoordenada estacaoAtual = pontoPartida;
-
-            // Azimute de orientação (Estação -> Ré) na estação atual
-            double azimuteReAtual = azimuteInicial;
-
-            foreach (var leitura in leituras)
+            if (leituras == null || leituras.Count == 0)
             {
-                // Para poligonal com AngH à direita referida à Ré (Ré = 0):
-                // Az(Estação->Vante) = Az(Estação->Ré) + AngH
-                double azimuteVante = SomarAngulos(azimuteReAtual, leitura.AnguloHorizontal);
+                return pontosCalculados;
+            }
+
+            // Propagar azimutes brutos para obter erro angular (ea)
+            //  Az(n) = Az(n-1) + AngH(n) ± 180°
+            // O primeiro azimute anterior é o azimuteInicial (alinhamento de partida).
+            double azAnteriorTmp = azimuteInicial;
+            double azVanteFinal = azimuteInicial;
+
+            for (int i = 0; i < leituras.Count; i++)
+            {
+                azVanteFinal = TransportarAzimute(azAnteriorTmp, leituras[i].AnguloHorizontal);
+                azAnteriorTmp = azVanteFinal; // O azimute de vante torna-se o azimute anterior do próximo vértice
+            }
+
+            // Poligonal fechada o azimute de chegada conhecido é o azimuteInicial.
+            double ea = NormalizarErroAngular(azVanteFinal - azimuteInicial);
+
+            // Verificar tolerância angular 
+            if (ToleranciaAngularBaseGraus > 0)
+            {
+                double tp = ToleranciaAngularBaseGraus * Math.Sqrt(leituras.Count);
+                if (Math.Abs(ea) > tp)
+                {
+                    throw new DadosInsuficientesException(
+                        $"Erro angular (ea={ea:F6}°) excede tolerância (Tp={tp:F6}°). Verifique as leituras/apoios.");
+                }
+            }
+
+            // Correção unitária: k = -ea / N_angulos
+            double k = -ea / leituras.Count;
+
+            //  Recalcular coordenadas com ângulos corrigidos
+            // Aplica a correção acumulativa: AngH_corr(i) = AngH(i) + (i+1)*k
+            // depois propaga pelo transporte clássico.
+            PontoCoordenada estacaoAtual = pontoPartida;
+            double azimuteAnterior = azimuteInicial;
+
+            for (int i = 0; i < leituras.Count; i++)
+            {
+                var leitura = leituras[i];
+
+                // Ângulo horizontal com correção angular acumulativa
+                double anguloHorizontalCorrigido = leitura.AnguloHorizontal + ((i + 1) * k);
+
+                // Az(n) = Az(n-1) + AngH_corrigido ± 180°
+                double azimuteVante = TransportarAzimute(azimuteAnterior, anguloHorizontalCorrigido);
 
                 double distHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
                 double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
-                double correcaoCR = CalcularCorrecaoCurvaturaRefracao(distHorizontal);
 
                 var (novoX, novoY) = CalcularCoordenada(estacaoAtual.X, estacaoAtual.Y, distHorizontal, azimuteVante);
-                double novoZ = estacaoAtual.Z + leitura.AlturaInstrumento + desnivel + correcaoCR - leitura.AlturaPrisma;
+                double novoZ = estacaoAtual.Z + leitura.AlturaInstrumento + desnivel - leitura.AlturaPrisma;
 
                 var novoPonto = new PontoCoordenada
                 {
@@ -240,17 +268,14 @@ namespace TopoGente.Core.Services
 
                 pontosCalculados.Add(novoPonto);
 
-                // Próxima estação: a Ré é a estação anterior, então o azimute de orientação vira o inverso do azimute de chegada.
+                // O azimute de vante deste alinhamento é o azimute anterior do próximo vértice
                 estacaoAtual = novoPonto;
-                azimuteReAtual = AzimuteInverso(azimuteVante);
+                azimuteAnterior = azimuteVante;
             }
 
             return pontosCalculados;
         }
 
-        /// <summary>
-        /// Aplica a Compensação de Bowditch na poligonal. (Bowditch)
-        /// </summary>
         public List<PontoCoordenada> CompensarPoligonal(List<PontoCoordenada> poligonalOriginal, double erroX, double erroY, double perimetroTotal)
         {
             if (perimetroTotal == 0 || (Math.Abs(erroX) < 0.0001 && Math.Abs(erroY) < 0.0001))
@@ -262,6 +287,15 @@ namespace TopoGente.Core.Services
 
             // O primeiro ponto (M1) é fixo
             var pInicial = poligonalOriginal[0];
+
+            // Erro altimétrico para poligonal fechada ,diferença entre cota final calculada e cota inicial
+            // ( Soma(Δh) - (Z_chegada - Z_partida), com Z_chegada == Z_partida)
+            double eAlt = 0;
+            if (poligonalOriginal.Count > 1)
+            {
+                eAlt = poligonalOriginal[^1].Z - pInicial.Z;
+            }
+
             poligonalAjustada.Add(new PontoCoordenada
             {
                 Nome = pInicial.Nome,
@@ -275,9 +309,9 @@ namespace TopoGente.Core.Services
             // Acumuladores de correção
             double correcaoAcumuladaX = 0;
             double correcaoAcumuladaY = 0;
+            double correcaoAcumuladaZ = 0;
 
-            //  ajustamos até o fim para garantir que o último ponto fique igual ao primeiro matematicamente.
-
+            // ajustamos até o fim para garantir que o último ponto fique igual ao primeiro matematicamente
             for (int i = 1; i < poligonalOriginal.Count; i++)
             {
                 var pAnterior = poligonalOriginal[i - 1];
@@ -288,21 +322,23 @@ namespace TopoGente.Core.Services
                 double dy = pAtual.Y - pAnterior.Y;
                 double distPerna = Math.Sqrt(dx * dx + dy * dy);
 
-                // Correção Unitária para esta perna
-                // cx = -ErroTotalX * (dist / Perimetro)
+                // Correção Unitária Bowditch em XY
                 double cx = -erroX * (distPerna / perimetroTotal);
                 double cy = -erroY * (distPerna / perimetroTotal);
 
+                // Correção altimétrica nivelamento
+                double cz = -eAlt * (distPerna / perimetroTotal);
+
                 correcaoAcumuladaX += cx;
                 correcaoAcumuladaY += cy;
+                correcaoAcumuladaZ += cz;
 
-                //  ponto ajustado
                 var novoPonto = new PontoCoordenada
                 {
                     Nome = pAtual.Nome,
-                    X = pAtual.X + correcaoAcumuladaX, 
+                    X = pAtual.X + correcaoAcumuladaX,
                     Y = pAtual.Y + correcaoAcumuladaY,
-                    Z = pAtual.Z,  // mantemos Z original.
+                    Z = pAtual.Z + correcaoAcumuladaZ,
                     EhPontoPoligonal = true,
                     AzimuteChegada = pAtual.AzimuteChegada
                 };

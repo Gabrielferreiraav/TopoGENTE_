@@ -71,19 +71,44 @@ namespace TopoGente.Core.Services
             }
         }
 
+        /// <summary>
+        /// Valida se o ponto de partida possui coordenadas reais (não-default).
+        /// Coordenadas (0,0,0) são aceitas apenas se explicitamente fornecidas
+        /// pelo usuário — a validação impede pontoPartida nulo.
+        /// </summary>
+        private static void ValidarCoordenadasPartida(PontoCoordenada pontoPartida)
+        {
+            if (pontoPartida == null)
+            {
+                throw new DadosInsuficientesException(
+                    "Levantamentos fechados exigem coordenadas de partida e chegada reais para cálculo de fechamento.");
+            }
+
+            // Impedir coordenadas default arbitrárias (1000, 1000, 100)
+            // que mascaram uma poligonal aberta como se fosse fechada.
+            if (pontoPartida.X == 1000.0 && pontoPartida.Y == 1000.0 && pontoPartida.Z == 100.0)
+            {
+                throw new DadosInsuficientesException(
+                    "Coordenadas de partida (1000, 1000, 100) são valores default e não representam apoio geodésico real. " +
+                    "Forneça coordenadas conhecidas.");
+            }
+        }
+
         public ResultadoLevantamento Processar(
             PontoCoordenada pontoPartida,
             double azimuteInicial,
             List<LeituraEstacaoTotal> leiturasBrutas,
             Dictionary<string, PontoCoordenada>? pontosConhecidos)
         {
+            ValidarCoordenadasPartida(pontoPartida);
+
             var resultado = new ResultadoLevantamento();
 
             var leiturasPoligonal = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Poligonal).ToList();
             var leiturasRe = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Re).ToList();
             var leiturasIrradiadas = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Irradiacao).ToList();
 
-            // 1) Calcula poligonal bruta (sempre)
+            //  Calcula poligonal bruta 
             var poligonalBruta = _calculoService.CalcularPoligonal(pontoPartida, azimuteInicial, leiturasPoligonal);
             resultado.PoligonalBruta = poligonalBruta;
 
@@ -111,14 +136,14 @@ namespace TopoGente.Core.Services
 
                 fechou = fechouPorNome || fechouPorCoordenada;
 
-                // 2) Calcula e armazena erros BRUTOS (antes de compensar)
+                // Calcula e armazena erros brutos (antes de compensar)
                 var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
                 resultado.ErroFechamentoX = erros.erroX;
                 resultado.ErroFechamentoY = erros.erroY;
                 resultado.ErroFechamentoLinearXY = erros.erroLinearTotal;
                 resultado.PrecisaoBruta = erros.precisaoRelativa;
 
-                // Fechamento altimétrico bruto (simples)
+                // Fechamento altimétrico bruto 
                 resultado.ErroFechamentoZ = pontoChegada.Z - pontoPartida.Z;
 
                 if (fechou)
@@ -152,7 +177,7 @@ namespace TopoGente.Core.Services
                 resultado.PrecisaoBruta = 0;
             }
 
-            // 3) Impedir irradiação duplicada no ponto de fechamento:
+            //  Impedir irradiação duplicada no ponto de fechamento:
             // Se poligonal fechada e último nome == primeiro nome, ignora o último para fins de irradiação.
             IEnumerable<PontoCoordenada> estacoesParaIrradiar = resultado.Poligonal;
 
