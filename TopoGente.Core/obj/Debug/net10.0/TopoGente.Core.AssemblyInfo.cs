@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TopoGente.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+086954cd9ec126d300eaa9a3221686945a4f9ae3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+36b743c28e30d65448fdcdc04888e52b53c67f01")]
 [assembly: System.Reflection.AssemblyProductAttribute("TopoGente.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TopoGente.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
