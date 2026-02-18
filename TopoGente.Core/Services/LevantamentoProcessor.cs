@@ -22,7 +22,7 @@ namespace TopoGente.Core.Services
         /// <summary>
         /// Sobrecarga para processar quando temos Coordenada de Ré em vez de Azimute
         /// </summary>
-        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, PontoCoordenada pontoRe, List<LeituraEstacaoTotal> leiturasBrutas, List<LeituraEstacaoTotal> leiturasBruas)
+        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, PontoCoordenada pontoRe, List<LeituraEstacaoTotal> leiturasBrutas)
         {
             double azimuteInicialCalculado = _calculoService.CalcularAzimutePorCoordenadas(
                 pontoPartida.X, pontoPartida.Y,
@@ -37,7 +37,9 @@ namespace TopoGente.Core.Services
 
         private static void SalvarSaidaTxt(ResultadoLevantamento resultado)
         {
+
             var pontos = resultado.TodosOsPontos ?? new List<PontoCoordenada>();
+            
             if (pontos.Count == 0)
             {
                 return;
@@ -57,7 +59,7 @@ namespace TopoGente.Core.Services
             var ic = CultureInfo.InvariantCulture;
 
             writer.WriteLine("#TopoGente - Resultado do Levantamento");
-
+            
             // Erros brutos (antes de qualquer ajuste)
             writer.WriteLine("# Fechamento bruto (antes do ajuste):");
             writer.WriteLine($"# fx={resultado.ErroFechamentoX.ToString("F4", ic)}; fy={resultado.ErroFechamentoY.ToString("F4", ic)}; fz={resultado.ErroFechamentoZ.ToString("F4", ic)}");
@@ -72,9 +74,8 @@ namespace TopoGente.Core.Services
         }
 
         /// <summary>
-        /// Valida se o ponto de partida possui coordenadas reais (não-default).
+        /// Valida se o ponto de partida possui coordenadas reais
         /// Coordenadas (0,0,0) são aceitas apenas se explicitamente fornecidas
-        /// pelo usuário — a validação impede pontoPartida nulo.
         /// </summary>
         private static void ValidarCoordenadasPartida(PontoCoordenada pontoPartida)
         {
@@ -85,7 +86,7 @@ namespace TopoGente.Core.Services
             }
 
             // Impedir coordenadas default arbitrárias (1000, 1000, 100)
-            // que mascaram uma poligonal aberta como se fosse fechada.
+            // que mascaram uma poligonal aberta como se fosse fechada
             if (pontoPartida.X == 1000.0 && pontoPartida.Y == 1000.0 && pontoPartida.Z == 100.0)
             {
                 throw new DadosInsuficientesException(

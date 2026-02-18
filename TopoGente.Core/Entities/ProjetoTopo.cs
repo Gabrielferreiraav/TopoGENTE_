@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace TopoGente.Core.Entities
 {
@@ -15,7 +14,9 @@ namespace TopoGente.Core.Entities
         public double StartAzimute { get; set; }
         public List<Estacao> Estacoes { get; set; } = new List<Estacao>();
 
-       
         public RelatorioQA? RelatorioQA { get; set; }
+
+        /// <summary>Metadados do cenário escolhido pelo usuário.</summary>
+        public MetadadosCenario? Metadados { get; set; }
     }
 }

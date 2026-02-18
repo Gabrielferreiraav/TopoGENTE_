@@ -16,35 +16,102 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <GroupBox Header="Dados da Estação de Partida (M1)" Grid.Row="0" Padding="10" Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Margin="5">
-                    <TextBlock Text="Coordenada E (X):"/>
-                    <TextBox x:Name="txtX" Text="1000,000" Padding="3"/>
+        <GroupBox Header="Metadados de Partida " Grid.Row="0" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <!-- Selecao de cenario-->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="Cenário:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="cmbCenario" Width="280" Height="25"
+              SelectionChanged="cmbCenario_SelectionChanged" SelectedIndex="1">
+                        <ComboBoxItem Content="Enquadrada (Apoiada)" Tag="Enquadrada"/>
+                        <ComboBoxItem Content="Fechada" Tag="Fechada"/>
+                        <ComboBoxItem Content="Aberta Orientada" Tag="AbertaOrientada"/>
+                    </ComboBox>
                 </StackPanel>
+                <!-- Coordenada de partida (para todos) -->
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="1" Margin="5">
-                    <TextBlock Text="Coordenada N (Y):"/>
-                    <TextBox x:Name="txtY" Text="1000,000" Padding="3"/>
-                </StackPanel>
+                    <TextBlock Text="Partida:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
 
-                <StackPanel Grid.Column="2" Margin="5">
-                    <TextBlock Text="Cota (Z):"/>
-                    <TextBox x:Name="txtZ" Text="100,000" Padding="3"/>
-                </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="5,0">
+                        <TextBlock Text="E (X):" FontSize="11"/>
+                        <TextBox x:Name="txtX" Text="1000,000" Padding="3"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="5,0">
+                        <TextBlock Text="N (Y):" FontSize="11"/>
+                        <TextBox x:Name="txtY" Text="1000,000" Padding="3"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Margin="5,0">
+                        <TextBlock Text="Cota (Z):" FontSize="11"/>
+                        <TextBox x:Name="txtZ" Text="100,000" Padding="3"/>
+                    </StackPanel>
+                </Grid>
+                <!--Orientacao de Partida-->
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="3" Margin="5">
-                    <TextBlock Text="Azimute de Partida (Graus):"/>
-                    <TextBox x:Name="txtAzimute" Text="0" Padding="3" ToolTip="Informe em Graus Decimais"/>
-                </StackPanel>
-            </Grid>
+                    <TextBlock Text="Orientação:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+
+                    <RadioButton x:Name="rbAzimute" Content="Azimute" Grid.Column="1"
+                 VerticalAlignment="Center" Margin="0,0,12,0" IsChecked="True"
+                 Checked="rbOrientacao_Changed"/>
+                    <RadioButton x:Name="rbCoordenadaRe" Content="Coord. de Ré" Grid.Column="2"
+                 VerticalAlignment="Center" Margin="0,0,12,0"
+                 Checked="rbOrientacao_Changed"/>
+
+                    <!-- Azimute direto -->
+                    <StackPanel x:Name="pnlAzimute" Grid.Column="3" Orientation="Horizontal" Visibility="Visible">
+                        <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
+                        <TextBox x:Name="txtAzimute" Text="0" Width="100" Padding="3"
+                 ToolTip="Informe em Graus Decimais"/>
+                    </StackPanel>
+
+                    <!-- Coordenada de Ré -->
+                    <StackPanel x:Name="pnlCoordenadaRe" Grid.Column="3" Orientation="Horizontal" Visibility="Collapsed">
+                        <TextBlock Text="Ré E:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                        <TextBox x:Name="txtReX" Text="0" Width="80" Padding="3" Margin="0,0,8,0"/>
+                        <TextBlock Text="Ré N:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                        <TextBox x:Name="txtReY" Text="0" Width="80" Padding="3" Margin="0,0,8,0"/>
+                        <TextBlock Text="Ré Z:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                        <TextBox x:Name="txtReZ" Text="0" Width="80" Padding="3"/>
+                    </StackPanel>
+                </Grid>
+                <!--Coordenada de CHegada para Enquadrada-->
+                <Grid x:Name="pnlChegada" Margin="0,0,0,0" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Chegada:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0" Foreground="DarkRed"/>
+
+                    <StackPanel Grid.Column="1" Margin="5,0">
+                        <TextBlock Text="E (X):" FontSize="11"/>
+                        <TextBox x:Name="txtChegadaX" Text="0" Padding="3"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="5,0">
+                        <TextBlock Text="N (Y):" FontSize="11"/>
+                        <TextBox x:Name="txtChegadaY" Text="0" Padding="3"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Margin="5,0">
+                        <TextBlock Text="Cota (Z):" FontSize="11"/>
+                        <TextBox x:Name="txtChegadaZ" Text="0" Padding="3"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </GroupBox>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">

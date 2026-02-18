@@ -31,6 +31,7 @@ namespace TopoGente.UI
         private List<Estacao> _estacoesEmMemoria;
         private RelatorioQA? _relatorioQaAtual;
         private readonly QaCheckService _qaCheckService;
+        private MetadadosCenario? _metadadosAtuais;
         private Point _origemMouse;
         private bool _estaArrastando = false;
 
@@ -317,21 +318,90 @@ namespace TopoGente.UI
                 txtInfoEstacao.Text = "Hi: -";
             }
         }
+
+        private void cmbCenario_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (pnlChegada == null) return;
+
+            var tag = (cmbCenario.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+
+            // Ponto de Chegada (visivel para enquqadrada)
+            pnlChegada.Visibility = tag == "Enquadrada" ? Visibility.Visible : Visibility.Collapsed;
+
+            // Fechada e Enquadrada 
+            if (tag =="AbertaOrientada")
+            {
+                rbAzimute.IsChecked = true;
+                rbCoordenadaRe.IsEnabled = false;
+            }
+            else
+            {
+                rbCoordenadaRe.IsEnabled = true;
+            }
+        }
+
+        private void rbOrientacao_Changed(object sender, RoutedEventArgs e)
+        {
+            if (pnlAzimute == null || pnlCoordenadaRe == null) return;
+
+            bool usarAzimute = rbAzimute.IsChecked == true;
+            pnlAzimute.Visibility = usarAzimute ? Visibility.Visible : Visibility.Collapsed;
+            pnlCoordenadaRe.Visibility = usarAzimute ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        /// <sumary>
+        /// Lê os campos de entrada da UI e devolve <see cref="MetadadosCenario"/> para ser usado no processamento do levantamento. 
+        /// </sumary>
+        private MetadadosCenario ColetarMetadadosDaUI()
+        {
+            var tag = (cmbCenario.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Fechada";
+
+            var cenario = tag switch
+            {
+                "Enquadrada" => TipoCenarioPoligonal.Enquadrada,
+                "Fechada" => TipoCenarioPoligonal.Fechada,
+                "AbertaOrientada" => TipoCenarioPoligonal.AbertaOrientada,
+                _ => TipoCenarioPoligonal.Fechada
+            };
+
+            bool usarRe = rbCoordenadaRe.IsChecked == true;
+
+            var meta = new MetadadosCenario
+            {
+                TipoCenario = cenario,
+                PartidaX = double.Parse(txtX.Text),
+                PartidaY = double.Parse(txtY.Text),
+                PartidaZ = double.Parse(txtZ.Text),
+                UsarCoordenadaRe = usarRe,
+                AzimutePartida = usarRe ? 0 : double.Parse(txtAzimute.Text),
+                ReX = usarRe ? double.Parse(txtX.Text) : 0,
+                ReY = usarRe ? double.Parse(txtY.Text) : 0,
+                ReZ = usarRe ? double.Parse(txtZ.Text) : 0,
+            };
+
+            if (cenario == TipoCenarioPoligonal.Enquadrada)
+            {
+                meta.ChegadaX = double.Parse(txtChegadaX.Text);
+                meta.ChegadaY = double.Parse(txtChegadaY.Text);
+                meta.ChegadaZ = double.Parse(txtChegadaZ.Text);
+            }
+
+            return meta;
+        }
+
+
         private void btnProcessar_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Depois utilizar TryParse para evitar erros de digitação.
-                double x = double.Parse(txtX.Text);
-                double y = double.Parse(txtY.Text);
-                double z = double.Parse(txtZ.Text);
-                double azimuteInicial = double.Parse(txtAzimute.Text);
 
                 if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0)
                 {
                     MessageBox.Show("Nenhuma estação carregada.", "Aviso");
                     return;
                 }
+
+                _metadadosAtuais = ColetarMetadadosDaUI();
 
                 string nomePontoInicial = "M1";
                 if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
@@ -346,14 +416,33 @@ namespace TopoGente.UI
                 var pM1 = new PontoCoordenada
                 {
                     Nome = nomePontoInicial,
-                    X = x,
-                    Y = y,
-                    Z = z,
+                    X = _metadadosAtuais.PartidaX,
+                    Y = _metadadosAtuais.PartidaY,
+                    Z = _metadadosAtuais.PartidaZ,
                     EhPontoPoligonal = true
                 };
 
-                var estacoesOrganizadas = _estacoesEmMemoria;
+                double azimuteInicial;
 
+                if (_metadadosAtuais.UsarCoordenadaRe)
+                {
+                    var pontoRe = new PontoCoordenada
+                    {
+                        Nome = "RE",
+                        X = _metadadosAtuais.ReX,
+                        Y = _metadadosAtuais.ReY,
+                        Z = _metadadosAtuais.ReZ,
+                        EhPontoPoligonal = false
+                    };
+
+                    azimuteInicial = new CalculoTopograficoService().CalcularAzimutePorCoordenadas(pM1.X, pM1.Y, pontoRe.X, pontoRe.Y);
+                }
+                else
+                {
+                    azimuteInicial = _metadadosAtuais.AzimutePartida;
+                }
+
+                
                 var pontosConhecidos = _estacoesEmMemoria
                     .Where(e => e.CoordenadaConhecida != null)
                     .Select(e => e.CoordenadaConhecida!)
@@ -361,10 +450,25 @@ namespace TopoGente.UI
                     .ToDictionary(g=> g.Key, g=> g.First(), StringComparer.OrdinalIgnoreCase);
 
 
-                // Converter o Arquivo em Objetos
-                var resultado = _processadorService.Processar(pM1, azimuteInicial, estacoesOrganizadas, pontosConhecidos);
-                
-                _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(estacoesOrganizadas, resultado, pontosConhecidos);
+                // Se cenário Enquadrada, adicionar ponto de chegada aos conhecidos
+                if (_metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada)
+                {
+                    var pontoChegada = new PontoCoordenada
+                    {
+                        Nome = "CHEGADA",
+                        X = _metadadosAtuais.ChegadaX,
+                        Y = _metadadosAtuais.ChegadaY,
+                        Z = _metadadosAtuais.ChegadaZ,
+                        EhPontoPoligonal = true
+                    };
+
+                    pontosConhecidos["CHEGADA"] = pontoChegada;
+                }
+
+                //Processar
+                var resultado = _processadorService.Processar(pM1, azimuteInicial, _estacoesEmMemoria, pontosConhecidos);
+
+                _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, pontosConhecidos);
 
                 gridResultados.ItemsSource = resultado.TodosOsPontos;
                 canvasDesenho.UpdateLayout();
@@ -384,9 +488,12 @@ namespace TopoGente.UI
                 }
 
                 btnExportarDxf.IsEnabled = true;
-
                 tabsPrincipal.SelectedIndex = 1;
                 MessageBox.Show("Cálculo realizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (FormatException)
+            {
+                MessageBox.Show("Verifique se todos os campos numéricos estão preenchidos corretamente.", "Erro de Formato", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
@@ -415,7 +522,8 @@ namespace TopoGente.UI
                     StartZ = z,
                     StartAzimute = azimuteInicial,
                     Estacoes = _estacoesEmMemoria,
-                    RelatorioQA = _relatorioQaAtual
+                    RelatorioQA = _relatorioQaAtual,
+                    Metadados = _metadadosAtuais
                 };
 
                 var saveDialog = new SaveFileDialog
@@ -462,7 +570,9 @@ namespace TopoGente.UI
                     txtAzimute.Text = projeto.StartAzimute.ToString();
 
                     _estacoesEmMemoria = projeto.Estacoes;
-
+                    _metadadosAtuais = projeto.Metadados;
+                    
+                    RestaurarMetadadosNaUI(projeto.Metadados);
                     AplicarGateUIAposCarregarouAbrir(null, System.IO.Path.GetFileName(openDialog.FileName));
 
                 }
@@ -470,6 +580,46 @@ namespace TopoGente.UI
                 {
                     MessageBox.Show($"Erro ao abrir projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+        private void RestaurarMetadadosNaUI(MetadadosCenario? meta)
+        {
+            if (meta == null) return;
+
+            // Cenário
+            cmbCenario.SelectedIndex = meta.TipoCenario switch
+            {
+                TipoCenarioPoligonal.Enquadrada => 0,
+                TipoCenarioPoligonal.Fechada => 1,
+                TipoCenarioPoligonal.AbertaOrientada => 2,
+                _ => 1
+            };
+
+            // Partida
+            txtX.Text = meta.PartidaX.ToString("F3");
+            txtY.Text = meta.PartidaY.ToString("F3");
+            txtZ.Text = meta.PartidaZ.ToString("F3");
+
+            // Orientação
+            if (meta.UsarCoordenadaRe)
+            {
+                rbCoordenadaRe.IsChecked = true;
+                txtReX.Text = meta.ReX.ToString("F3");
+                txtReY.Text = meta.ReY.ToString("F3");
+                txtReZ.Text = meta.ReZ.ToString("F3");
+            }
+            else
+            {
+                rbAzimute.IsChecked = true;
+                txtAzimute.Text = meta.AzimutePartida.ToString();
+            }
+
+            // Chegada
+            if (meta.TipoCenario == TipoCenarioPoligonal.Enquadrada)
+            {
+                txtChegadaX.Text = meta.ChegadaX.ToString("F3");
+                txtChegadaY.Text = meta.ChegadaY.ToString("F3");
+                txtChegadaZ.Text = meta.ChegadaZ.ToString("F3");
             }
         }
         public void btnExportarDxf_Click(object sender, RoutedEventArgs e)

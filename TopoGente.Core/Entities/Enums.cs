@@ -23,4 +23,14 @@ namespace TopoGente.Core.Entities
         Fbk = 1,
         LandXml = 2
     }
+
+    public enum TipoCenarioPoligonal
+    {
+        // <summary> Poligonal enquadrada : sai de um ponto conhecido e chega em outro ponto conhecido</summary>
+        Enquadrada,
+        // <summary> Poligonal fechada : fechamento automático entre o último ponto e o primeiro ponto</summary>
+        Fechada,
+        //<summary> Poligonal aberta : sem fechamento , apenas ponto de partida e orientação inicial</summary>
+        AbertaOrientada
+    }
 }
