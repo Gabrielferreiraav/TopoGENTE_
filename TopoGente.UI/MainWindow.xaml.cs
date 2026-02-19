@@ -374,8 +374,8 @@ namespace TopoGente.UI
                 PartidaZ = double.Parse(txtZ.Text),
                 UsarCoordenadaRe = usarRe,
                 AzimutePartida = usarRe ? 0 : double.Parse(txtAzimute.Text),
-                ReX = usarRe ? double.Parse(txtX.Text) : 0,
-                ReY = usarRe ? double.Parse(txtY.Text) : 0,
+                ReX = usarRe ? double.Parse(txtReX.Text) : 0,
+                ReY = usarRe ? double.Parse(txtReY.Text) : 0,
                 ReZ = usarRe ? double.Parse(txtZ.Text) : 0,
             };
 
@@ -466,7 +466,7 @@ namespace TopoGente.UI
                 }
 
                 //Processar
-                var resultado = _processadorService.Processar(pM1, azimuteInicial, _estacoesEmMemoria, pontosConhecidos);
+                var resultado = _processadorService.Processar(_metadadosAtuais, _estacoesEmMemoria, pontosConhecidos);
 
                 _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, pontosConhecidos);
 
