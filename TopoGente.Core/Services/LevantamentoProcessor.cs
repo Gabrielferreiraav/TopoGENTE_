@@ -144,12 +144,9 @@ namespace TopoGente.Core.Services
                 _ => azimuteInicial
             };
 
-            List<PontoCoordenada>? poligonalBruta = null;
-
-            if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Fechada || metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada)
-            {
-                poligonalBruta = _calculoService.CalcularPoligonal(PontoPartida, azimuteInicial, leiturasPoligonal);
-            }
+            
+            var poligonalBruta = _calculoService.CalcularPoligonal(PontoPartida, azimuteInicial, leiturasPoligonal);
+            
             resultado.PoligonalBruta = poligonalBruta;
 
             double perimetro = 0;
