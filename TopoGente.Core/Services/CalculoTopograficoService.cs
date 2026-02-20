@@ -145,7 +145,7 @@ namespace TopoGente.Core.Services
             double precisaoRelativa = 0;
             if (erroLinearTotal > 0.0001) // Evitar divisão por zero
             {
-                precisaoRelativa = perimetroTotal / erroLinearTotal;
+                precisaoRelativa = erroLinearTotal / perimetroTotal;
             }
 
             return (erroX, erroY, erroLinearTotal, precisaoRelativa);
@@ -242,6 +242,186 @@ namespace TopoGente.Core.Services
             }
 
             return pontosCalculados;
+        }
+
+        public List<PontoCoordenada> CompensarPoligonal(
+            PontoCoordenada pontoPartida, PontoCoordenada pontoChegada,
+            double azimuteInicial, double azimuteChegada,
+            List<LeituraEstacaoTotal> leituras, List<PontoCoordenada> poligonalBruta,
+            TipoCenarioPoligonal tipoCenario, out double erroAngular, out double erroX, out double erroY,
+            out double erroLinearTotal, out double precisaoRelativa, out double erroAltimetrico)
+        {
+            erroAngular = 0; erroX = 0; erroY = 0; erroAngular = 0; erroLinearTotal = 0; precisaoRelativa = 0; erroAltimetrico = 0;
+
+            if (leituras == null || leituras.Count == 0)
+            {
+                return new List<PontoCoordenada> { pontoPartida };
+            }
+
+            int nEstacoes = leituras.Count;
+
+            // Compensacao Angular
+            double azimuteCalculadoFinal = poligonalBruta[^1].AzimuteChegada;
+
+            if(tipoCenario == TipoCenarioPoligonal.Enquadrada)
+            {
+                erroAngular = NormalizarErroAngular(azimuteCalculadoFinal - azimuteChegada);
+            }else if(tipoCenario == TipoCenarioPoligonal.Fechada) {
+                erroAngular = NormalizarErroAngular(azimuteCalculadoFinal - azimuteInicial);
+
+            }
+
+            // Verificacao de tolerancia ainda nao implementada 
+            // Tolerancia_Angular = (3 * precisao_equipamento * sqrt(n_estacoes)) + 10
+
+            // Correcao Linear
+            double correcaoAngularUnitaria = - erroAngular / nEstacoes;
+
+            // Aplicar azimutes compensados
+            // Azimute_Compensado_J = Azimute_Calculado_J + (J * corr_ang)
+            var azimutesCompensados = new double[nEstacoes];
+            for (int i = 0; i < nEstacoes; i++)
+            {
+                double azimuteCalculado = poligonalBruta[i + 1].AzimuteChegada;
+                azimutesCompensados[i] = Normalizar360(azimuteCalculado + ((i + 1) * correcaoAngularUnitaria));
+            }
+
+            // Recalcular as projecoes parciais
+            var deltaX = new double[nEstacoes];
+            var deltaY = new double[nEstacoes];
+            var distanciasHorizontais = new double[nEstacoes];
+            var desniveis = new double[nEstacoes];
+
+            double perimetroTotal = 0;
+
+            for (int i = 0; i < nEstacoes; i++)
+            {
+                var leitura = leituras[i];
+
+                double dh = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+
+                // Dn_Calculado = DI * cos(Zênite), Hi e hP ja estão incluidos
+                double dn = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                dn += leitura.AlturaInstrumento - leitura.AlturaPrisma;
+
+                distanciasHorizontais[i] = dh;
+                desniveis[i] = dn;
+                perimetroTotal += dh;
+
+                var (dx, dy) = CalcularProjecao(dh, azimutesCompensados[i]);
+                deltaX[i] = dx;deltaY[i] = dy;
+            }
+
+            // Compensacao Linear (Bowditch)
+            double somaDeltasX = 0;double somaDeltasY = 0;
+                for (int j = 0; j <= i; j++)
+                {
+                    somaDeltasX += deltaX[j];
+                    somaDeltasY += deltaY[j];
+                }
+
+                if (tipoCenario == TipoCenarioPoligonal.Enquadrada)
+                {
+                    erroX = somaDeltasX + pontoPartida.X - pontoChegada.X;
+                    erroY = somaDeltasY + pontoPartida.Y - pontoChegada.Y;
+                }else if (tipoCenario == TipoCenarioPoligonal.Fechada)
+                {
+                    erroX = somaDeltasX;
+                    erroY = somaDeltasY;
+                }
+
+                // Erro linear total e precisão relativa
+                erroLinearTotal = Math.Sqrt((erroX * erroX) + (erroY * erroY));
+
+                if (perimetroTotal > 0.0001)
+                {
+                    precisaoRelativa = erroLinearTotal / perimetroTotal;
+                }
+
+                // Coeficientes de Correcao (Bowditch)
+                double coefX = perimetroTotal > 0 ? -erroX / perimetroTotal : 0; 
+                double coefY = perimetroTotal > 0 ? -erroY / perimetroTotal : 0;
+
+                // Aplicacao dos coeficientes de correcao para obter coordenadas compensadas
+                var deltasXCompensados = new double[nEstacoes];
+                var deltasYCompensados = new double[nEstacoes];
+
+                for (int j = 0; j < nEstacoes; j++)
+                {
+                    deltasXCompensados[j] = deltaX[j] + (coefX * distanciasHorizontais[j]);
+                    deltasYCompensados[j] = deltaY[j] + (coefY * distanciasHorizontais[j]);
+                }
+
+                // Calculo das coordenadas Finais Compensadas
+                var poligonalCompensada = new List<PontoCoordenada>();
+
+                poligonalCompensada.Add(new PontoCoordenada
+                {
+                    Nome = pontoPartida.Nome,
+                    X = pontoPartida.X,
+                    Y = pontoPartida.Y,
+                    Z = pontoPartida.Z,
+                    EhPontoPoligonal = true,
+                    AzimuteChegada = azimuteInicial
+                });
+
+                double xAtual = pontoPartida.X;
+                double yAtual = pontoPartida.Y;
+
+                for (int j = 0; j < nEstacoes; j++)
+                {
+                    xAtual += deltasXCompensados[i];
+                    yAtual += deltasYCompensados[i];
+
+                    var novoPonto = new PontoCoordenada
+                    {
+                        Nome = leituras[j].PontoVisado,
+                        X = xAtual,
+                        Y = yAtual,
+                        Z = 0, // Cota compensada ainda não calculada
+                        EhPontoPoligonal = true,
+                        AzimuteChegada = azimutesCompensados[j]
+                    };
+
+                    poligonalCompensada.Add(novoPonto);
+                }
+
+
+            //Calculo do Z altimétrico compensado
+            double somaDn = 0;
+            for (int j = 0; j < nEstacoes; j++)
+            {
+                somaDn += desniveis[j];
+            }
+
+            if (tipoCenario == TipoCenarioPoligonal.Enquadrada)
+            {
+                erroAltimetrico = somaDn - (pontoChegada.Z - pontoPartida.Z);
+            }else if (tipoCenario == TipoCenarioPoligonal.Fechada)
+            {
+                erroAltimetrico = somaDn;
+            }
+
+            // Tolerancia Altimetrica ainda nao aplicada
+            // Tolerancia = Constante * sqrt(Perimetro_em_KM)
+
+            // Correcao Z = - erroAltimetrico  / n
+            double corrZ = -erroAltimetrico / nEstacoes;
+
+            // Para cada estação: DN_Corrigido = DN_Calculado + CorrZ
+            // Z_Novo = Z_Anterior + DN_Corrigido
+            double zAtual = pontoPartida.Z;
+
+            for (int i = 0; i < nEstacoes; i++)
+            {
+                double dnCorrigido = desniveis[i] + corrZ;
+
+                zAtual += dnCorrigido;
+
+                poligonalCompensada[i + 1].Z = zAtual; // i+1 porque o primeiro ponto é o de partida
+            }
+
+            return poligonalCompensada;
         }
 
         public List<PontoCoordenada> CompensarPoligonal(List<PontoCoordenada> poligonalOriginal, double erroX, double erroY, double perimetroTotal)

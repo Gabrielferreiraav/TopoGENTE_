@@ -19,22 +19,6 @@ namespace TopoGente.Core.Services
             _calculoService = new CalculoTopograficoService();
         }
 
-        /// <summary>
-        /// Sobrecarga para processar quando temos Coordenada de Ré em vez de Azimute
-        /// </summary>
-        /*public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, PontoCoordenada pontoRe, List<LeituraEstacaoTotal> leiturasBrutas)
-        {
-            double azimuteInicialCalculado = _calculoService.CalcularAzimutePorCoordenadas(
-                pontoPartida.X, pontoPartida.Y,
-                pontoRe.X, pontoRe.Y
-            );
-
-            return Processar(pontoPartida, azimuteInicialCalculado, leiturasBrutas);
-        }*/
-
-        /*public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial, List<LeituraEstacaoTotal> leiturasBrutas)
-            => Processar(pontoPartida, azimuteInicial, leiturasBrutas, pontosConhecidos: null);
-        */
         private static void SalvarSaidaTxt(ResultadoLevantamento resultado)
         {
 
@@ -163,14 +147,18 @@ namespace TopoGente.Core.Services
             {
                 case TipoCenarioPoligonal.Fechada:
                     resultado.PoligonalFechada = true;
+                    resultado.TipoCenario = TipoCenarioPoligonal.Fechada;
                     ProcessarFechada(resultado, poligonalBruta, PontoPartida, perimetro);
                     break;
                 case TipoCenarioPoligonal.Enquadrada:
+                    resultado.TipoCenario = TipoCenarioPoligonal.Enquadrada;
                     resultado.PoligonalFechada = true;
                     break;
                 case TipoCenarioPoligonal.AbertaOrientada:
-                    ProcessarAberta(resultado, poligonalBruta);
+                    resultado.TipoCenario = TipoCenarioPoligonal.AbertaOrientada;
                     resultado.PoligonalFechada = false;
+                    ProcessarAberta(resultado, poligonalBruta);
+                    
                     break;
                 default:
                     break;
@@ -216,15 +204,18 @@ namespace TopoGente.Core.Services
 
             if (fechou)
             {
-                resultado.ErroLinear = erros.erroLinearTotal;
-                resultado.Precisao = erros.precisaoRelativa;
+                double azimuteFinalConhecido = pontoChegada.AzimuteChegada;
 
-                resultado.Poligonal = _calculoService.CompensarPoligonal(poligonalBruta, erros.erroX, erros.erroY, perimetro);
+                resultado.Poligonal = _calculoService.CompensarPoligonal(pontoPartida,pontoChegada,azimuteFinalConhecido);
+
+                resultado.ErroAngular = ea;
+                resultado.ErroLinear = eLinear;
+                resultado.Precisao = precisao;
+                resultado.TipoCenario = tipoCenario;
             }
             else
             {
-                // Aberta usa a bruta
-                resultado.Poligonal = poligonalBruta;
+                
             }
         }
 
@@ -313,225 +304,7 @@ namespace TopoGente.Core.Services
                                 : estacao.AzimuteChegada - 180);
         }
 
-        /*public ResultadoLevantamento Processar(
-            PontoCoordenada pontoPartida,
-            double azimuteInicial,
-            List<LeituraEstacaoTotal> leiturasBrutas,
-            Dictionary<string, PontoCoordenada>? pontosConhecidos)
-        {
-            ValidarCoordenadasPartida(pontoPartida);
-
-            var resultado = new ResultadoLevantamento();
-
-            var leiturasPoligonal = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Poligonal).ToList();
-            var leiturasRe = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Re).ToList();
-            var leiturasIrradiadas = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Irradiacao).ToList();
-
-            //  Calcula poligonal bruta 
-            var poligonalBruta = _calculoService.CalcularPoligonal(pontoPartida, azimuteInicial, leiturasPoligonal);
-            resultado.PoligonalBruta = poligonalBruta;
-
-            bool fechou = false;
-            double erroX = 0, erroY = 0;
-            double perimetro = 0;
-
-            if (poligonalBruta.Count > 1)
-            {
-                foreach (var leitura in leiturasPoligonal)
-                {
-                    perimetro += _calculoService.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
-                }
-
-                resultado.Perimetro = perimetro;
-
-                var pontoChegada = poligonalBruta.Last();
-                bool fechouPorNome = pontoChegada.Nome.Equals(pontoPartida.Nome, StringComparison.OrdinalIgnoreCase);
-
-                double dx = pontoChegada.X - pontoPartida.X;
-                double dy = pontoChegada.Y - pontoPartida.Y;
-                double distanciaFechamento = Math.Sqrt(dx * dx + dy * dy);
-
-                bool fechouPorCoordenada = distanciaFechamento <= ToleranciaFechamento;
-
-                fechou = fechouPorNome || fechouPorCoordenada;
-
-                // Calcula e armazena erros brutos (antes de compensar)
-                var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
-                resultado.ErroFechamentoX = erros.erroX;
-                resultado.ErroFechamentoY = erros.erroY;
-                resultado.ErroFechamentoLinearXY = erros.erroLinearTotal;
-                resultado.PrecisaoBruta = erros.precisaoRelativa;
-
-                // Fechamento altimétrico bruto 
-                resultado.ErroFechamentoZ = pontoChegada.Z - pontoPartida.Z;
-
-                if (fechou)
-                {
-                    resultado.PoligonalFechada = true;
-                    resultado.ErroLinear = erros.erroLinearTotal;
-                    resultado.Precisao = erros.precisaoRelativa;
-
-                    erroX = erros.erroX;
-                    erroY = erros.erroY;
-
-                    // Substituímos a poligonal bruta pela ajustada
-                    resultado.Poligonal = _calculoService.CompensarPoligonal(poligonalBruta, erroX, erroY, perimetro);
-                }
-                else
-                {
-                    // Aberta usa a bruta
-                    resultado.Poligonal = poligonalBruta;
-                    resultado.PoligonalFechada = false;
-                }
-            }
-            else
-            {
-                resultado.Poligonal = poligonalBruta;
-
-                // Sem fechamento possível, ainda assim preenche erros como zero
-                resultado.ErroFechamentoX = 0;
-                resultado.ErroFechamentoY = 0;
-                resultado.ErroFechamentoZ = 0;
-                resultado.ErroFechamentoLinearXY = 0;
-                resultado.PrecisaoBruta = 0;
-            }
-
-            //  Impedir irradiação duplicada no ponto de fechamento:
-            // Se poligonal fechada e último nome == primeiro nome, ignora o último para fins de irradiação.
-            IEnumerable<PontoCoordenada> estacoesParaIrradiar = resultado.Poligonal;
-
-            if (resultado.PoligonalFechada && resultado.Poligonal.Count >= 2)
-            {
-                var primeira = resultado.Poligonal.First();
-                var ultima = resultado.Poligonal.Last();
-
-                if (ultima.Nome.Equals(primeira.Nome, StringComparison.OrdinalIgnoreCase))
-                {
-                    estacoesParaIrradiar = resultado.Poligonal.Take(resultado.Poligonal.Count - 1);
-                }
-            }
-
-            foreach (var estacao in estacoesParaIrradiar)
-            {
-                var irradiacoesDestaEstacao = leiturasIrradiadas
-                    .Where(l => l.EstacaoOcupada == estacao.Nome)
-                    .ToList();
-
-                if (!irradiacoesDestaEstacao.Any()) continue;
-
-                double azimuteOrientacao;
-                
-                // Tenta por Ré Real
-                var leituraRe = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == estacao.Nome);
-                if (leituraRe != null)
-                {
-                    PontoCoordenada? pontoReCoord = null;
-
-                    // ponto conhecido
-                    if (pontosConhecidos != null && pontosConhecidos.TryGetValue(leituraRe.PontoVisado, out var pk))
-                    {
-                        pontoReCoord = pk;
-                    }
-                    else
-                    {
-                        // ponto na poligonal
-                        pontoReCoord = resultado.Poligonal.FirstOrDefault(p =>
-                        p.Nome.Equals(leituraRe.PontoVisado, StringComparison.OrdinalIgnoreCase));
-                    }
-                    if (pontoReCoord != null)
-                    {
-                        azimuteOrientacao = _calculoService.CalcularAzimutePorCoordenadas(
-                            estacao.X, estacao.Y,
-                            pontoReCoord.X, pontoReCoord.Y
-                        );
-                    }
-                    else
-                    {
-                        azimuteOrientacao = estacao == resultado.Poligonal.First()
-                            ? azimuteInicial
-                            : (estacao.AzimuteChegada < 180
-                                ? estacao.AzimuteChegada + 180
-                                : estacao.AzimuteChegada - 180);
-                    }
-                }
-                else
-                {
-                    azimuteOrientacao = estacao == resultado.Poligonal.First()
-                        ? azimuteInicial
-                        : (estacao.AzimuteChegada < 180
-                            ? estacao.AzimuteChegada + 180
-                            : estacao.AzimuteChegada - 180);
-                }
-
-                foreach (var leitura in irradiacoesDestaEstacao)
-                {
-                    var pontoIrradiado = _calculoService.CalcularPontoIrradiado(estacao, leitura, azimuteOrientacao);
-                    resultado.Irradiacoes.Add(pontoIrradiado);
-                }
-            }
-
-            SalvarSaidaTxt(resultado);
-            return resultado;
-        }*/
-        /*
-        public ResultadoLevantamento Processar(PontoCoordenada pontoPartida, double azimuteInicial, List<Estacao> estacoesOrganizadas, Dictionary<string, PontoCoordenada>? pontosConhecidos)
-        {
-            estacoesOrganizadas ??= new List<Estacao>();
-
-            foreach (var e in estacoesOrganizadas)
-            {
-                e.PontosCalculados = new List<PontoCoordenada>();
-            }
-
-            var leiturasBrutas = estacoesOrganizadas
-                .SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>())
-                .ToList();
-
-            var resultado = Processar(pontoPartida, azimuteInicial, leiturasBrutas, pontosConhecidos);
-
-            var poligonalPorNome = resultado.Poligonal
-                .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
-
-            var irradiacoesPorVisado = resultado.Irradiacoes
-                .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => new Queue<PontoCoordenada>(g), StringComparer.OrdinalIgnoreCase);
-
-            var irradiacoesPorEstacao = new Dictionary<string, List<PontoCoordenada>>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var leitura in leiturasBrutas.Where(l => l.Tipo == TipoLeitura.Irradiacao))
-            {
-                if (!irradiacoesPorVisado.TryGetValue(leitura.PontoVisado, out var fila) || fila.Count == 0)
-                    continue;
-
-                var pontoCalculado = fila.Dequeue();
-
-                if (!irradiacoesPorEstacao.TryGetValue(leitura.EstacaoOcupada, out var lista))
-                {
-                    lista = new List<PontoCoordenada>();
-                    irradiacoesPorEstacao[leitura.EstacaoOcupada] = lista;
-                }
-
-                lista.Add(pontoCalculado);
-            }
-
-            foreach (var estacao in estacoesOrganizadas)
-            {
-                if (poligonalPorNome.TryGetValue(estacao.Nome, out var pontoDaEstacao))
-                {
-                    estacao.PontosCalculados.Add(pontoDaEstacao);
-                }
-
-                if (irradiacoesPorEstacao.TryGetValue(estacao.Nome, out var irradiacoes))
-                {
-                    estacao.PontosCalculados.AddRange(irradiacoes);
-                }
-            }
-
-            SalvarSaidaTxt(resultado);
-            return resultado;
-        }
-    }*/
+       
     }
 
     public class ResultadoLevantamento
@@ -578,5 +351,9 @@ namespace TopoGente.Core.Services
         /// Normalmente igual a 'Precisao' quando fechou, mas fica disponível mesmo se não ajustar.
         /// </summary>
         public double PrecisaoBruta { get; set; }
+
+        public double ErroAngular   { get; set; }
+
+        public TipoCenarioPoligonal TipoCenario { get; set; }
     }
 }
