@@ -117,13 +117,13 @@ namespace TopoGente.Core.Services
             return distanciaInclinada * Math.Sin(radianos);
         }
         /// <summary>
-        /// Calcula o Desnível (Nivelamento Trigonométrico simplificado ).
-        /// DN = DI × cos(Zênite)
+        /// DI * cos(Zenite) + Hi - Hp  calcular a diferença de nível real (Δh) entre o terreno
+        /// da estação ocupada e o terreno do ponto visado.
         /// </summary>
-        public double CalcularDesnivel(double distanciaInclinada, double anguloVerticalGraus)
+        public double CalcularDesnivel(double distanciaInclinada, double anguloVerticalGraus, double hi, double hp)
         {
             double radianos = ConversorAngulos.ParaRadianos(anguloVerticalGraus);
-            return distanciaInclinada * Math.Cos(radianos);
+            return ((distanciaInclinada * Math.Cos(radianos)) + hi - hp);
         }
         /// <summary>
         /// Calcula os erros de fechamento linear da poligonal.
@@ -168,7 +168,7 @@ namespace TopoGente.Core.Services
             // Calcular Cota (Z) - Nivelamento Trigonométrico
             // Z_vante = Z_estação + DN + Hi - Hp
             // DN (Desnível) = DI × cos(Zênite)
-            double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
+            double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical,leitura.AlturaInstrumento,leitura.AlturaPrisma);
 
             double novoZ = estacao.Z + leitura.AlturaInstrumento + desnivel - leitura.AlturaPrisma;
 
@@ -212,7 +212,7 @@ namespace TopoGente.Core.Services
                 //Reducao das observacoes
                 double distanciaHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
 
-                double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical,leitura.AlturaInstrumento,leitura.AlturaPrisma);
 
                 // Az(n) = Az(n-1) + AngH(n) ± 180°
                 double azimuteAtual = azimuteAnterior + leitura.AnguloHorizontal - 180;
@@ -301,8 +301,7 @@ namespace TopoGente.Core.Services
                 double dh = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
 
                 // Dn_Calculado = DI * cos(Zênite), Hi e hP ja estão incluidos
-                double dn = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical);
-                dn += leitura.AlturaInstrumento - leitura.AlturaPrisma;
+                double dn = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical, leitura.AlturaInstrumento, leitura.AlturaPrisma);
 
                 distanciasHorizontais[i] = dh;
                 desniveis[i] = dn;
@@ -314,7 +313,7 @@ namespace TopoGente.Core.Services
 
             // Compensacao Linear (Bowditch)
             double somaDeltasX = 0;double somaDeltasY = 0;
-                for (int j = 0; j <= i; j++)
+                for (int j = 0; j < nEstacoes; j++)
                 {
                     somaDeltasX += deltaX[j];
                     somaDeltasY += deltaY[j];
@@ -370,8 +369,8 @@ namespace TopoGente.Core.Services
 
                 for (int j = 0; j < nEstacoes; j++)
                 {
-                    xAtual += deltasXCompensados[i];
-                    yAtual += deltasYCompensados[i];
+                    xAtual += deltasXCompensados[j];
+                    yAtual += deltasYCompensados[j];
 
                     var novoPonto = new PontoCoordenada
                     {
@@ -424,7 +423,7 @@ namespace TopoGente.Core.Services
             return poligonalCompensada;
         }
 
-        public List<PontoCoordenada> CompensarPoligonal(List<PontoCoordenada> poligonalOriginal, double erroX, double erroY, double perimetroTotal)
+        /*public List<PontoCoordenada> CompensarPoligonal(List<PontoCoordenada> poligonalOriginal, double erroX, double erroY, double perimetroTotal)
         {
             if (perimetroTotal == 0 || (Math.Abs(erroX) < 0.0001 && Math.Abs(erroY) < 0.0001))
             {
@@ -495,6 +494,6 @@ namespace TopoGente.Core.Services
             }
 
             return poligonalAjustada;
-        }
+        }*/
     }
 }

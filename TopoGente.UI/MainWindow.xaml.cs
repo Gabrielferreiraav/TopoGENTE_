@@ -466,7 +466,8 @@ namespace TopoGente.UI
                 }
 
                 //Processar
-                var resultado = _processadorService.Processar(_metadadosAtuais, _estacoesEmMemoria, pontosConhecidos);
+                var leituras = ColetarLeituras(_estacoesEmMemoria);
+                var resultado = _processadorService.Processar(_metadadosAtuais, leituras, pontosConhecidos);
 
                 _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, pontosConhecidos);
 

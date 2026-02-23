@@ -30,7 +30,7 @@ namespace TopoGente.Core.Services
             }
 
             var PastaSaidaTeste = Path.Combine(
-                @"C:\Users\gabri\source\repos\TopoGENTE_\TopoGente.Core",
+                AppDomain.CurrentDomain.BaseDirectory,
                 "Saida_teste");
             Directory.CreateDirectory(PastaSaidaTeste);
 
@@ -67,15 +67,6 @@ namespace TopoGente.Core.Services
             {
                 throw new DadosInsuficientesException(
                     "Levantamentos fechados exigem coordenadas de partida e chegada reais para cálculo de fechamento.");
-            }
-
-            // Impedir coordenadas default arbitrárias (1000, 1000, 100)
-            // que mascaram uma poligonal aberta como se fosse fechada
-            if (pontoPartida.X == 1000.0 && pontoPartida.Y == 1000.0 && pontoPartida.Z == 100.0)
-            {
-                throw new DadosInsuficientesException(
-                    "Coordenadas de partida (1000, 1000, 100) são valores default e não representam apoio geodésico real. " +
-                    "Forneça coordenadas conhecidas.");
             }
         }
 
@@ -148,7 +139,22 @@ namespace TopoGente.Core.Services
                 case TipoCenarioPoligonal.Fechada:
                     resultado.PoligonalFechada = true;
                     resultado.TipoCenario = TipoCenarioPoligonal.Fechada;
-                    ProcessarFechada(resultado, poligonalBruta, PontoPartida, perimetro);
+                    
+                    bool fechou = ProcessarFechada(resultado, poligonalBruta, PontoPartida, perimetro);
+                    if (fechou) { 
+                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida,poligonalBruta.Last(),PontoPartida.AzimuteChegada,poligonalBruta.Last().AzimuteChegada,
+                    leiturasPoligonal,poligonalBruta,metadadosAtuais.TipoCenario,out double ea,out double erroX, out double erroY, out double erroLinearT,out double precisaoRelativa, out double erroAltimetrico );
+                    
+                    resultado.ErroAngular = ea; resultado.ErroLinear = erroLinearT; resultado.Precisao = precisaoRelativa;
+                    resultado.ErroFechamentoX = erroX;
+                    resultado.ErroFechamentoY = erroY;
+                    resultado.ErroFechamentoZ = erroAltimetrico;
+                    }
+                    else
+                    {
+                        resultado.Poligonal = poligonalBruta;
+                    }
+
                     break;
                 case TipoCenarioPoligonal.Enquadrada:
                     resultado.TipoCenario = TipoCenarioPoligonal.Enquadrada;
@@ -172,12 +178,11 @@ namespace TopoGente.Core.Services
             return resultado;
         }
 
-        public void ProcessarFechada(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta, PontoCoordenada pontoPartida, double perimetro)
+        public bool ProcessarFechada(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta, PontoCoordenada pontoPartida, double perimetro)
         {
             if (poligonalBruta.Count <= 1)
             {
-                resultado.Poligonal = poligonalBruta;
-                return;
+                return false;
             }
 
             var pontoChegada = poligonalBruta.Last();
@@ -194,19 +199,19 @@ namespace TopoGente.Core.Services
 
             // Calcular erros brutos (antes de compensar)
             var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
-            resultado.ErroFechamentoX = erros.erroX;
-            resultado.ErroFechamentoY = erros.erroY;
-            resultado.ErroFechamentoLinearXY = erros.erroLinearTotal;
-            resultado.PrecisaoBruta = erros.precisaoRelativa;
 
-            // Fechamento altimétrico bruto
-            resultado.ErroFechamentoZ = pontoChegada.Z - pontoPartida.Z;
+            System.Diagnostics.Debug.WriteLine(
+                $"[Fechamento Bruto] fx={erros.erroX:F4} fy={erros.erroY:F4} fz={pontoChegada.Z - pontoPartida.Z:F4} " +
+                $"fLinearXY={erros.erroLinearTotal:F4} precisao={erros.precisaoRelativa:F4} " +
+                $"fechou={fechou} (nome={fechouPorNome}, coord={fechouPorCoordenada}, dist={distanciaFechamento:F4})");
 
-            if (fechou)
+
+            return fechou;
+            /*if (fechou)
             {
                 double azimuteFinalConhecido = pontoChegada.AzimuteChegada;
 
-                resultado.Poligonal = _calculoService.CompensarPoligonal(pontoPartida,pontoChegada,azimuteFinalConhecido);
+                resultado.Poligonal = _calculoService.CompensarPoligonal(pontoPartida,pontoChegada,pontoPartida.AzimuteChegada,azimuteFinalConhecido);
 
                 resultado.ErroAngular = ea;
                 resultado.ErroLinear = eLinear;
@@ -216,7 +221,7 @@ namespace TopoGente.Core.Services
             else
             {
                 
-            }
+            }*/
         }
 
         public void ProcessarAberta(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta)

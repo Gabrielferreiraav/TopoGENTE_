@@ -27,9 +27,12 @@ namespace TopoGente.Core.Validators
             if (leitura.AnguloVertical < 0 || leitura.AnguloVertical >= 360)
                 result.AddError("O ângulo vertical deve estar entre 0° e 360°.");
 
-            // Validação de Distâncias
-            if (leitura.DistanciaInclinada <= 0)
-                result.AddError("A distância inclinada deve ser maior que zero.");
+            // Validação de Distâncias — Ré não exige DI > 0 (apenas orientação angular)
+            if (leitura.Tipo is TipoLeitura.Poligonal or TipoLeitura.Irradiacao)
+            {
+                if (leitura.DistanciaInclinada <= 0)
+                    result.AddError("A distância inclinada deve ser maior que zero.");
+            }
 
             // Validação de Alturas
             if (leitura.AlturaInstrumento < 0 || leitura.AlturaInstrumento > 2.5)
