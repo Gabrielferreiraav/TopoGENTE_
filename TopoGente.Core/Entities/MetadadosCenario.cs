@@ -26,7 +26,7 @@ namespace TopoGente.Core.Entities
         ///// Azimute conhecido do último ponto estacionado para uma referência final,
         /// usado para cálculo do erro angular de fechamento.
         /// </summary>
-        public double? AzimuteChegada { get; set; }
+        public double?  AzimuteChegada { get; set; }
 
 
         public double ReX { get; set;}
@@ -34,9 +34,9 @@ namespace TopoGente.Core.Entities
         public double ReZ { get; set; }
 
         // Coordenada de Chegada, necessária para poligonais enquadradas
-        public double ChegadaX { get; set; }
-        public double ChegadaY { get; set; }
-        public double ChegadaZ { get; set; }
+        public double? ChegadaX { get; set; }
+        public double? ChegadaY { get; set; }
+        public double? ChegadaZ { get; set; }
 
     }
 }
