@@ -36,6 +36,7 @@ namespace TopoGente.Core.Services.Leitores
                 {
                     double ahCompacto = double.Parse(colunas[4], cultura);
                     double avCompacto = double.Parse(colunas[5], cultura);
+                    double diLida = double.Parse(colunas[6], cultura);
 
                     double ahDecimal = ConversorAngulos.DeFormatoCompacto(ahCompacto);
                     double avDecimal = ConversorAngulos.DeFormatoCompacto(avCompacto);
@@ -43,26 +44,38 @@ namespace TopoGente.Core.Services.Leitores
                     string observacao = colunas[3].Trim();
                     string descUpper = observacao.ToUpperInvariant();
 
+                    string descNormalizado = descUpper
+                        .Replace("Á", "A").Replace("À", "A").Replace("Ã", "A")
+                        .Replace("É", "E").Replace("Ê", "E")
+                        .Replace("Í", "I").Replace("Ó", "O").Replace("Õ", "O")
+                        .Replace("Ú", "U").Replace("Ç", "C");
+
                     TipoLeitura tipo = TipoLeitura.Irradiacao;
 
-                    // Fechamento/check deve ser Poligonal (vante de fechamento)
-                    if (descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
-                        descUpper.Contains("CHECK") || descUpper.Contains("CHK"))
-                    {
-                        tipo = TipoLeitura.Poligonal;
-                    }
-
-                    // Vante/Poligonal
-                    if (descUpper.Contains("VANTE") || descUpper.Contains("-V") || descUpper.StartsWith("M"))
-                    {
-                        tipo = TipoLeitura.Poligonal;
-                    }
-
-                    // Ré (prioridade semântica: se marcar Ré, é Ré)
-                    if (descUpper.Contains("RE") || descUpper.Contains("RÉ") || descUpper.Contains("BS") || descUpper.Contains("BACKSIGHT"))
+                    // Vante/Poligonal (só classifica se não for Ré)
+                    if (descNormalizado.Contains("ZERAG") ||
+                        descNormalizado.Contains("BACKSIGHT") ||
+                        descNormalizado.Contains(" BS ") ||
+                        descNormalizado.Contains("RE ") ||
+                        descNormalizado.Contains("RE(") ||
+                        observacao.Contains("Ré (") || observacao.Contains("Ré(") ||
+                        observacao.StartsWith("Ré "))
                     {
                         tipo = TipoLeitura.Re;
                     }
+                    
+                    // Ré (prioridade semântica: se marcar Ré, é Ré)
+                    else if (descUpper.Contains("VANTE") || descUpper.Contains("-V") ||
+                             descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
+                             descUpper.Contains("CHECK") || descUpper.Contains("CHK"))
+                    {
+                        tipo = TipoLeitura.Poligonal;
+                    }else if (descUpper.Contains("FECH") || descUpper.Contains("FEC"))
+                    {
+                        
+                        tipo = diLida > 0 ? TipoLeitura.Poligonal : TipoLeitura.Re;
+                    }
+
 
                     var leitura = new LeituraEstacaoTotal
                     {
@@ -72,10 +85,13 @@ namespace TopoGente.Core.Services.Leitores
                         Observacao = observacao,
                         AnguloHorizontal = ahDecimal,
                         AnguloVertical = avDecimal,
-                        DistanciaInclinada = double.Parse(colunas[6], cultura),
+                        DistanciaInclinada = diLida,
                         AlturaPrisma = double.Parse(colunas[7], cultura),
                         Tipo = tipo
                     };
+
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] Linha {numeroLinha}: {leitura.EstacaoOcupada} → {leitura.PontoVisado} | Obs: '{observacao}' | Tipo: {tipo} | DI: {leitura.DistanciaInclinada}");
+
 
                     leiturasBrutas.Add(leitura);
                 }

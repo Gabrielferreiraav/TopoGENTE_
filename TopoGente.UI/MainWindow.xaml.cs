@@ -319,6 +319,86 @@ namespace TopoGente.UI
             }
         }
 
+        private static double ConverterAzimute(string entrada) {
+
+            if (string.IsNullOrEmpty(entrada))
+            {
+                return 0;
+            }
+
+            entrada = entrada.Trim();
+
+            entrada.Replace(',', '.');
+
+            if (entrada.Contains("."))
+            {
+                
+
+                string[] partes = entrada.Split('.');
+                string parteInteira = partes[0];
+                string parteDecimal = partes.Length > 1 ? partes[1] : "0";
+
+                if (parteDecimal.Length >=4)
+                {
+                    string mmss =  parteDecimal.PadRight(4,'0').Substring(0,4);
+
+                    int mm = int.Parse(mmss.Substring(0,2));
+                    int ss = int.Parse(mmss.Substring(2,2));
+
+                    if (mm >= 60 || ss >= 60)
+                    {
+                        throw new FormatException(
+                        $"Formato de ângulo inválido: '{entrada}'. " +
+                        $"Minutos ({mm}) e segundos ({ss}) devem ser < 60.");
+
+                    }
+
+                    string compacto = parteInteira + mmss;
+                    double valorCompacto = double.Parse(compacto, System.Globalization.CultureInfo.InvariantCulture);
+
+                    return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(valorCompacto);
+                }
+                else
+                {
+                    double resultado = double.Parse(entrada, System.Globalization.CultureInfo.InvariantCulture);
+
+                    if (resultado < 0 || resultado >= 360)
+                    {
+                        throw new FormatException(
+                            $"Azimute fora do intervalo válido: {resultado}°. " +
+                            "Azimutes devem estar entre 0° e 360°.");
+                        
+                    }
+
+                    return resultado;
+
+                }
+            }
+            else
+            {
+                double valor = double.Parse(entrada, System.Globalization.CultureInfo.InvariantCulture);
+
+                if (valor < 360)
+                {
+                    return valor;
+                }
+
+                int gg = (int)(valor / 10000);
+                int mm = (int)((valor % 10000) / 100);
+                int ss = (int)(valor % 100);
+
+                if (mm >= 60 || ss >= 60)
+                {
+                    throw new FormatException(
+                        $"Formato de ângulo inválido: '{entrada}' = {gg}°{mm}'{ss}\". " +
+                        $"Minutos ({mm}) e segundos ({ss}) devem ser < 60.");
+                }
+
+                return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(valor);
+            }
+        }
+
+
         private void cmbCenario_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (pnlChegada == null) return;
@@ -345,9 +425,14 @@ namespace TopoGente.UI
             if (pnlAzimute == null || pnlCoordenadaRe == null) return;
 
             bool usarAzimute = rbAzimute.IsChecked == true;
+            if (usarAzimute)
+            {
+                rbCoordenadaRe.IsChecked = false;
+            }
             pnlAzimute.Visibility = usarAzimute ? Visibility.Visible : Visibility.Collapsed;
             pnlCoordenadaRe.Visibility = usarAzimute ? Visibility.Collapsed : Visibility.Visible;
         }
+
 
         /// <sumary>
         /// Lê os campos de entrada da UI e devolve <see cref="MetadadosCenario"/> para ser usado no processamento do levantamento. 
@@ -373,7 +458,7 @@ namespace TopoGente.UI
                 PartidaY = double.Parse(txtY.Text),
                 PartidaZ = double.Parse(txtZ.Text),
                 UsarCoordenadaRe = usarRe,
-                AzimutePartida = usarRe ? 0 : double.Parse(txtAzimute.Text),
+                AzimutePartida = usarRe ? 0 : ConverterAzimute(txtAzimute.Text),
                 ReX = usarRe ? double.Parse(txtReX.Text) : 0,
                 ReY = usarRe ? double.Parse(txtReY.Text) : 0,
                 ReZ = usarRe ? double.Parse(txtZ.Text) : 0,
@@ -514,7 +599,12 @@ namespace TopoGente.UI
                 double.TryParse(txtX.Text, out x);
                 double.TryParse(txtY.Text, out y);
                 double.TryParse(txtZ.Text, out z);
-                double.TryParse(txtAzimute.Text, out double azimuteInicial);
+
+                double azimuteInicial = 0;
+                if (rbAzimute.IsChecked == true)
+                {
+                    azimuteInicial = ConverterAzimute(txtAzimute.Text);
+                }
 
                 var projeto = new ProjetoTopo
                 {

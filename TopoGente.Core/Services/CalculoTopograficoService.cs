@@ -45,11 +45,7 @@ namespace TopoGente.Core.Services
         {
             double soma = azimuteAnterior + anguloHorizontal;
 
-            double novoAzimute = soma >= 180.0
-                ? soma - 180.0
-                : soma + 180.0;
-
-            return Normalizar360(novoAzimute);
+            return Normalizar360(soma);
         }
 
         /// <summary>
@@ -170,7 +166,7 @@ namespace TopoGente.Core.Services
             // DN (Desnível) = DI × cos(Zênite)
             double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical,leitura.AlturaInstrumento,leitura.AlturaPrisma);
 
-            double novoZ = estacao.Z + leitura.AlturaInstrumento + desnivel - leitura.AlturaPrisma;
+            double novoZ = estacao.Z + desnivel ;
 
             return new PontoCoordenada
             {
@@ -211,12 +207,10 @@ namespace TopoGente.Core.Services
 
                 //Reducao das observacoes
                 double distanciaHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
-
                 double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical,leitura.AlturaInstrumento,leitura.AlturaPrisma);
 
                 // Az(n) = Az(n-1) + AngH(n) ± 180°
-                double azimuteAtual = azimuteAnterior + leitura.AnguloHorizontal - 180;
-                azimuteAtual = Normalizar360(azimuteAtual);
+                double azimuteAtual = Normalizar360(azimuteAnterior + leitura.AnguloHorizontal);
 
                 var (deltaX, deltaY) = CalcularProjecao(distanciaHorizontal, azimuteAtual);
 
@@ -237,8 +231,10 @@ namespace TopoGente.Core.Services
 
                 pontosCalculados.Add(novoPonto);
 
+                System.Diagnostics.Debug.WriteLine($"Estação {i + 1}: Az_anterior={azimuteAnterior:F4}° + AngH={leitura.AnguloHorizontal:F4}° → Az_atual={azimuteAtual:F4}°");
+
                 estacaoAtual = novoPonto;
-                azimuteAnterior = azimuteAtual;
+                azimuteAnterior = Normalizar360(azimuteAtual + 180); ;
             }
 
             return pontosCalculados;
@@ -248,7 +244,7 @@ namespace TopoGente.Core.Services
             PontoCoordenada pontoPartida, PontoCoordenada pontoChegada,
             double azimuteInicial, double azimuteChegada,
             List<LeituraEstacaoTotal> leituras, List<PontoCoordenada> poligonalBruta,
-            TipoCenarioPoligonal tipoCenario, out double erroAngular, out double erroX, out double erroY,
+            TipoCenarioPoligonal tipoCenario,double anguloFechamento, out double erroAngular, out double erroX, out double erroY,
             out double erroLinearTotal, out double precisaoRelativa, out double erroAltimetrico)
         {
             erroAngular = 0; erroX = 0; erroY = 0; erroAngular = 0; erroLinearTotal = 0; precisaoRelativa = 0; erroAltimetrico = 0;
@@ -260,14 +256,24 @@ namespace TopoGente.Core.Services
 
             int nEstacoes = leituras.Count;
 
-            // Compensacao Angular
-            double azimuteCalculadoFinal = poligonalBruta[^1].AzimuteChegada;
+            
 
             if(tipoCenario == TipoCenarioPoligonal.Enquadrada)
             {
+                // Compensacao Angular
+                double azimuteCalculadoFinal = poligonalBruta[^1].AzimuteChegada;
+                double azimuteReRetorno = Normalizar360(azimuteCalculadoFinal + 180);
+                double azimuteCalculadoChegada = Normalizar360(azimuteReRetorno + anguloFechamento);
+
                 erroAngular = NormalizarErroAngular(azimuteCalculadoFinal - azimuteChegada);
+                
             }else if(tipoCenario == TipoCenarioPoligonal.Fechada) {
-                erroAngular = NormalizarErroAngular(azimuteCalculadoFinal - azimuteInicial);
+                
+                double azimuteCalculadoFinal = poligonalBruta[^1].AzimuteChegada;
+                double azimuteReRetorno = Normalizar360(azimuteCalculadoFinal + 180);
+                double azimuteCalculadoRetorno = Normalizar360(azimuteReRetorno + anguloFechamento);
+
+                erroAngular = NormalizarErroAngular(azimuteCalculadoRetorno - azimuteInicial);
 
             }
 
@@ -299,7 +305,6 @@ namespace TopoGente.Core.Services
                 var leitura = leituras[i];
 
                 double dh = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
-
                 // Dn_Calculado = DI * cos(Zênite), Hi e hP ja estão incluidos
                 double dn = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical, leitura.AlturaInstrumento, leitura.AlturaPrisma);
 
@@ -313,21 +318,22 @@ namespace TopoGente.Core.Services
 
             // Compensacao Linear (Bowditch)
             double somaDeltasX = 0;double somaDeltasY = 0;
-                for (int j = 0; j < nEstacoes; j++)
-                {
+                
+            for (int j = 0; j < nEstacoes; j++)
+            {
                     somaDeltasX += deltaX[j];
                     somaDeltasY += deltaY[j];
-                }
+            }
 
-                if (tipoCenario == TipoCenarioPoligonal.Enquadrada)
-                {
+            if (tipoCenario == TipoCenarioPoligonal.Enquadrada)
+            {
                     erroX = somaDeltasX + pontoPartida.X - pontoChegada.X;
                     erroY = somaDeltasY + pontoPartida.Y - pontoChegada.Y;
-                }else if (tipoCenario == TipoCenarioPoligonal.Fechada)
-                {
+            }else if (tipoCenario == TipoCenarioPoligonal.Fechada)
+            {
                     erroX = somaDeltasX;
                     erroY = somaDeltasY;
-                }
+            }
 
                 // Erro linear total e precisão relativa
                 erroLinearTotal = Math.Sqrt((erroX * erroX) + (erroY * erroY));
@@ -417,83 +423,12 @@ namespace TopoGente.Core.Services
 
                 zAtual += dnCorrigido;
 
-                poligonalCompensada[i + 1].Z = zAtual; // i+1 porque o primeiro ponto é o de partida
+                poligonalCompensada[i + 1].Z = zAtual; // i+1,primeiro ponto é o de partida
             }
 
             return poligonalCompensada;
         }
 
-        /*public List<PontoCoordenada> CompensarPoligonal(List<PontoCoordenada> poligonalOriginal, double erroX, double erroY, double perimetroTotal)
-        {
-            if (perimetroTotal == 0 || (Math.Abs(erroX) < 0.0001 && Math.Abs(erroY) < 0.0001))
-            {
-                return new List<PontoCoordenada>(poligonalOriginal);
-            }
-
-            var poligonalAjustada = new List<PontoCoordenada>();
-
-            // O primeiro ponto (M1) é fixo
-            var pInicial = poligonalOriginal[0];
-
-            // Erro altimétrico para poligonal fechada ,diferença entre cota final calculada e cota inicial
-            // ( Soma(Δh) - (Z_chegada - Z_partida), com Z_chegada == Z_partida)
-            double eAlt = 0;
-            if (poligonalOriginal.Count > 1)
-            {
-                eAlt = poligonalOriginal[^1].Z - pInicial.Z;
-            }
-
-            poligonalAjustada.Add(new PontoCoordenada
-            {
-                Nome = pInicial.Nome,
-                X = pInicial.X,
-                Y = pInicial.Y,
-                Z = pInicial.Z,
-                EhPontoPoligonal = true,
-                AzimuteChegada = pInicial.AzimuteChegada
-            });
-
-            // Acumuladores de correção
-            double correcaoAcumuladaX = 0;
-            double correcaoAcumuladaY = 0;
-            double correcaoAcumuladaZ = 0;
-
-            // ajustamos até o fim para garantir que o último ponto fique igual ao primeiro matematicamente
-            for (int i = 1; i < poligonalOriginal.Count; i++)
-            {
-                var pAnterior = poligonalOriginal[i - 1];
-                var pAtual = poligonalOriginal[i];
-
-                // d = sqrt((X2-X1)² + (Y2-Y1)²)
-                double dx = pAtual.X - pAnterior.X;
-                double dy = pAtual.Y - pAnterior.Y;
-                double distPerna = Math.Sqrt(dx * dx + dy * dy);
-
-                // Correção Unitária Bowditch em XY
-                double cx = -erroX * (distPerna / perimetroTotal);
-                double cy = -erroY * (distPerna / perimetroTotal);
-
-                // Correção altimétrica nivelamento
-                double cz = -eAlt * (distPerna / perimetroTotal);
-
-                correcaoAcumuladaX += cx;
-                correcaoAcumuladaY += cy;
-                correcaoAcumuladaZ += cz;
-
-                var novoPonto = new PontoCoordenada
-                {
-                    Nome = pAtual.Nome,
-                    X = pAtual.X + correcaoAcumuladaX,
-                    Y = pAtual.Y + correcaoAcumuladaY,
-                    Z = pAtual.Z + correcaoAcumuladaZ,
-                    EhPontoPoligonal = true,
-                    AzimuteChegada = pAtual.AzimuteChegada
-                };
-
-                poligonalAjustada.Add(novoPonto);
-            }
-
-            return poligonalAjustada;
-        }*/
+        
     }
 }
