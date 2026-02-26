@@ -65,15 +65,15 @@ namespace TopoGente.Core.Services.Leitores
                     }
                     
                     // Ré (prioridade semântica: se marcar Ré, é Ré)
-                    else if (descUpper.Contains("VANTE") || descUpper.Contains("-V") ||
-                             descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
+                    else if (descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
                              descUpper.Contains("CHECK") || descUpper.Contains("CHK"))
                     {
-                        tipo = TipoLeitura.Poligonal;
-                    }else if (descUpper.Contains("FECH") || descUpper.Contains("FEC"))
+                        tipo = TipoLeitura.Re;
+                    }
+                    else if (descUpper.Contains("VANTE") || descUpper.Contains("-V"))
                     {
                         
-                        tipo = diLida > 0 ? TipoLeitura.Poligonal : TipoLeitura.Re;
+                        tipo =  TipoLeitura.Poligonal;
                     }
 
 
@@ -87,7 +87,8 @@ namespace TopoGente.Core.Services.Leitores
                         AnguloVertical = avDecimal,
                         DistanciaInclinada = diLida,
                         AlturaPrisma = double.Parse(colunas[7], cultura),
-                        Tipo = tipo
+                        Tipo = tipo,
+                        OrdemArquivo = numeroLinha
                     };
 
                     System.Diagnostics.Debug.WriteLine($"[DEBUG] Linha {numeroLinha}: {leitura.EstacaoOcupada} → {leitura.PontoVisado} | Obs: '{observacao}' | Tipo: {tipo} | DI: {leitura.DistanciaInclinada}");

@@ -159,7 +159,9 @@ namespace TopoGente.Core.Services
             double distHorizontal = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
 
             // Calcular as Coordenadas
-            var (novoX, novoY) = CalcularCoordenada(estacao.X, estacao.Y, distHorizontal, azimuteVante);
+            var (deltaX, deltaY) = CalcularProjecao(distHorizontal, azimuteVante);
+
+            var (novoX, novoY) = CalcularCoordenada(estacao.X, estacao.Y, deltaX, deltaY);
 
             // Calcular Cota (Z) - Nivelamento Trigonométrico
             // Z_vante = Z_estação + DN + Hi - Hp
@@ -167,6 +169,9 @@ namespace TopoGente.Core.Services
             double desnivel = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical,leitura.AlturaInstrumento,leitura.AlturaPrisma);
 
             double novoZ = estacao.Z + desnivel ;
+
+            System.Diagnostics.Debug.WriteLine(
+                    $" PONTO IRRADIADO {leitura.PontoVisado} | X={novoX:F3} | Y={novoY:F3} | Z={novoZ:F3} | AzVAnte={azimuteVante:F4}| AzRe={azimuteRe:F4}°");
 
             return new PontoCoordenada
             {
@@ -217,7 +222,8 @@ namespace TopoGente.Core.Services
                 //Acumulo de coordenadas brutas
                 double novoX = estacaoAtual.X + deltaX;
                 double novoY = estacaoAtual.Y + deltaY;
-                double novoZ = estacaoAtual.Z + desnivel + leitura.AlturaInstrumento - leitura.AlturaPrisma;
+                double novoZ = estacaoAtual.Z + desnivel;
+
 
                 var novoPonto = new PontoCoordenada
                 {

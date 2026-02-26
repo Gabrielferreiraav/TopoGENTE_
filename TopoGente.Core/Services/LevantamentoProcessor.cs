@@ -70,6 +70,143 @@ namespace TopoGente.Core.Services
             }
         }
 
+        private void CalcularIrradiacoesSequencial(ResultadoLevantamento resultado, List<LeituraEstacaoTotal> leiturasBrutas,
+            Dictionary<string, PontoCoordenada>? pontosConhecidos, MetadadosCenario metadadosAtuais, double azimuteInicial)
+        {
+
+            if (leiturasBrutas == null || leiturasBrutas.Count == 0)
+            {
+                return;
+            }
+
+            var poligonalPorNome = resultado.Poligonal.GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var conhecidos = pontosConhecidos != null ? new Dictionary<string, PontoCoordenada>(pontosConhecidos, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
+
+            if (metadadosAtuais.UsarCoordenadaRe)
+            {
+                var primeiraRe = leiturasBrutas.Where(l => l.Tipo == TipoLeitura.Re).OrderBy(l => l.OrdemArquivo > 0 ? l.OrdemArquivo : int.MaxValue).FirstOrDefault();
+
+                if (primeiraRe != null && !conhecidos.ContainsKey(primeiraRe.PontoVisado))
+                {
+                    conhecidos[primeiraRe.PontoVisado] = new PontoCoordenada
+                    {
+                        Nome = primeiraRe.PontoVisado,
+                        X = metadadosAtuais.ReX,
+                        Y = metadadosAtuais.ReY,
+                        Z = metadadosAtuais.ReZ,
+                        EhPontoPoligonal = false,
+                    };
+                }
+            }
+
+            // Ordenar cronologicamente 
+            var ordenadas = leiturasBrutas.OrderBy(l => l.OrdemArquivo > 0 ? l.OrdemArquivo : int.MaxValue).ToList();
+
+            resultado.Irradiacoes.Clear();
+
+            PontoCoordenada? estacaoAtual = null;
+            double? azimuteReAtual = null;
+            string? reAtualNome = null;
+
+            foreach (var leitura in ordenadas)
+            {
+                // Descobrir qual estcao estamos
+                poligonalPorNome.TryGetValue(leitura.EstacaoOcupada, out estacaoAtual);
+
+                if (leitura.Tipo == TipoLeitura.Re)
+                {
+                    if (estacaoAtual == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                        $"[IRR-ORIENT][WARN] Linha={leitura.OrdemArquivo} Estação '{leitura.EstacaoOcupada}' não encontrada na poligonal. Ré ignorada.");
+                        continue;
+                    }
+
+                    PontoCoordenada? pontoRe = null;
+
+                    if (conhecidos.TryGetValue(leitura.PontoVisado,out var pConhecido))
+                    {
+                        pontoRe = pConhecido;
+                    }else if (poligonalPorNome.TryGetValue(leitura.PontoVisado, out var pPoligonal))
+                    {
+                        pontoRe = pPoligonal;
+                    }
+
+                    if (pontoRe != null)
+                    {
+                        // Tem coordenada: Calcula a direção das projeções
+                        azimuteReAtual = _calculoService.CalcularAzimutePorCoordenadas(
+                            estacaoAtual.X, estacaoAtual.Y,
+                            pontoRe.X, pontoRe.Y
+                        );
+                    }
+                    else if (leitura.EstacaoOcupada.Equals(ordenadas.First().EstacaoOcupada, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // não tem coordenada, mas é a Estação de Partida. 
+                        // O Azimute Inicial é a referência de Ré
+                        azimuteReAtual = azimuteInicial;
+                        System.Diagnostics.Debug.WriteLine($"[IRR-ORIENT] Linha={leitura.OrdemArquivo} Usando Azimute Inicial {azimuteInicial:F4}° para a Ré {leitura.PontoVisado}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                        $"[IRR-ORIENT][WARN] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} Ré='{leitura.PontoVisado}' sem coordenadas. Mantendo orientação anterior.");
+                        continue; // Aborta esta atualização de Ré e continua com o azimute antigo (se existir)
+                    }
+
+                    reAtualNome = leitura.PontoVisado;
+
+                    // Log seguro da operação
+                    if (azimuteReAtual.HasValue)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                        $"[IRR-ORIENT] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} Ré={reAtualNome} AzRe={azimuteReAtual.Value:F4}°");
+                    }
+
+
+
+                }
+                else if (leitura.Tipo == TipoLeitura.Irradiacao)
+                {
+
+                    if (estacaoAtual == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                        $"[IRR][WARN] Linha={leitura.OrdemArquivo} Irr '{leitura.PontoVisado}' com estação '{leitura.EstacaoOcupada}' não encontrada. Ignorando.");
+                        continue;
+                    }
+
+                    double azReUsado;
+                    if (azimuteReAtual.HasValue)
+                    {
+                        azReUsado = azimuteReAtual.Value;
+                    }
+                    else
+                    {
+                        azReUsado = estacaoAtual.Nome.Equals(resultado.Poligonal.First().Nome, StringComparison.OrdinalIgnoreCase)
+                        ? azimuteInicial
+                        : (estacaoAtual.AzimuteChegada < 180 ? estacaoAtual.AzimuteChegada + 180 : estacaoAtual.AzimuteChegada - 180);
+
+                        System.Diagnostics.Debug.WriteLine(
+                        $"[IRR][WARN] Linha={leitura.OrdemArquivo} Irr '{leitura.PontoVisado}' sem Ré vigente. Usando fallback AzRe={azReUsado:F4}°");
+
+                    }
+
+                    var pontoIrradiado = _calculoService.CalcularPontoIrradiado(estacaoAtual, leitura, azReUsado);
+                    resultado.Irradiacoes.Add(pontoIrradiado);
+
+                    // ✅ LOG: coordenadas finais geradas para o ponto irradiado
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[IRR][OUT] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} " +
+                        $"ReVigente={(reAtualNome ?? "-")} AzRe={azReUsado:F4}° AngH={leitura.AnguloHorizontal:F4}° " +
+                        $"→ {pontoIrradiado.Nome} X={pontoIrradiado.X:F3} Y={pontoIrradiado.Y:F3} Z={pontoIrradiado.Z:F3}");
+
+                }
+            }   
+        }
 
         public ResultadoLevantamento Processar(
             MetadadosCenario metadadosAtuais,
@@ -238,7 +375,7 @@ namespace TopoGente.Core.Services
 
 
 
-            CalcularIrradiacoes(resultado, leiturasIrradiadas, leiturasRe, pontosConhecidos, azimuteInicial);
+            CalcularIrradiacoesSequencial(resultado, leiturasBrutas, pontosConhecidos, metadadosAtuais, azimuteInicial);
 
             SalvarSaidaTxt(resultado);
 
