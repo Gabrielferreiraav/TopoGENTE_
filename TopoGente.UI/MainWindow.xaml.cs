@@ -319,83 +319,84 @@ namespace TopoGente.UI
             }
         }
 
-        private static double ConverterAzimute(string entrada) {
-
-            if (string.IsNullOrEmpty(entrada))
-            {
+        private static double ConverterAzimute(string entrada)
+        {
+            if (string.IsNullOrWhiteSpace(entrada))
                 return 0;
-            }
 
             entrada = entrada.Trim();
 
-            entrada.Replace(',', '.');
+            // precisa atribuir
+            entrada = entrada.Replace(',', '.');
 
-            if (entrada.Contains("."))
+            //  tem ponto -> pode ser "GGG.MMSS" (compacto) OU decimal puro
+            if (entrada.Contains('.'))
             {
-                
+                var partes = entrada.Split('.', 2);
+                var parteInteira = partes[0];
+                var parteDecimal = partes.Length > 1 ? partes[1] : "0";
 
-                string[] partes = entrada.Split('.');
-                string parteInteira = partes[0];
-                string parteDecimal = partes.Length > 1 ? partes[1] : "0";
-
-                if (parteDecimal.Length >=4)
+                // Se tiver pelo menos 4 casas, pode ser compacto.
+                // Decide pelo MM/SS: se invalido, trata como decimal puro.
+                if (parteDecimal.Length >= 4)
                 {
-                    string mmss =  parteDecimal.PadRight(4,'0').Substring(0,4);
+                    var mmss = parteDecimal.PadRight(4, '0')[..4];
 
-                    int mm = int.Parse(mmss.Substring(0,2));
-                    int ss = int.Parse(mmss.Substring(2,2));
+                    int mm = int.Parse(mmss[..2]);
+                    int ss = int.Parse(mmss.Substring(2, 2));
 
-                    if (mm >= 60 || ss >= 60)
+                    if (mm < 60 && ss < 60)
                     {
-                        throw new FormatException(
-                        $"Formato de ângulo inválido: '{entrada}'. " +
-                        $"Minutos ({mm}) e segundos ({ss}) devem ser < 60.");
-
-                    }
-
-                    string compacto = parteInteira + mmss;
-                    double valorCompacto = double.Parse(compacto, System.Globalization.CultureInfo.InvariantCulture);
-
-                    return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(valorCompacto);
-                }
-                else
-                {
-                    double resultado = double.Parse(entrada, System.Globalization.CultureInfo.InvariantCulture);
-
-                    if (resultado < 0 || resultado >= 360)
-                    {
-                        throw new FormatException(
-                            $"Azimute fora do intervalo válido: {resultado}°. " +
-                            "Azimutes devem estar entre 0° e 360°.");
                         
+                        var compactoTexto = $"{parteInteira}.{mmss}";
+                        double compacto = double.Parse(compactoTexto, System.Globalization.CultureInfo.InvariantCulture);
+                        return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(compacto);
                     }
-
-                    return resultado;
-
-                }
-            }
-            else
-            {
-                double valor = double.Parse(entrada, System.Globalization.CultureInfo.InvariantCulture);
-
-                if (valor < 360)
-                {
-                    return valor;
                 }
 
-                int gg = (int)(valor / 10000);
-                int mm = (int)((valor % 10000) / 100);
-                int ss = (int)(valor % 100);
+                // Decimal puro
+                double decimalPuro = double.Parse(entrada, System.Globalization.CultureInfo.InvariantCulture);
 
-                if (mm >= 60 || ss >= 60)
+                if (decimalPuro < 0 || decimalPuro >= 360)
                 {
                     throw new FormatException(
-                        $"Formato de ângulo inválido: '{entrada}' = {gg}°{mm}'{ss}\". " +
-                        $"Minutos ({mm}) e segundos ({ss}) devem ser < 60.");
+                        $"Azimute fora do intervalo válido: {decimalPuro}°. " +
+                        "Azimutes devem estar entre 0° e 360°.");
                 }
 
-                return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(valor);
+                return decimalPuro;
             }
+
+            // sem ponto -> pode ser "GGMMSS" (ex: 1351245) ou graus inteiros (ex: 135)
+            if (!double.TryParse(entrada, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var valor))
+                throw new FormatException($"Azimute inválido: '{entrada}'.");
+
+            if (valor < 360)
+                return valor; // graus inteiros (ou <360)
+
+            //  Interpretar como GGMMSS e converter para GGG.MMSS antes de chamar DeFormatoCompacto
+            var digits = entrada;
+
+            // precisa ter pelo menos 5 dígitos para existir MMSS
+            if (digits.Length < 5)
+                throw new FormatException($"Formato GGMMSS inválido: '{entrada}'.");
+
+            var grausTexto = digits[..^4];
+            var mmssTexto = digits[^4..];
+
+            int mm2 = int.Parse(mmssTexto[..2]);
+            int ss2 = int.Parse(mmssTexto.Substring(2, 2));
+
+            if (mm2 >= 60 || ss2 >= 60)
+            {
+                throw new FormatException(
+                    $"Formato de ângulo inválido: '{entrada}' = {grausTexto}°{mm2}'{ss2}\". " +
+                    $"Minutos ({mm2}) e segundos ({ss2}) devem ser < 60.");
+            }
+
+            var compactoSemPonto = $"{grausTexto}.{mmssTexto}";
+            double compacto2 = double.Parse(compactoSemPonto, System.Globalization.CultureInfo.InvariantCulture);
+            return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(compacto2);
         }
 
 
@@ -462,6 +463,7 @@ namespace TopoGente.UI
                 ReX = usarRe ? double.Parse(txtReX.Text) : 0,
                 ReY = usarRe ? double.Parse(txtReY.Text) : 0,
                 ReZ = usarRe ? double.Parse(txtZ.Text) : 0,
+                AzimuteChegada = null
             };
 
             if (cenario == TipoCenarioPoligonal.Enquadrada)
@@ -469,6 +471,7 @@ namespace TopoGente.UI
                 meta.ChegadaX = double.Parse(txtChegadaX.Text);
                 meta.ChegadaY = double.Parse(txtChegadaY.Text);
                 meta.ChegadaZ = double.Parse(txtChegadaZ.Text);
+                meta.AzimuteChegada = ConverterAzimute(txtAzimuteChegada.Text);
             }
 
             return meta;

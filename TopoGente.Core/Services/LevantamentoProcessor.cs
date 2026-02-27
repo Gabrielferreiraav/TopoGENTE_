@@ -127,10 +127,11 @@ namespace TopoGente.Core.Services
 
                     PontoCoordenada? pontoRe = null;
 
-                    if (conhecidos.TryGetValue(leitura.PontoVisado,out var pConhecido))
+                    if (conhecidos.TryGetValue(leitura.PontoVisado, out var pConhecido))
                     {
                         pontoRe = pConhecido;
-                    }else if (poligonalPorNome.TryGetValue(leitura.PontoVisado, out var pPoligonal))
+                    }
+                    else if (poligonalPorNome.TryGetValue(leitura.PontoVisado, out var pPoligonal))
                     {
                         pontoRe = pPoligonal;
                     }
@@ -205,7 +206,7 @@ namespace TopoGente.Core.Services
                         $"→ {pontoIrradiado.Nome} X={pontoIrradiado.X:F3} Y={pontoIrradiado.Y:F3} Z={pontoIrradiado.Z:F3}");
 
                 }
-            }   
+            }
         }
 
         public ResultadoLevantamento Processar(
@@ -230,10 +231,11 @@ namespace TopoGente.Core.Services
                 azimuteInicial = metadadosAtuais.AzimutePartida;
             }
 
+            string nomePontoIncial = leiturasBrutas.FirstOrDefault()?.EstacaoOcupada ?? "Partida";
 
             var PontoPartida = new PontoCoordenada
             {
-                Nome = "Partida",
+                Nome = nomePontoIncial,
                 X = metadadosAtuais.PartidaX,
                 Y = metadadosAtuais.PartidaY,
                 Z = metadadosAtuais.PartidaZ,
@@ -271,9 +273,9 @@ namespace TopoGente.Core.Services
                 _ => azimuteInicial
             };
 
-            
+
             var poligonalBruta = _calculoService.CalcularPoligonal(PontoPartida, azimuteInicial, leiturasPoligonal);
-            
+
             resultado.PoligonalBruta = poligonalBruta;
 
             System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: POLIGONAL BRUTA (Antes da Compensação) ===");
@@ -293,80 +295,128 @@ namespace TopoGente.Core.Services
             }
             resultado.Perimetro = perimetro;
 
+            double anguloFechamento = 0;
+
             switch (metadadosAtuais.TipoCenario)
             {
                 case TipoCenarioPoligonal.Fechada:
                     resultado.PoligonalFechada = true;
                     resultado.TipoCenario = TipoCenarioPoligonal.Fechada;
-                    
+
                     bool fechou = ProcessarFechada(resultado, poligonalBruta, PontoPartida, perimetro);
-                    if (fechou)
+                    if (!fechou)
                     {
-                        string nomeEstcaoInicial = leiturasPoligonal.FirstOrDefault()?.EstacaoOcupada ?? PontoPartida.Nome;
-
-                        var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstcaoInicial);
-
-                        if (reInicial == null)
-                        {
-                            throw new DadosInsuficientesException(
-                                $"Poligonal fechada exige leitura de Ré inicial na estação '{PontoPartida.Nome}'. " +
-                                "Verifique se o CSV contém uma linha de Ré antes da primeira Vante.");
-                        }
-
-                        string nomePontoReInicial = reInicial.PontoVisado;
-
-                        var leituraFechamento = leiturasRe.Where(r => r.EstacaoOcupada == nomeEstcaoInicial && r.PontoVisado.Equals(nomePontoReInicial,StringComparison.OrdinalIgnoreCase))
-                            .LastOrDefault();
-
-                        double anguloFechamento = leituraFechamento?.AnguloHorizontal ?? 0;
-
-                        System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: DADOS DE FECHAMENTO ===");
-                        System.Diagnostics.Debug.WriteLine($"Estação Inicial: {nomeEstcaoInicial}");
-                        System.Diagnostics.Debug.WriteLine($"Ponto Ré Inicial: {nomePontoReInicial}");
-                        System.Diagnostics.Debug.WriteLine($"Ângulo de Fechamento: {anguloFechamento:F4}°");
-
-
-                        resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida,poligonalBruta.Last(),PontoPartida.AzimuteChegada,poligonalBruta.Last().AzimuteChegada,
-                        leiturasPoligonal,poligonalBruta,metadadosAtuais.TipoCenario,anguloFechamento,out double ea,out double erroX, out double erroY, out double erroLinearT,out double precisaoRelativa, out double erroAltimetrico );
-
-                        System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: POLIGONAL COMPENSADA (Após Compensação) ===");
-                        foreach (var ponto in resultado.Poligonal)
-                        {
-                            System.Diagnostics.Debug.WriteLine(
-                                $"{ponto.Nome} | X={ponto.X:F3} | Y={ponto.Y:F3} | Z={ponto.Z:F3} | Az={ponto.AzimuteChegada:F4}°");
-                        }
-
-                        resultado.ErroAngular = ea; resultado.ErroLinear = erroLinearT; resultado.Precisao = precisaoRelativa;
-                        resultado.ErroFechamentoX = erroX;
-                        resultado.ErroFechamentoY = erroY;
-                        resultado.ErroFechamentoZ = erroAltimetrico;
-
-                        System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: ERROS DE FECHAMENTO ===");
-                        System.Diagnostics.Debug.WriteLine($"Erro Angular: {ea:F4}° ({ea * 60:F2}')");
-                        System.Diagnostics.Debug.WriteLine($"Erro X: {erroX:F4} m");
-                        System.Diagnostics.Debug.WriteLine($"Erro Y: {erroY:F4} m");
-                        System.Diagnostics.Debug.WriteLine($"Erro Linear XY: {erroLinearT:F4} m");
-                        System.Diagnostics.Debug.WriteLine($"Erro Altimétrico: {erroAltimetrico:F4} m");
-                        System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa).ToString("F0") : "∞")}");
-                        System.Diagnostics.Debug.WriteLine($"Perímetro: {perimetro:F3} m");
+                        System.Diagnostics.Debug.WriteLine(
+                        $"[WARN] Poligonal não fechou no critério bruto. Mesmo assim, será tentada compensação para avaliar erros pós-ajuste.");
 
 
                     }
-                    else
+                    string nomeEstcaoInicial = leiturasPoligonal.FirstOrDefault()?.EstacaoOcupada ?? PontoPartida.Nome;
+
+                    var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstcaoInicial);
+
+                    if (reInicial == null)
                     {
-                        resultado.Poligonal = poligonalBruta;
+                        throw new DadosInsuficientesException(
+                            $"Poligonal fechada exige leitura de Ré inicial na estação '{PontoPartida.Nome}'. " +
+                            "Verifique se o CSV contém uma linha de Ré antes da primeira Vante.");
                     }
+
+                    string nomePontoReInicial = reInicial.PontoVisado;
+
+                    var leituraFechamento = leiturasRe.Where(r => r.EstacaoOcupada == nomeEstcaoInicial && r.PontoVisado.Equals(nomePontoReInicial, StringComparison.OrdinalIgnoreCase))
+                        .LastOrDefault();
+
+                    anguloFechamento = leituraFechamento?.AnguloHorizontal ?? 0;
+
+                    System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: DADOS DE FECHAMENTO ===");
+                    System.Diagnostics.Debug.WriteLine($"Estação Inicial: {nomeEstcaoInicial}");
+                    System.Diagnostics.Debug.WriteLine($"Ponto Ré Inicial: {nomePontoReInicial}");
+                    System.Diagnostics.Debug.WriteLine($"Ângulo de Fechamento: {anguloFechamento:F4}°");
+
+
+                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, poligonalBruta.Last(), PontoPartida.AzimuteChegada, poligonalBruta.Last().AzimuteChegada,
+                    leiturasPoligonal, poligonalBruta, metadadosAtuais.TipoCenario, anguloFechamento, out double ea, out double erroX, out double erroY, out double erroLinearT, out double precisaoRelativa, out double erroAltimetrico);
+
+                    System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: POLIGONAL COMPENSADA (Após Compensação) ===");
+                    foreach (var ponto in resultado.Poligonal)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"{ponto.Nome} | X={ponto.X:F3} | Y={ponto.Y:F3} | Z={ponto.Z:F3} | Az={ponto.AzimuteChegada:F4}°");
+                    }
+
+                    resultado.ErroAngular = ea; resultado.ErroLinear = erroLinearT; resultado.Precisao = precisaoRelativa;
+                    resultado.ErroFechamentoX = erroX;
+                    resultado.ErroFechamentoY = erroY;
+                    resultado.ErroFechamentoZ = erroAltimetrico;
+
+                    System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: ERROS DE FECHAMENTO ===");
+                    System.Diagnostics.Debug.WriteLine($"Erro Angular: {ea:F4}° ({ea * 60:F2}')");
+                    System.Diagnostics.Debug.WriteLine($"Erro X: {erroX:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Erro Y: {erroY:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Erro Linear XY: {erroLinearT:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Erro Altimétrico: {erroAltimetrico:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa).ToString("F0") : "∞")}");
+                    System.Diagnostics.Debug.WriteLine($"Perímetro: {perimetro:F3} m");
+
 
                     break;
                 case TipoCenarioPoligonal.Enquadrada:
+
                     resultado.TipoCenario = TipoCenarioPoligonal.Enquadrada;
                     resultado.PoligonalFechada = true;
+
+                    var pontoChegadaConhecido = new PontoCoordenada
+                    {
+                        Nome = "Chegada",
+                        X = metadadosAtuais.ChegadaX,
+                        Y = metadadosAtuais.ChegadaY,
+                        Z = metadadosAtuais.ChegadaZ,
+                    };
+
+                    var ultimaLeituraReferencia = leiturasRe.LastOrDefault();
+
+                    if (ultimaLeituraReferencia != null)
+                    {
+                        anguloFechamento = ultimaLeituraReferencia.AnguloHorizontal;
+                        System.Diagnostics.Debug.WriteLine($"[ENQUADRADA] Ângulo lido para a Ref Final: {anguloFechamento:F4}°");
+
+                    }
+
+                    var azimuteChegada = metadadosAtuais.AzimuteChegada;
+
+                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, pontoChegadaConhecido, PontoPartida.AzimuteChegada, azimuteChegada , leiturasPoligonal,poligonalBruta,
+                        metadadosAtuais.TipoCenario, anguloFechamento,out double eaEnq, out double erroXEnq, out double erroYEnq, out double erroLinearEnq, out double precisaoRelativaEnq, out double erroAltimetricoEnq);
+
+                    System.Diagnostics.Debug.WriteLine($"\n DEBUG: POLIGONAL COMPENSADA ");
+                    foreach (var ponto in resultado.Poligonal)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"{ponto.Nome} | X={ponto.X:F3} | Y={ponto.Y:F3} | Z={ponto.Z:F3} | Az={ponto.AzimuteChegada:F4}°");
+                    }
+
+                    resultado.ErroAngular = eaEnq;
+                    resultado.ErroFechamentoX = erroXEnq;
+                    resultado.ErroFechamentoY = erroYEnq;
+                    resultado.ErroLinear = erroLinearEnq;
+                    resultado.ErroFechamentoZ = erroAltimetricoEnq;
+                    resultado.Precisao = precisaoRelativaEnq;
+
+                    System.Diagnostics.Debug.WriteLine($"\nDEBUG: ERROS DE FECHAMENTO");
+                    System.Diagnostics.Debug.WriteLine($"Erro Angular: {resultado.ErroAngular:F4}°");
+                    System.Diagnostics.Debug.WriteLine($"Erro X: {resultado.ErroFechamentoX:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Erro Y: {resultado.ErroFechamentoY:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Erro Linear XY: {resultado.ErroLinear:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Erro Altimétrico: {resultado.ErroFechamentoZ:F4} m");
+                    System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(resultado.Precisao > 0 ? (1 / resultado.Precisao).ToString("F0") : "∞")}");
+
+
                     break;
                 case TipoCenarioPoligonal.AbertaOrientada:
                     resultado.TipoCenario = TipoCenarioPoligonal.AbertaOrientada;
                     resultado.PoligonalFechada = false;
                     ProcessarAberta(resultado, poligonalBruta);
-                    
+
                     break;
                 default:
                     break;
@@ -411,21 +461,7 @@ namespace TopoGente.Core.Services
 
 
             return fechou;
-            /*if (fechou)
-            {
-                double azimuteFinalConhecido = pontoChegada.AzimuteChegada;
 
-                resultado.Poligonal = _calculoService.CompensarPoligonal(pontoPartida,pontoChegada,pontoPartida.AzimuteChegada,azimuteFinalConhecido);
-
-                resultado.ErroAngular = ea;
-                resultado.ErroLinear = eLinear;
-                resultado.Precisao = precisao;
-                resultado.TipoCenario = tipoCenario;
-            }
-            else
-            {
-                
-            }*/
         }
 
         public void ProcessarAberta(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta)
@@ -513,7 +549,7 @@ namespace TopoGente.Core.Services
                                 : estacao.AzimuteChegada - 180);
         }
 
-       
+
     }
 
     public class ResultadoLevantamento
@@ -561,7 +597,7 @@ namespace TopoGente.Core.Services
         /// </summary>
         public double PrecisaoBruta { get; set; }
 
-        public double ErroAngular   { get; set; }
+        public double ErroAngular { get; set; }
 
         public TipoCenarioPoligonal TipoCenario { get; set; }
     }
