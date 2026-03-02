@@ -25,5 +25,7 @@
         public TipoLeitura Tipo { get; set; } = TipoLeitura.Irradiacao;
         public bool EhLeituraDePoligonal => Tipo == TipoLeitura.Poligonal;
         public string? Purpose { get; set; } // "traverse", "sideshot", "check" 
+
+        public int OrdemArquivo { get; set; }
     }
 }
