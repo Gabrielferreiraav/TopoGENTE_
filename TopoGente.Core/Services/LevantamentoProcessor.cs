@@ -369,9 +369,9 @@ namespace TopoGente.Core.Services
                     var pontoChegadaConhecido = new PontoCoordenada
                     {
                         Nome = "Chegada",
-                        X = metadadosAtuais.ChegadaX,
-                        Y = metadadosAtuais.ChegadaY,
-                        Z = metadadosAtuais.ChegadaZ,
+                        X = metadadosAtuais.ChegadaX.Value,
+                        Y = metadadosAtuais.ChegadaY.Value,
+                        Z = metadadosAtuais.ChegadaZ.Value,
                     };
 
                     var ultimaLeituraReferencia = leiturasRe.LastOrDefault();
@@ -427,7 +427,6 @@ namespace TopoGente.Core.Services
 
             CalcularIrradiacoesSequencial(resultado, leiturasBrutas, pontosConhecidos, metadadosAtuais, azimuteInicial);
 
-            SalvarSaidaTxt(resultado);
 
             return resultado;
         }

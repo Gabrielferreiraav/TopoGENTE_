@@ -544,9 +544,9 @@ namespace TopoGente.UI
                     var pontoChegada = new PontoCoordenada
                     {
                         Nome = "CHEGADA",
-                        X = _metadadosAtuais.ChegadaX,
-                        Y = _metadadosAtuais.ChegadaY,
-                        Z = _metadadosAtuais.ChegadaZ,
+                        X = _metadadosAtuais.ChegadaX ?? 0,
+                        Y = _metadadosAtuais.ChegadaY ?? 0,
+                        Z = _metadadosAtuais.ChegadaZ ?? 0,
                         EhPontoPoligonal = true
                     };
 
@@ -711,9 +711,9 @@ namespace TopoGente.UI
             // Chegada
             if (meta.TipoCenario == TipoCenarioPoligonal.Enquadrada)
             {
-                txtChegadaX.Text = meta.ChegadaX.ToString("F3");
-                txtChegadaY.Text = meta.ChegadaY.ToString("F3");
-                txtChegadaZ.Text = meta.ChegadaZ.ToString("F3");
+                txtChegadaX.Text = meta.ChegadaX?.ToString("F3") ?? "0.0";
+                txtChegadaY.Text = meta.ChegadaY?.ToString("F3") ?? "0.0";
+                txtChegadaZ.Text = meta.ChegadaZ?.ToString("F3") ?? "0.0";
             }
         }
         public void btnExportarDxf_Click(object sender, RoutedEventArgs e)

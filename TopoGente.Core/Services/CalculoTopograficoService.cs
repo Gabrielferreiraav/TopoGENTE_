@@ -298,8 +298,10 @@ namespace TopoGente.Core.Services
                 System.Diagnostics.Debug.WriteLine($"[FALHA] Erro Angular ({erroAngular:F4}°) superou a tolerância ({toleranciaGraus:F4}°). Compensação abortada.");
 
                 // Retorna os erros brutos para a tela, mas devolve a malha torta (sem Bowditch)
-                erroX = pontoPartida.X + poligonalBruta[^1].X; // Ajuste simplificado pro log
+                erroX =  poligonalBruta[^1].X - pontoChegada.X; // Ajuste simplificado pro log
+                erroY =  poligonalBruta[^1].Y - pontoChegada.Y; // Ajuste simplificado pro log
                 precisaoRelativa = 0;
+                
                 return poligonalBruta;
             }
 
