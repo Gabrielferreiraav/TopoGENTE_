@@ -300,6 +300,7 @@ namespace TopoGente.Core.Services
                 // Retorna os erros brutos para a tela, mas devolve a malha torta (sem Bowditch)
                 erroX =  poligonalBruta[^1].X - pontoChegada.X; // Ajuste simplificado pro log
                 erroY =  poligonalBruta[^1].Y - pontoChegada.Y; // Ajuste simplificado pro log
+                erroLinearTotal = Math.Sqrt((erroX * erroX) + (erroY * erroY));
                 precisaoRelativa = 0;
                 
                 return poligonalBruta;

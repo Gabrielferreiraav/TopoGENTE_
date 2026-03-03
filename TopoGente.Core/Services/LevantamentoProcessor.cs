@@ -335,7 +335,7 @@ namespace TopoGente.Core.Services
                     System.Diagnostics.Debug.WriteLine($"Ângulo de Fechamento: {anguloFechamento:F4}°");
 
 
-                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, poligonalBruta.Last(), PontoPartida.AzimuteChegada, poligonalBruta.Last().AzimuteChegada,
+                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, PontoPartida, PontoPartida.AzimuteChegada,PontoPartida.AzimuteChegada,
                     leiturasPoligonal, poligonalBruta, metadadosAtuais.TipoCenario, anguloFechamento, out double ea, out double erroX, out double erroY, out double erroLinearT, out double precisaoRelativa, out double erroAltimetrico);
 
                     System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: POLIGONAL COMPENSADA (Após Compensação) ===");

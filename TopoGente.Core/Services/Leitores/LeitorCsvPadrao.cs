@@ -59,11 +59,14 @@ namespace TopoGente.Core.Services.Leitores
                         descNormalizado.Contains("RE ") ||
                         descNormalizado.Contains("RE(") ||
                         observacao.Contains("Ré (") || observacao.Contains("Ré(") ||
-                        observacao.StartsWith("Ré "))
+                        observacao.StartsWith("Ré ") || descNormalizado == "RÉ" || descNormalizado == "RE")
                     {
                         tipo = TipoLeitura.Re;
                     }
-                    
+                    else if (descUpper.Contains("FECH") && descUpper.Contains("VANTE"))
+                    {
+                        tipo = TipoLeitura.Poligonal;
+                    }
                     // Ré (prioridade semântica: se marcar Ré, é Ré)
                     else if (descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
                              descUpper.Contains("CHECK") || descUpper.Contains("CHK"))
@@ -72,8 +75,7 @@ namespace TopoGente.Core.Services.Leitores
                     }
                     else if (descUpper.Contains("VANTE") || descUpper.Contains("-V"))
                     {
-                        
-                        tipo =  TipoLeitura.Poligonal;
+                        tipo = TipoLeitura.Poligonal;
                     }
 
 
