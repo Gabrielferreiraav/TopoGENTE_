@@ -356,7 +356,7 @@ namespace TopoGente.Core.Services
                     System.Diagnostics.Debug.WriteLine($"Erro Y: {erroY:F4} m");
                     System.Diagnostics.Debug.WriteLine($"Erro Linear XY: {erroLinearT:F4} m");
                     System.Diagnostics.Debug.WriteLine($"Erro Altimétrico: {erroAltimetrico:F4} m");
-                    System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa).ToString("F0") : "∞")}");
+                    System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa).ToString("F4") : "∞")}");
                     System.Diagnostics.Debug.WriteLine($"Perímetro: {perimetro:F3} m");
 
 
@@ -416,6 +416,7 @@ namespace TopoGente.Core.Services
                     resultado.TipoCenario = TipoCenarioPoligonal.AbertaOrientada;
                     resultado.PoligonalFechada = false;
                     ProcessarAberta(resultado, poligonalBruta);
+                    System.Diagnostics.Debug.WriteLine($"\n[WARN] Este levantamento é do tipo ABERTO. As coordenadas finais não foram auditadas contra erros de fechamento.");
 
                     break;
                 default:

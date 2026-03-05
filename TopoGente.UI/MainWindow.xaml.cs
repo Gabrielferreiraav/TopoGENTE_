@@ -410,15 +410,9 @@ namespace TopoGente.UI
             pnlChegada.Visibility = tag == "Enquadrada" ? Visibility.Visible : Visibility.Collapsed;
 
             // Fechada e Enquadrada 
-            if (tag =="AbertaOrientada")
-            {
-                rbAzimute.IsChecked = true;
-                rbCoordenadaRe.IsEnabled = false;
-            }
-            else
-            {
-                rbCoordenadaRe.IsEnabled = true;
-            }
+             rbAzimute.IsChecked = true;
+             rbCoordenadaRe.IsEnabled = true;
+            
         }
 
         private void rbOrientacao_Changed(object sender, RoutedEventArgs e)
@@ -576,9 +570,21 @@ namespace TopoGente.UI
                     txtPrecisao.Text = "-";
                 }
 
-                btnExportarDxf.IsEnabled = true;
+                //btnExportarDxf.IsEnabled = true;
                 tabsPrincipal.SelectedIndex = 1;
+                if (_metadadosAtuais.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
+                {
+                    MessageBox.Show(
+                        "Este levantamento é do tipo ABERTO. As coordenadas finais não foram auditadas contra erros de fechamento.\n\n" +
+                        "Qualquer erro angular na primeira estação deslocará linearmente todas as estações subsequentes (efeito alavanca).",
+                        "⚠️ Aviso — Poligonal Aberta",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                else 
+                { 
                 MessageBox.Show("Cálculo realizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             catch (FormatException)
             {
@@ -589,6 +595,7 @@ namespace TopoGente.UI
                 MessageBox.Show($"Erro no processamento: {ex.Message}", "Erro Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+        /*
         public void btnSalvarProjeto_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -675,7 +682,7 @@ namespace TopoGente.UI
                     MessageBox.Show($"Erro ao abrir projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-        }
+        }*/
         private void RestaurarMetadadosNaUI(MetadadosCenario? meta)
         {
             if (meta == null) return;
@@ -716,6 +723,7 @@ namespace TopoGente.UI
                 txtChegadaZ.Text = meta.ChegadaZ?.ToString("F3") ?? "0.0";
             }
         }
+        /*
         public void btnExportarDxf_Click(object sender, RoutedEventArgs e)
         {
             var pontosParaExportar = gridResultados.ItemsSource as List<PontoCoordenada>;
@@ -744,7 +752,7 @@ namespace TopoGente.UI
                     MessageBox.Show($"Erro ao exportar DXF: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-        }
+        }*/
 
         private sealed class GateResultado
         {
@@ -812,7 +820,7 @@ namespace TopoGente.UI
         private void EntraModoPontos(string mensagem, List<PontoCoordenada> pontos)
         {
             btnProcessar.IsEnabled = false;
-            btnExportarDxf.IsEnabled = pontos.Count > 0;
+            //btnExportarDxf.IsEnabled = pontos.Count > 0;
 
             gridResultados.ItemsSource = pontos;
             canvasDesenho.UpdateLayout();
@@ -835,7 +843,7 @@ namespace TopoGente.UI
             if (gate.PodeCalcular)
             {
                 btnProcessar.IsEnabled = true;
-                btnExportarDxf.IsEnabled = false;
+                //btnExportarDxf.IsEnabled = false;
                 return;
             }
 
@@ -853,12 +861,16 @@ namespace TopoGente.UI
             }
 
             btnProcessar.IsEnabled = false;
-            btnExportarDxf.IsEnabled = false;
+            //btnExportarDxf.IsEnabled = false;
 
             MessageBox.Show(
                 "Dados carregados, porem na há observacoes suficientes para calculo e nem pontos conhecidos suficientes para exibicao \n \n" +
                 $"Motivo : {gate.Motivo}", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
+        private void gridCaderneta_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
 }
