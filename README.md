@@ -1,142 +1,93 @@
-**Versão:** 1.0 
-**Ultima atualização: 2025-12-16**
+<h1 align="center">TopoGente - Processamento Topográfico 🌍</h1>
 
-## Sumário
-- [O que é o TopoGente?](#o-que-é-o-topogente)
-- [Por que foi criado?](#por-que-foi-criado)
-- [Comparação com topoGRAPH 98 SE](#comparação-com-topograph-98-se)
-- [Funcionalidades principais](#funcionalidades-principais)
-- [Benefícios para o trabalho de topografia](#benefícios-para-o-trabalho-de-topografia)
-- [Requisitos mínimos](#requisitos-mínimos)
-- [Guia prático de uso](#guia-prático-de-uso)
-- [Integração operacional](#integração-operacional)
-- [FAQ (perguntas frequentes)](#faq)
-- [Glossário rápido](#glossário-rápido)
-- [Suporte e contato](#suporte-e-contato)
+<p align="center">
+  <https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=c-sharp&logoColor=white" alt="C#">
+  <img src="https://img.shields.io/badge/.NET_Core-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET Core">
+  <img src="https://img.shields.io/badge/WPF-0078D7?style=for-the-badge&logo=windows&logoColor=white" alt="WPF">
+  <img src="https://img.shields.io/badge/Topografia-Engenharia-orange?style=for-the-badge" alt="Topografia">
+</p>
 
-## O que é o TopoGente? 
+> O **TopoGente** é uma ferramenta de desktop desenvolvida para a automação matemática, cálculo analítico de levantamentos topográficos e visualização gráfica de coordenadas. O software foi arquitetado com base nos fundamentos da topografia clássica e nas diretrizes normativas (NBR 13.133).
 
-Um aplicativo desktop leve que processa dados de levantamento topográfico (poligonais e pontos irradiados) e desenha o resultado. Focado em ensino/uso acadêmico: transparente, sem custos, fácil de entender e adaptar.
+---
 
-## Por que foi criado? 
+## ✨ Funcionalidades
 
-Reproduzir funcionalidades essenciais de programas clássicos (ex.: topoGRAPH 98 SE) de forma leve e didática. Permitir que equipes de topografia processem cadernetas de campo rapidamente e visualizem coordenadas e desenhos básicos. Facilitar ensino e validação de conceitos topográficos (azimutes, projeções, fechos).
+O sistema foi desenvolvido para lidar com as realidades de campo, operando com diferentes tipos de fechamento de malhas e ajustamentos espaciais:
 
-## Comparação com topoGRAPH 98 SE  
+*   **🔀 Processamento Multi-Cenários:**
+    *   **Poligonal Fechada (Loop):** Cálculos de erro de fechamento e rateio proporcional de projeções.
+    *   **Poligonal Enquadrada (Apoiada):** Transporte de coordenadas entre marcos conhecidos de alta precisão (Sistema Geodésico Brasileiro).
+    *   **Poligonal Aberta Orientada:** Propagação de caminhamentos "cegos", com bloqueio automático de ajustamentos e alertas de responsabilidade técnica ("Efeito Alavanca").
+*   **📊 Compensação Rigorosa:** Ajuste de fechamento linear utilizando o **Método de Bowditch** e nivelamento trigonométrico com redução ao horizonte ($DH = DI \cdot \sin(Z)$).
+*   **📍 Cálculo de Irradiações:** Processamento passivo de pontos de detalhe vinculados ao esqueleto da poligonal, sem contaminação do perímetro de ajustamento.
+*   **📂 Importação de Caderneta:** Parsing robusto de arquivos `.csv` e `.txt` gerados por Estações Totais, identificando automaticamente leituras de Ré, Vante e Irradiações.
+*   **📈 Análise de Erros e QA:** Painel com auditoria de Tolerância Angular, Erro Linear (X, Y), Precisão Relativa (ex: 1:12.000) e Erro Altimétrico (Z).
+*   **🗺️ Visualização Gráfica Integrada:** Plotagem cartográfica da geometria do levantamento em tempo real (Plano Topográfico Local).
 
-Similaridades: Processa leituras de estação (ângulos, distâncias). Gera poligonais e calcula pontos irradiados. Exibe resultados numéricos e desenho básico. 
+---
 
-Diferenças: TopoGente é mais leve, código aberto/educacional e sem todas as opções avançadas de CAD/plot. Menos integrações e formatos de exportação inicialmente. 
+## ⚙️ O Motor Matemático (Under the Hood)
 
-Objetivo principal: aprendizado, análise e processamento rápido, não substituição completa de suítes comerciais.
+A classe principal do software (`CalculoTopograficoService`) passou por estresse contínuo de testes geométricos, provando possuir **estabilidade algébrica estrutural**:
+- Resistência a nulidades trigonométricas (imunidade à divisão por zero em coordenadas de Ré).
+- Supressão matemática absoluta de métodos compensatórios em poligonais abertas.
+- Capacidade de inicialização geodésica a partir do cálculo de azimute por coordenadas (Arco-Tangente).
 
-## Funcionalidades principais 
+---
 
-Importar caderneta de campo (.fbk, .txt ou .csv): Suporte nativo ao formato Autodesk Field Book (.fbk) e arquivos de texto delimitados. O sistema identifica automaticamente o formato, agrupa estações duplicadas e organiza o caminhamento.
+## 📸 Demonstração e Fluxo de Trabalho
 
-Identificação Automática de Coordenadas: Ao ler arquivos como o .fbk, o sistema detecta se existem coordenadas de partida (NEZ) e preenche automaticamente os campos de configuração inicial.
+### 1. Configuração de Metadados (Cenário de Partida)
+O sistema permite configurar as âncoras do projeto de acordo com a exigência normativa do levantamento:
+*   *Partida por Azimute Direto ou por Coordenadas de Ré.*
+*   *Definição do modelo de poligonal.*
 
-Visualização e Edição por Estação: Interface organizada hierarquicamente. O usuário seleciona a estação desejada em uma lista para visualizar apenas as leituras daquele ponto, facilitando a conferência.
+Exemplos de Cenários de Poligonal
 
-Persistência de Projeto (.topo): Permite salvar todo o trabalho (dados importados, coordenadas configuradas e cálculos) em um formato próprio (.topo) para continuar depois, sem perder a organização das estações.
+| Poligonal Fechada | Poligonal Enquadrada | Poligonal Aberta |
+|---|---|---|
+| <img src="./readme/fechada.png" alt="Poligonal Fechada" width="230"> | <img src="./readme/enquadrada.png" alt="Poligonal Enquadrada" width="230"> | <img src="./readme/aberta.png" alt="Poligonal Aberta" width="230"> |
 
-Exportação DXF: Gera arquivos universais (.dxf) compatíveis com AutoCAD (R12/2000 em diante), Civil 3D e QGIS. Exporta camadas separadas para poligonal, irradiações, nomes de pontos e cotas (Z real).
+### 2. Entrada de Dados (A Caderneta)
+Importação da caderneta de campo bruta, processando automaticamente os Ângulos Horizontais, Verticais (Zênite) e Distâncias Inclinadas (DI).
 
-Calcular poligonal e irradiados: Processamento inteligente que identifica a sequência da poligonal (caminhamento por vante) e calcula as coordenadas X, Y, Z de todos os pontos irradiados.
+<img src="./readme/programa_com_caderne.png" alt="Tabela de Dados Brutos" width="700">
 
-Resultados e Desenho: Tabela completa com coordenadas e desenho gráfico interativo (zoom, pan) da poligonal e pontos.
+### 3. Resultados, Ajustamentos e QA
+Ao processar, o software converte dados polares em cartesianos, aplicando as tolerâncias. Emissão de logs e alertas obrigatórios na interface.
 
-## Benefícios para o trabalho de topografia
+<img src="./readme/programa_com_coord.png" alt="Tabela de Coordenadas Calculadas" width="700">
 
-Interoperabilidade: aceita formatos de equipamentos (FBK) e entrega formatos de engenharia (DXF).
+### 4. Visualização Gráfica em Tempo Real
+Representação visual clara da geometria do esqueleto da poligonal e das nuvens de pontos irradiados, com ferramentas nativas de Pan e Zoom.
 
-Segurança: possibilidade de salvar o estado do projeto e continuar posteriormente.
+<img src="./readme/programa_com_pontos.png" alt="Visualização de Pontos" width="700">
 
-Agilidade: processamento rápido de cadernetas em campo ou escritório. 
+---
 
-Visibilidade: ver imediatamente se a poligonal fechou e qual o erro. 
+## 🚀 Como Executar o Projeto
 
-Economia: ferramenta sem custo e leve para máquinas simples. 
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/SeuUsuario/TopoGente.git
+Abra a solução .sln no Visual Studio 2022 (ou superior).
+Certifique-se de ter o SDK do .NET Core ou .NET 6.0/7.0 instalado.
+Defina o projeto TopoGente.UI como projeto de inicialização.
+Compile e execute (F5).
+Utilize os arquivos de teste na pasta /Data para simular uma importação de caderneta.
 
-Ensino: excelente para treinamento de instrumentistas e estagiários, mostrando passo-a-passo os cálculos.
+--------------------------------------------------------------------------------
+🛠️ Tecnologias Utilizadas
+Linguagem: C#
+Framework: .NET Core / WPF (Windows Presentation Foundation) para interface rica e escalável.
+Arquitetura: Separação entre lógica matemática de Geometria Analítica (TopoGente.Core) e interface de usuário (TopoGente.UI).
 
-## Requisitos mínimos
+--------------------------------------------------------------------------------
+👤 Sobre o Autor
+Gabriel Viana Estagiário de Desenvolvimento no GENTE (Grupo de Engenharia e Tecnologias Espaciais) - UFV
+📩 Contato: gabriel.f.viana@ufv.br 🏢 Instituição: Universidade Federal de Viçosa (UFV)
 
-SO recomendado: Windows 10/11 (WPF nativo). Possível executar em outras plataformas apenas para testes do Core. 
-
-RAM: 4 GB (8 GB recomendado). 
-
-Espaço em disco: < 200 MB para instalação base. .NET SDK/Runtime 10 (para rodar/compilar). Usuário final precisa apenas do runtime (se houver instalador). 
-
-Tela: resolução mínima 1024x768 para conforto.
-
-## Guia prático de uso
-
-Abrir o aplicativo (TopoGente.UI).
-
-Carregar caderneta: Botão "Importar Caderneta" -> selecionar arquivo .fbk, .txt ou .csv. O sistema carregará as estações.
-
-Verificar Estações: Utilize a caixa de seleção para navegar entre as estações carregadas e conferir os dados brutos.
-
-Configurar Partida: Se o arquivo tiver coordenadas (NEZ), elas aparecerão automaticamente nos campos X, Y, Z e Azimute. Caso contrário, digite manualmente.
-
-Calcular: Clicar em "CALCULAR". O programa processa a poligonal e gera os resultados na grade e no desenho.
-
-Exportar ou Salvar: Utilize "Exportar DXF" para gerar o arquivo para CAD, ou "Salvar (.topo)" para guardar o projeto para edição futura.
-
-Abrir Projeto: Utilize "Abrir (.topo)" para restaurar um trabalho anterior exatamente como foi salvo.
-
-## Integração operacional
-
-Instrumentista: exporta a caderneta da estação total (formato FBK ou CSV/TXT).
-
-Técnico/engenheiro: importa no TopoGente, verifica a geometria, fecha a poligonal e gera o DXF.
-
-Projetista: abre o DXF no AutoCAD/Civil 3D para desenhar a planta final com camadas já separadas.
-
-## FAQ
-
-Q: O que significa "Erro de Fechamento"? 
-
-A: É a distância entre o ponto final calculado e o ponto onde deveria fechar (normalmente o ponto inicial). Indica precisão do levantamento. 
-
-Q: Posso usar em campo com um laptop simples? 
-
-A: Sim — aplicação é leve. Evite telas muito pequenas; recomenda-se pelo menos 4 GB RAM. 
-
-Q: Que formatos de arquivo são suportados?
-
-A: Autodesk Field Book (.fbk) e arquivos de texto/CSV padronizados (separador vírgula ou ponto-e-vírgula).
-
-Q: O programa corrige erros de sequência no arquivo?
-
-A: Sim. O sistema possui um organizador de caminhamento que conecta as estações pela leitura de Vante, mesmo que estejam gravadas fora de ordem no arquivo.
-
-Q: Ele gera arquivos para CAD (DXF)?
-
-A: Sim. Gera arquivos DXF compatíveis com versões antigas e novas do AutoCAD, com elevações (Z) corretas nos textos e geometrias.
-
-Q: Posso salvar meu trabalho para continuar depois?
-
-A: Sim, através da funcionalidade "Salvar Projeto" que cria arquivos .topo.
-
-
-## Glossário rápido
-
-Poligonal: sequência de estações ligadas por distâncias e ângulos. 
-
-Irradiado: ponto de detalhe medido a partir de uma estação (poste, árvore). 
-
-Azimute: direção medida a partir do Norte (em graus). 
-
-Ré / Vante: Ré = direção de chegada (do ponto anterior); Vante = direção de saída (próximo ponto). 
-
-Erro de fechamento: a discrepância entre ponto esperado e ponto calculado no final da poligonal.
-
-FBK: formato de arquivo de caderneta de campo da Autodesk.
-
-DXF: formato de intercâmbio de desenho vetorial (CAD).
-
-## Suporte e contato
-
-Entrar em contato com **gabriel.f.viana@ufv.br** para detalhes.
+--------------------------------------------------------------------------------
+Este software foi desenvolvido com base nas anotações e metodologias da disciplina de Topografia Básica (EAM 301) e do livro Fundamentos de Topografia (Autores: Luis Augusto Koenig Veiga, Maria Aparecida Zehnpfennig Zanetti e Pedro Luis Faggion.
+Instituição: Universidade Federal do Paraná (UFPR), Curso de Engenharia Cartográfica e de Agrimensura.).
