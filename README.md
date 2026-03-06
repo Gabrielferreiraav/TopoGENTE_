@@ -47,22 +47,22 @@ Exemplos de Cenários de Poligonal
 
 | Poligonal Fechada | Poligonal Enquadrada | Poligonal Aberta |
 |---|---|---|
-| <img src="./readme/fechada.png" alt="Poligonal Fechada" width="550"> | <img src="./readme/enquadrada.png" alt="Poligonal Enquadrada" width="550"> | <img src="./readme/aberta.png" alt="Poligonal Aberta" width="550"> |
+| <img src="./readme/fechada.png" alt="Poligonal Fechada" width="100%"> | <img src="./readme/enquadrada.png" alt="Poligonal Enquadrada" width="100%"> | <img src="./readme/aberta.png" alt="Poligonal Aberta" width="100%"> |
 
 ### 2. Entrada de Dados (A Caderneta)
 Importação da caderneta de campo bruta, processando automaticamente os Ângulos Horizontais, Verticais (Zênite) e Distâncias Inclinadas (DI).
 
-<img src="./readme/programa_com_caderne.png" alt="Tabela de Dados Brutos" width="900">
+<img src="./readme/programa_com_caderne.png" alt="Tabela de Dados Brutos" width="100%">
 
 ### 3. Resultados, Ajustamentos e QA
 Ao processar, o software converte dados polares em cartesianos, aplicando as tolerâncias. Emissão de logs e alertas obrigatórios na interface.
 
-<img src="./readme/programa_com_coord.png" alt="Tabela de Coordenadas Calculadas" width="900">
+<img src="./readme/programa_com_coord.png" alt="Tabela de Coordenadas Calculadas" width="100%">
 
 ### 4. Visualização Gráfica em Tempo Real
 Representação visual clara da geometria do esqueleto da poligonal e das nuvens de pontos irradiados, com ferramentas nativas de Pan e Zoom.
 
-<img src="./readme/programa_com_pontos.png" alt="Visualização de Pontos" width="900">
+<img src="./readme/programa_com_pontos.png" alt="Visualização de Pontos" width="100%">
 
 ---
 
