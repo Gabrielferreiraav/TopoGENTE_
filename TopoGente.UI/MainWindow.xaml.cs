@@ -32,6 +32,7 @@ namespace TopoGente.UI
         private RelatorioQA? _relatorioQaAtual;
         private readonly QaCheckService _qaCheckService;
         private MetadadosCenario? _metadadosAtuais;
+        private ResultadoLevantamento? _resultadoAtual;
         private Point _origemMouse;
         private bool _estaArrastando = false;
 
@@ -549,20 +550,20 @@ namespace TopoGente.UI
 
                 //Processar
                 var leituras = ColetarLeituras(_estacoesEmMemoria);
-                var resultado = _processadorService.Processar(_metadadosAtuais, leituras, pontosConhecidos);
+                _resultadoAtual = _processadorService.Processar(_metadadosAtuais, leituras, pontosConhecidos);
 
-                _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, pontosConhecidos);
+                _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, _resultadoAtual, pontosConhecidos);
 
-                gridResultados.ItemsSource = resultado.TodosOsPontos;
+                gridResultados.ItemsSource = _resultadoAtual.TodosOsPontos;
                 canvasDesenho.UpdateLayout();
-                DesenharLevantamento(resultado.TodosOsPontos);
+                DesenharLevantamento(_resultadoAtual.TodosOsPontos);
 
-                txtPerimetro.Text = $"{resultado.Perimetro:F2} m";
+                txtPerimetro.Text = $"{_resultadoAtual.Perimetro:F2} m";
 
-                if (resultado.PoligonalFechada)
+                if (_resultadoAtual.PoligonalFechada)
                 {
-                    txtErro.Text = $"{resultado.ErroLinear:F3} m";
-                    txtPrecisao.Text = $"1:{resultado.Precisao:F0}";
+                    txtErro.Text = $"{_resultadoAtual.ErroLinear:F3} m";
+                    txtPrecisao.Text = $"1:{_resultadoAtual.Precisao:F0}";
                 }
                 else
                 {
@@ -595,6 +596,53 @@ namespace TopoGente.UI
                 MessageBox.Show($"Erro no processamento: {ex.Message}", "Erro Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private void bntExportarTxt_Click(object sender, EventArgs e)
+        {
+            var pontosParaExportar = gridResultados.ItemsSource as List<PontoCoordenada>;
+
+            if (pontosParaExportar == null || pontosParaExportar.Count == 0 || _resultadoAtual == null )
+            {
+                MessageBox.Show("Não há Levantamento para exportar ", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var saveDialog = new SaveFileDialog
+            {
+                Title = "Salvar Aqruvio de Levantamento",
+                Filter = "Arquivo de Texto (*.txt)|*.txt|Todos os Arquivos (*.*)|*.*",
+                FileName = "LevantamentoTopoGente.txt",
+                DefaultExt = ".txt",
+            };
+
+
+            if (saveDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var exportacaoService = new ExportarTxtService();
+
+                    string caminho = saveDialog.FileName;
+
+                    string diretorio = System.IO.Path.GetDirectoryName(caminho) ?? "";
+                    string nomeSemExtensao = System.IO.Path.GetFileNameWithoutExtension(caminho);
+                    string nomeExtensao = System.IO.Path.GetExtension(caminho);
+
+                    string caminhoMemoria = System.IO.Path.Combine(diretorio, $"{nomeSemExtensao}_MemoriaCalculo{nomeExtensao}");
+
+                    exportacaoService.ExportarCoordenadasGestor(_resultadoAtual, caminho);
+                    exportacaoService.ExportarMemoriaCalculo(_resultadoAtual, caminhoMemoria);
+
+                    MessageBox.Show($"Arquivos exportados com sucesso em:\n\n1. {caminho}\n2. {caminhoMemoria}",
+                            "Sucesso Geométrico", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                }
+                catch (Exception ex) { 
+                    MessageBox.Show($"Erro ao exportar arquivo: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         /*
         public void btnSalvarProjeto_Click(object sender, RoutedEventArgs e)
         {

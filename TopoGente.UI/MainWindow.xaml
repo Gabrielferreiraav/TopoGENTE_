@@ -164,6 +164,9 @@
             <!--<Button x:Name="btnExportarDxf" Content="Exportar DXF" 
                 Width="120" Height="25" Click="btnExportarDxf_Click" 
                 IsEnabled="False" FontWeight="Bold" Margin="10,0,0,0" Background="#E0F7FA"/> -->
+
+            <Button x:Name="bntExportarTxt" Content="Exportar Relatorio e Coord (TXT)" Width="220" Height="25"
+                    Margin="5,0" FontWeight="SemiBold" Click="bntExportarTxt_Click"/>
         </StackPanel>
 
         <TabControl x:Name="tabsPrincipal" Grid.Row="2" Margin="0,0,0,5">

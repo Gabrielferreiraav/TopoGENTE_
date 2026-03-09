@@ -19,43 +19,6 @@ namespace TopoGente.Core.Services
             _calculoService = new CalculoTopograficoService();
         }
 
-        private static void SalvarSaidaTxt(ResultadoLevantamento resultado)
-        {
-
-            var pontos = resultado.TodosOsPontos ?? new List<PontoCoordenada>();
-
-            if (pontos.Count == 0)
-            {
-                return;
-            }
-
-            var PastaSaidaTeste = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "Saida_teste");
-            Directory.CreateDirectory(PastaSaidaTeste);
-
-            uint state = (uint)Environment.TickCount;
-            state ^= state << 13; state ^= state >> 11; state ^= state << 5;
-
-            var arquivo = Path.Combine(PastaSaidaTeste, $"coordenadas_{state}.txt");
-
-            using var writer = new StreamWriter(arquivo, append: false, encoding: new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            var ic = CultureInfo.InvariantCulture;
-
-            writer.WriteLine("#TopoGente - Resultado do Levantamento");
-
-            // Erros brutos (antes de qualquer ajuste)
-            writer.WriteLine("# Fechamento bruto (antes do ajuste):");
-            writer.WriteLine($"# fx={resultado.ErroFechamentoX.ToString("F4", ic)}; fy={resultado.ErroFechamentoY.ToString("F4", ic)}; fz={resultado.ErroFechamentoZ.ToString("F4", ic)}");
-            writer.WriteLine($"# f_linear_xy={resultado.ErroFechamentoLinearXY.ToString("F4", ic)}; perimetro={resultado.Perimetro.ToString("F3", ic)}; precisao_1_M={(resultado.PrecisaoBruta > 0 ? resultado.PrecisaoBruta.ToString("F2", ic) : "0")}");
-
-            writer.WriteLine("# Nome;X;Y;Z;AzimuteChegada; Tipo Descrição ");
-            foreach (var p in pontos)
-            {
-                writer.WriteLine($"{p.Nome};{p.X.ToString("F3", ic)};{p.Y.ToString("F3", ic)};" +
-                                 $"{p.Z.ToString("F3", ic)};{p.AzimuteChegada};{p.TipoDescricao}");
-            }
-        }
 
         /// <summary>
         /// Valida se o ponto de partida possui coordenadas reais
@@ -199,7 +162,7 @@ namespace TopoGente.Core.Services
                     var pontoIrradiado = _calculoService.CalcularPontoIrradiado(estacaoAtual, leitura, azReUsado);
                     resultado.Irradiacoes.Add(pontoIrradiado);
 
-                    // ✅ LOG: coordenadas finais geradas para o ponto irradiado
+                    //  LOG: coordenadas finais geradas para o ponto irradiado
                     System.Diagnostics.Debug.WriteLine(
                         $"[IRR][OUT] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} " +
                         $"ReVigente={(reAtualNome ?? "-")} AzRe={azReUsado:F4}° AngH={leitura.AnguloHorizontal:F4}° " +
