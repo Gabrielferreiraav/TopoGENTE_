@@ -19,7 +19,7 @@ O sistema foi desenvolvido para lidar com as realidades de campo, operando com d
     *   **Poligonal Fechada (Loop):** Cálculos de erro de fechamento e rateio proporcional de projeções.
     *   **Poligonal Enquadrada (Apoiada):** Transporte de coordenadas entre marcos conhecidos de alta precisão (Sistema Geodésico Brasileiro).
     *   **Poligonal Aberta Orientada:** Propagação de caminhamentos "cegos", com bloqueio automático de ajustamentos e alertas de responsabilidade técnica ("Efeito Alavanca").
-*   **📊 Compensação Rigorosa:** Ajuste de fechamento linear utilizando o **Método de Bowditch** e nivelamento trigonométrico com redução ao horizonte ($DH = DI \cdot \sin(Z)$).
+*   **📊 Compensação Rigorosa:** Ajuste de fechamento linear utilizando o **Método de Bowditch** e nivelamento trigonométrico com redução ao horizonte ($$DH = DI \cdot \sin(Z)$$).
 *   **📍 Cálculo de Irradiações:** Processamento passivo de pontos de detalhe vinculados ao esqueleto da poligonal, sem contaminação do perímetro de ajustamento.
 *   **📂 Importação de Caderneta:** Parsing robusto de arquivos `.csv` e `.txt` gerados por Estações Totais, identificando automaticamente leituras de Ré, Vante e Irradiações.
 *   **📈 Análise de Erros e QA:** Painel com auditoria de Tolerância Angular, Erro Linear (X, Y), Precisão Relativa (ex: 1:12.000) e Erro Altimétrico (Z).
