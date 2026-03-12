@@ -9,10 +9,11 @@ using netDxf.Entities;
 using netDxf.Header;
 using TopoGente.Core.Entities;
 using System.Drawing;
+using TopoGente.Core.Interfaces;
 
 namespace TopoGente.Core.Services
 {
-    public class ExportadorDxfService 
+    public class ExportadorDxfService : IExportarDxfService
     {
 
         public void SalvarDxf(List<PontoCoordenada> pontos, string caminhoArquivo)

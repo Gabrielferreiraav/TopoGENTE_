@@ -5,10 +5,11 @@ using System.Linq;
 using TopoGente.Core.Entities;
 using System.Globalization;
 using System.IO;
+using TopoGente.Core.Interfaces;
 
 namespace TopoGente.Core.Services
 {
-    public class LevantamentoProcessor
+    public class LevantamentoProcessor : ILevantamentoProcessor
     {
         private readonly CalculoTopograficoService _calculoService;
 

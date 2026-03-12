@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Interfaces;
 
 
 namespace TopoGente.Core.Services
 {
-    public class OrganizarCaminhamento
+    public class OrganizarCaminhamento : IOrganizarCaminhamento
     {
         /// <summary>
         /// Une as estações repetidas e organiza as leituras na ordem em que foram registradas.

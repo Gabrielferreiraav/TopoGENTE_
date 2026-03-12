@@ -12,7 +12,7 @@ using System.Globalization;
 
 namespace TopoGente.Core.Services.Leitores
 {
-    public class LeitorLandXml : ILeitorArquivo
+    public class LeitorLandXml :ILeitorArquivo
     {
         public string NomeFormato => "LandXML 1.2";
 

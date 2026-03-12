@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Interfaces;
 
 namespace TopoGente.Core.Services
 {
-    public sealed class QaCheckService
+    public sealed class QaCheckService : IQaCheckService
     {
         private readonly CalculoTopograficoService _calculo;
 

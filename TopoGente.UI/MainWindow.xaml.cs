@@ -16,36 +16,43 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Diagnostics;
 using TopoGente.Core.Validators;
+using TopoGente.Core.Interfaces;
 
 namespace TopoGente.UI
 {
     public partial class MainWindow : Window
     {
         // Instâncias dos serviços
-        private readonly LeituraArquivoFactory _leitorService;
-        private readonly LevantamentoProcessor _processadorService;
-        private readonly OrganizarCaminhamento _organizador;
-        private readonly ArquivoProjetoService _projetoService;
-        private readonly ExportadorDxfService _dxfService;
+        private readonly ILeituraArquivoFactory _leitorService;
+        private readonly ILevantamentoProcessor _processadorService;
+        private readonly IArquivoProjetoService _projetoService;
+        private readonly IOrganizarCaminhamento _organizador;
+        private readonly IExportarDxfService _dxfService;
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
         private RelatorioQA? _relatorioQaAtual;
-        private readonly QaCheckService _qaCheckService;
+        private readonly IQaCheckService _qaCheckService;
         private MetadadosCenario? _metadadosAtuais;
         private ResultadoLevantamento? _resultadoAtual;
         private Point _origemMouse;
         private bool _estaArrastando = false;
 
-        public MainWindow()
+        public MainWindow(ILeituraArquivoFactory leitorService,
+        ILevantamentoProcessor processadorService,
+        IArquivoProjetoService projetoService,IOrganizarCaminhamento organizador,
+        IExportarDxfService dxfService, IQaCheckService qaCheckService)
         {
             InitializeComponent();
-            _leitorService = new LeituraArquivoFactory();
-            _processadorService = new LevantamentoProcessor();
+            
+            _leitorService = leitorService;
+            _processadorService = processadorService;
+            _organizador = organizador;
+            _dxfService = dxfService;
+            _qaCheckService = qaCheckService;
+            _projetoService = projetoService;
+
             _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
-            _organizador = new OrganizarCaminhamento();
-            _projetoService = new ArquivoProjetoService();
-            _dxfService = new ExportadorDxfService();
-            _qaCheckService = new QaCheckService();
+            
             ConfigurarComboTipo();
         }
         private void ConfigurarComboTipo()

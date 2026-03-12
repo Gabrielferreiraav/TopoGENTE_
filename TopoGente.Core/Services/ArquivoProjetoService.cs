@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Interfaces;
 
 
 namespace TopoGente.Core.Services
 {
-    public class ArquivoProjetoService
+    public class ArquivoProjetoService : IArquivoProjetoService
     {
         public void SalvarProjeto(ProjetoTopo projeto, string caminhoArquivo)
         {

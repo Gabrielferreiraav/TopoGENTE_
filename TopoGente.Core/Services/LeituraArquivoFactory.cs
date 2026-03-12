@@ -8,13 +8,13 @@ using TopoGente.Core.Services.Leitores;
 
 namespace TopoGente.Core.Services
 {
-    public class LeituraArquivoFactory
+    public class LeituraArquivoFactory : ILeituraArquivoFactory
     {
-        private readonly List<ILeitorArquivo> _leitorArquivos;
+        private readonly List<Interfaces.ILeitorArquivo> _leitorArquivos;
 
         public LeituraArquivoFactory()
         {
-            _leitorArquivos = new List<ILeitorArquivo>
+            _leitorArquivos = new List<Interfaces.ILeitorArquivo>
             {
                 new LeitorFbk(),
                 new LeitorCsvPadrao(),
@@ -29,7 +29,7 @@ namespace TopoGente.Core.Services
                 throw new ArgumentException("O arquivo fornecido está vazio");
             }
 
-            ILeitorArquivo? leitor = formato switch
+            Interfaces.ILeitorArquivo? leitor = formato switch
             {
                 FormatoArquivoEntrada.Fbk => _leitorArquivos.OfType<LeitorFbk>().FirstOrDefault(),
                 FormatoArquivoEntrada.CsvPadrao => _leitorArquivos.OfType<LeitorCsvPadrao>().FirstOrDefault(),
