@@ -20,7 +20,7 @@ namespace TopoGente.UI
             IArquivoProjetoService projeto = new ArquivoProjetoService();
             IQaCheckService qaCheck = new QaCheckService();
             IOrganizarCaminhamento organizar = new OrganizarCaminhamento();
-            IExportarDxfService dxfService = new ExportadorDxfService();
+            IExportadorDxfService dxfService = new ExportadorDxfService();
 
             MainWindow janelaPrincipal = new MainWindow(leitor, processador, projeto, organizar,dxfService, qaCheck);
 

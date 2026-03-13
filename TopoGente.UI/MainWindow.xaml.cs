@@ -27,7 +27,7 @@ namespace TopoGente.UI
         private readonly ILevantamentoProcessor _processadorService;
         private readonly IArquivoProjetoService _projetoService;
         private readonly IOrganizarCaminhamento _organizador;
-        private readonly IExportarDxfService _dxfService;
+        private readonly IExportadorDxfService _dxfService;
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
         private RelatorioQA? _relatorioQaAtual;
@@ -40,7 +40,7 @@ namespace TopoGente.UI
         public MainWindow(ILeituraArquivoFactory leitorService,
         ILevantamentoProcessor processadorService,
         IArquivoProjetoService projetoService,IOrganizarCaminhamento organizador,
-        IExportarDxfService dxfService, IQaCheckService qaCheckService)
+        IExportadorDxfService dxfService, IQaCheckService qaCheckService)
         {
             InitializeComponent();
             

@@ -13,7 +13,7 @@ using TopoGente.Core.Interfaces;
 
 namespace TopoGente.Core.Services
 {
-    public class ExportadorDxfService : IExportarDxfService
+    public class ExportadorDxfService : IExportadorDxfService
     {
 
         public void SalvarDxf(List<PontoCoordenada> pontos, string caminhoArquivo)
