@@ -42,9 +42,9 @@ namespace TopoGente.Core.Interfaces
 
     }
 
-    public interface IExportarDxfService
+    public interface IExportadorDxfService
     {
-        void salvarDxf(List<PontoCoordenada> pontos, string caminhoArquivo);
+        void SalvarDxf(List<PontoCoordenada> pontos, string caminhoArquivo);
     }
 
     public interface IQaCheckService
