@@ -25,8 +25,7 @@ namespace TopoGente.Core.Interfaces
 
     public interface ILevantamentoProcessor
     {
-        ResultadoLevantamento Processar(MetadadosCenario metadados, List<LeituraEstacaoTotal> leituras, Dictionary<string, PontoCoordenada> pontosConhecidos);
-
+        ResultadoLevantamento Processar(MetadadosCenario metadados, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada> pontosConhecidos);
     }
 
     public interface IArquivoProjetoService
@@ -55,6 +54,26 @@ namespace TopoGente.Core.Interfaces
             Dictionary<string, PontoCoordenada> pontosConhecidos,
             double toleranciaDeltaXY = 0.01,
             double toleranciaDeltaZ = 0.02);
+
+    }
+
+    public interface ITopografiaVisitor
+    {
+        void VisitarEstacao(Estacao estacao);
+        void VisitarLeitura(LeituraEstacaoTotal leitura);
+    }
+
+    public interface IGrafoElement
+    {
+        void Accept(ITopografiaVisitor visitor);
+    }
+
+    public interface ITopografiaIterator
+    {
+        void First();
+        void Next();
+        bool IsDone();
+        Estacao CurrentItem();
 
     }
 }

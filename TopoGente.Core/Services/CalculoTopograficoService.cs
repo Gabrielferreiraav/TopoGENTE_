@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Interfaces;
 using TopoGente.Core.Utilities;
 
 namespace TopoGente.Core.Services

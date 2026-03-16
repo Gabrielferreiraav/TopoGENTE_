@@ -79,4 +79,63 @@ namespace TopoGente.Core.Services
         }
 
     }
+
+    public class CaminhamentoPoligonalIterator : ITopografiaIterator
+    {
+        private readonly List<Estacao> _todasEstacoes;
+        private readonly string _nomeEstacaoPartida;
+        private Estacao _estacaoAtual;
+        private HashSet<string> _estacoesVisitadas;
+
+        public CaminhamentoPoligonalIterator(List<Estacao> todasEstacoes, string nomeEstacaoPartida)
+        {
+            _todasEstacoes = todasEstacoes;
+            _nomeEstacaoPartida = nomeEstacaoPartida;
+            _estacoesVisitadas = new HashSet<string>();
+        }
+
+        public void First()
+        {
+            _estacoesVisitadas.Clear();
+            _estacaoAtual = _todasEstacoes.FirstOrDefault(e => e.Nome.Equals(_nomeEstacaoPartida, StringComparison.InvariantCultureIgnoreCase));
+        }
+
+        public void Next()
+        {
+            if (_estacaoAtual == null)
+            {
+                return;
+            }
+
+            _estacoesVisitadas.Add(_estacaoAtual.Nome.ToUpper());
+
+            var leituraVante = _estacaoAtual.Leituras
+                .FirstOrDefault(l => l.Tipo == TipoLeitura.Poligonal);
+
+            if (leituraVante != null && !_estacoesVisitadas.Contains(leituraVante.PontoVisado.ToUpper()))
+            {
+                // Pula para o próximo nó do grafo
+                _estacaoAtual = _todasEstacoes.FirstOrDefault(e =>
+                    e.Nome.Equals(leituraVante.PontoVisado, StringComparison.InvariantCultureIgnoreCase));
+
+            }
+            else
+            {
+                _estacaoAtual = null; // Fim do caminho
+
+            }
+        }
+
+        public bool IsDone()=> _estacaoAtual == null;
+
+        public Estacao CurrentItem()
+        {
+            if (IsDone())
+            {
+                throw new InvalidOperationException("Iterador fora dos limites.");
+                
+            }
+            return _estacaoAtual;
+        }
+    }
 }

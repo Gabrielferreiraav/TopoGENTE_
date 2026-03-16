@@ -1,6 +1,8 @@
-﻿namespace TopoGente.Core.Entities
+﻿using TopoGente.Core.Interfaces;
+
+namespace TopoGente.Core.Entities
 {
-    public class LeituraEstacaoTotal
+    public class LeituraEstacaoTotal : IGrafoElement
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
@@ -27,5 +29,10 @@
         public string? Purpose { get; set; } // "traverse", "sideshot", "check" 
 
         public int OrdemArquivo { get; set; }
+
+        public void Accept(ITopografiaVisitor visitor)
+        {
+            visitor.VisitarLeitura(this);
+        }
     }
 }
