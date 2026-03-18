@@ -42,41 +42,8 @@ namespace TopoGente.Core.Services.Leitores
                     double avDecimal = ConversorAngulos.DeFormatoCompacto(avCompacto);
 
                     string observacao = colunas[3].Trim();
-                    string descUpper = observacao.ToUpperInvariant();
-
-                    string descNormalizado = descUpper
-                        .Replace("Á", "A").Replace("À", "A").Replace("Ã", "A")
-                        .Replace("É", "E").Replace("Ê", "E")
-                        .Replace("Í", "I").Replace("Ó", "O").Replace("Õ", "O")
-                        .Replace("Ú", "U").Replace("Ç", "C");
 
                     TipoLeitura tipo = TipoLeitura.Irradiacao;
-
-                    // Vante/Poligonal (só classifica se não for Ré)
-                    if (descNormalizado.Contains("ZERAG") ||
-                        descNormalizado.Contains("BACKSIGHT") ||
-                        descNormalizado.Contains(" BS ") ||
-                        descNormalizado.Contains("RE ") ||
-                        descNormalizado.Contains("RE(") ||
-                        observacao.Contains("Ré (") || observacao.Contains("Ré(") ||
-                        observacao.StartsWith("Ré ") || descNormalizado == "RÉ" || descNormalizado == "RE")
-                    {
-                        tipo = TipoLeitura.Re;
-                    }
-                    else if (descUpper.Contains("FECH") && descUpper.Contains("VANTE"))
-                    {
-                        tipo = TipoLeitura.Poligonal;
-                    }
-                    // Ré (prioridade semântica: se marcar Ré, é Ré)
-                    else if (descUpper.Contains("FECH") || descUpper.Contains("FEC") ||
-                             descUpper.Contains("CHECK") || descUpper.Contains("CHK"))
-                    {
-                        tipo = TipoLeitura.Re;
-                    }
-                    else if (descUpper.Contains("VANTE") || descUpper.Contains("-V"))
-                    {
-                        tipo = TipoLeitura.Poligonal;
-                    }
 
 
                     var leitura = new LeituraEstacaoTotal

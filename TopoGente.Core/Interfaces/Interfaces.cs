@@ -76,4 +76,9 @@ namespace TopoGente.Core.Interfaces
         Estacao CurrentItem();
 
     }
+
+    public interface IClassificadorGrafo 
+    {
+        void ClassificarArestasGrafo(List<Estacao> todasEstacoes, MetadadosCenario metadados);
+    }
 }

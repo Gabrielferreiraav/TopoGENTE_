@@ -38,5 +38,9 @@ namespace TopoGente.Core.Entities
         public double? ChegadaY { get; set; }
         public double? ChegadaZ { get; set; }
 
+        public string? NomeRe { get; set; }
+        public string? NomeChegada { get; set; }
+        public string? NomeReReferencia { get; set; }
+
     }
 }
