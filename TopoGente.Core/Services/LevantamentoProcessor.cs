@@ -13,11 +13,14 @@ namespace TopoGente.Core.Services
     {
         private readonly CalculoTopograficoService _calculoService;
 
+        private readonly IClassificadorGrafo _classificadorGrafo;
+
         private const double ToleranciaFechamento = 0.05; // 5 cm por km
 
-        public LevantamentoProcessor()
+        public LevantamentoProcessor(IClassificadorGrafo classificadorGrafo)
         {
             _calculoService = new CalculoTopograficoService();
+            _classificadorGrafo = classificadorGrafo;
         }
 
 
@@ -61,9 +64,10 @@ namespace TopoGente.Core.Services
                 throw new DadosInsuficientesException("Dados Inciais não foram prrenchidos.");
             }
 
-            var leiturasBrutas = todasEstacoes.SelectMany(e => e.Leituras).ToList();
+            
 
             var resultado = new ResultadoLevantamento();
+
 
             double azimuteInicial = metadadosAtuais.UsarCoordenadaRe
                 ? _calculoService.CalcularAzimutePorCoordenadas(metadadosAtuais.PartidaX, metadadosAtuais.PartidaY, metadadosAtuais.ReX, metadadosAtuais.ReY)
@@ -86,12 +90,16 @@ namespace TopoGente.Core.Services
                 ValidarCoordenadasPartida(PontoPartida);
             }
 
+            _classificadorGrafo.ClassificarArestasGrafo(todasEstacoes, metadadosAtuais);
+
             var poligonalBruta = OrquestrarCalculoPoligonal(PontoPartida, azimuteInicial, todasEstacoes);
             resultado.PoligonalBruta = poligonalBruta;
 
-            var leiturasPoligonal = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Poligonal).ToList();
-            var leiturasRe = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Re).ToList();
-            var leiturasIrradiadas = leiturasBrutas.Where(x => x.Tipo == TipoLeitura.Irradiacao).ToList();
+            var todasLeituras = todasEstacoes.SelectMany(e => e.Leituras).ToList();
+            var leiturasPoligonal = todasLeituras.Where(l => l.Tipo == TipoLeitura.Poligonal).ToList();
+            var leiturasRe = todasLeituras.Where(l => l.Tipo == TipoLeitura.Re).ToList();
+            var leiturasIrradiadas = todasLeituras.Where(l => l.Tipo == TipoLeitura.Irradiacao).ToList();
+
 
             double perimetro = 0;
             if (poligonalBruta != null && poligonalBruta.Count > 1)
@@ -312,151 +320,3 @@ namespace TopoGente.Core.Services
         public TipoCenarioPoligonal TipoCenario { get; set; }
     }
 }
-
-/*
-private void CalcularIrradiacoesSequencial(ResultadoLevantamento resultado, List<LeituraEstacaoTotal> leiturasBrutas,
-    Dictionary<string, PontoCoordenada>? pontosConhecidos, MetadadosCenario metadadosAtuais, double azimuteInicial)
-{
-
-    i
-
-        if (leitura.Tipo == TipoLeitura.Re)
-        {
-            if (estacaoAtual == null)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                $"[IRR-ORIENT][WARN] Linha={leitura.OrdemArquivo} Estação '{leitura.EstacaoOcupada}' não encontrada na poligonal. Ré ignorada.");
-                continue;
-            }
-
-
-            }
-            else if (leitura.EstacaoOcupada.Equals(ordenadas.First().EstacaoOcupada, StringComparison.OrdinalIgnoreCase))
-            {
-                // não tem coordenada, mas é a Estação de Partida. 
-                // O Azimute Inicial é a referência de Ré
-                azimuteReAtual = azimuteInicial;
-                System.Diagnostics.Debug.WriteLine($"[IRR-ORIENT] Linha={leitura.OrdemArquivo} Usando Azimute Inicial {azimuteInicial:F4}° para a Ré {leitura.PontoVisado}");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine(
-                $"[IRR-ORIENT][WARN] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} Ré='{leitura.PontoVisado}' sem coordenadas. Mantendo orientação anterior.");
-                continue; // Aborta esta atualização de Ré e continua com o azimute antigo (se existir)
-            }
-
-
-            // Log seguro da operação
-            if (azimuteReAtual.HasValue)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                $"[IRR-ORIENT] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} Ré={reAtualNome} AzRe={azimuteReAtual.Value:F4}°");
-            }
-
-
-
-        }
-        else if (leitura.Tipo == TipoLeitura.Irradiacao)
-        {
-
-            if (estacaoAtual == null)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                $"[IRR][WARN] Linha={leitura.OrdemArquivo} Irr '{leitura.PontoVisado}' com estação '{leitura.EstacaoOcupada}' não encontrada. Ignorando.");
-                continue;
-            }
-
-
-                System.Diagnostics.Debug.WriteLine(
-                $"[IRR][WARN] Linha={leitura.OrdemArquivo} Irr '{leitura.PontoVisado}' sem Ré vigente. Usando fallback AzRe={azReUsado:F4}°");
-
-            }
-
-            //  LOG: coordenadas finais geradas para o ponto irradiado
-            System.Diagnostics.Debug.WriteLine(
-                $"[IRR][OUT] Linha={leitura.OrdemArquivo} Est={leitura.EstacaoOcupada} " +
-                $"ReVigente={(reAtualNome ?? "-")} AzRe={azReUsado:F4}° AngH={leitura.AnguloHorizontal:F4}° " +
-                $"→ {pontoIrradiado.Nome} X={pontoIrradiado.X:F3} Y={pontoIrradiado.Y:F3} Z={pontoIrradiado.Z:F3}");
-
-        }
-    }
-}*/
-
-
-/*
-    System.Diagnostics.Debug.WriteLine($"=== DEBUG: Classificação de Leituras ===");
-    System.Diagnostics.Debug.WriteLine($"Total Bruto: {leiturasBrutas.Count}");
-    System.Diagnostics.Debug.WriteLine($"Poligonal: {leiturasPoligonal.Count}");
-    System.Diagnostics.Debug.WriteLine($"Ré: {leiturasRe.Count}");
-    System.Diagnostics.Debug.WriteLine($"Irradiação: {leiturasIrradiadas.Count}");
-    foreach (var l in leiturasBrutas)
-    {
-        System.Diagnostics.Debug.WriteLine($"{l.EstacaoOcupada} → {l.PontoVisado} | {l.Observacao} | TIPO={l.Tipo}");
-    }
-
-    System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: POLIGONAL BRUTA (Antes da Compensação) ===");
-    foreach (var ponto in poligonalBruta)
-    {
-        System.Diagnostics.Debug.WriteLine(
-            $"{ponto.Nome} | X={ponto.X:F3} | Y={ponto.Y:F3} | Z={ponto.Z:F3} | Az={ponto.AzimuteChegada:F4}°");
-    }
-
-
-    switch (metadadosAtuais.TipoCenario)
-    {
-        case TipoCenarioPoligonal.Fechada:
-
-
-            System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: DADOS DE FECHAMENTO ===");
-            System.Diagnostics.Debug.WriteLine($"Estação Inicial: {nomeEstcaoInicial}");
-            System.Diagnostics.Debug.WriteLine($"Ponto Ré Inicial: {nomePontoReInicial}");
-            System.Diagnostics.Debug.WriteLine($"Ângulo de Fechamento: {anguloFechamento:F4}°");
-
-            System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: POLIGONAL COMPENSADA (Após Compensação) ===");
-            foreach (var ponto in resultado.Poligonal)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"{ponto.Nome} | X={ponto.X:F3} | Y={ponto.Y:F3} | Z={ponto.Z:F3} | Az={ponto.AzimuteChegada:F4}°");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"\n=== DEBUG: ERROS DE FECHAMENTO ===");
-            System.Diagnostics.Debug.WriteLine($"Erro Angular: {ea:F4}° ({ea * 60:F2}')");
-            System.Diagnostics.Debug.WriteLine($"Erro X: {erroX:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Erro Y: {erroY:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Erro Linear XY: {erroLinearT:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Erro Altimétrico: {erroAltimetrico:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa).ToString("F4") : "∞")}");
-            System.Diagnostics.Debug.WriteLine($"Perímetro: {perimetro:F3} m");
-
-
-            break;
-        case TipoCenarioPoligonal.Enquadrada:
-
-
-            if (ultimaLeituraReferencia != null)
-            {
-                anguloFechamento = ultimaLeituraReferencia.AnguloHorizontal;
-                System.Diagnostics.Debug.WriteLine($"[ENQUADRADA] Ângulo lido para a Ref Final: {anguloFechamento:F4}°");
-
-
-            System.Diagnostics.Debug.WriteLine($"\n DEBUG: POLIGONAL COMPENSADA ");
-            foreach (var ponto in resultado.Poligonal)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"{ponto.Nome} | X={ponto.X:F3} | Y={ponto.Y:F3} | Z={ponto.Z:F3} | Az={ponto.AzimuteChegada:F4}°");
-            }
-
-
-            System.Diagnostics.Debug.WriteLine($"\nDEBUG: ERROS DE FECHAMENTO");
-            System.Diagnostics.Debug.WriteLine($"Erro Angular: {resultado.ErroAngular:F4}°");
-            System.Diagnostics.Debug.WriteLine($"Erro X: {resultado.ErroFechamentoX:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Erro Y: {resultado.ErroFechamentoY:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Erro Linear XY: {resultado.ErroLinear:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Erro Altimétrico: {resultado.ErroFechamentoZ:F4} m");
-            System.Diagnostics.Debug.WriteLine($"Precisão: 1:{(resultado.Precisao > 0 ? (1 / resultado.Precisao).ToString("F0") : "∞")}");
-
-        case TipoCenarioPoligonal.AbertaOrientada:
-
-            System.Diagnostics.Debug.WriteLine($"\n[WARN] Este levantamento é do tipo ABERTO. As coordenadas finais não foram auditadas contra erros de fechamento.");
-
-}*/

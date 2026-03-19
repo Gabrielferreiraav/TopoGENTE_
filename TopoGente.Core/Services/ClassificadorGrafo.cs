@@ -22,13 +22,23 @@ namespace TopoGente.Core.Services
             string? noChegada = metadados.NomeChegada?.ToUpperInvariant();
             string? noReReferencia = metadados.NomeReReferencia?.ToUpperInvariant();
 
-            string estacaoInicial = caminhoPrincipal.FirstOrDefault() ?? string.Empty;
+            string estacaoInicial = caminhoPrincipal.First();
+            estacaoInicial = estacaoInicial.ToUpperInvariant();
 
             // Navegacao e classificacao das arestas
             for (int i = 0; i < todasEstacoes.Count; i++)
             {
                 string estacaoAtual = caminhoPrincipal[i];
-                string? estacaoAnterior = i > 0 ? caminhoPrincipal[i - 1] : null;
+                string? estacaoAnterior =  null;
+                if (i > 0)
+                {
+                    estacaoAnterior = caminhoPrincipal[i - 1];
+                }else if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada)
+                {
+                    estacaoAnterior = caminhoPrincipal.Last();
+                }
+
+
                 string? estacaoProxima = i < caminhoPrincipal.Count - 1 ? caminhoPrincipal[i + 1] : null;
 
                 foreach (var leitura in todasEstacoes[i].Leituras)
@@ -37,7 +47,7 @@ namespace TopoGente.Core.Services
 
                     // REGRA 1: Dedução de RÉ (Backsight)
                     // É o nó anterior no caminhamento OU a referência externa de partida
-                    if (pontoVisado == estacaoAnterior || pontoVisado == noRePartida)
+                    if (pontoVisado == estacaoAnterior || pontoVisado == noRePartida || pontoVisado == noReReferencia)
                     {
                         leitura.Tipo = TipoLeitura.Re;
                         continue;
@@ -48,24 +58,22 @@ namespace TopoGente.Core.Services
                     if (pontoVisado == estacaoProxima)
                     {
                         leitura.Tipo = TipoLeitura.Poligonal;
+                        continue;
                     }
 
-                    if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada)
+                    if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada &&
+                    i == caminhoPrincipal.Count - 1 &&
+                    pontoVisado == estacaoInicial)
                     {
-                        if (i == caminhoPrincipal.Count - 1 && pontoVisado == estacaoInicial)
-                        {
                             leitura.Tipo = TipoLeitura.Poligonal;
                             continue;
-                        }
-                    }else if (metadados.TipoCenario == TipoCenarioPoligonal.Enquadrada)
+                    } 
+                    if (metadados.TipoCenario == TipoCenarioPoligonal.Enquadrada && pontoVisado == noChegada)
                     {
-                        
-                        // Visadas para o ponto de Chegada ou para a Referência Final de amarração
-                        if (pontoVisado == noChegada || pontoVisado == noReReferencia)
-                        {
+
                             leitura.Tipo = TipoLeitura.Poligonal;
                             continue;
-                        }
+
                     }
 
                     leitura.Tipo = TipoLeitura.Irradiacao;
