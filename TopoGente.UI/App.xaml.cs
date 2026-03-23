@@ -16,7 +16,8 @@ namespace TopoGente.UI
             base.OnStartup(e);
 
             ILeituraArquivoFactory leitor = new LeituraArquivoFactory();
-            ILevantamentoProcessor processador = new LevantamentoProcessor();
+            IClassificadorGrafo classificador = new ClassificadorGrafo();
+            ILevantamentoProcessor processador = new LevantamentoProcessor(classificador);
             IArquivoProjetoService projeto = new ArquivoProjetoService();
             IQaCheckService qaCheck = new QaCheckService();
             IOrganizarCaminhamento organizar = new OrganizarCaminhamento();

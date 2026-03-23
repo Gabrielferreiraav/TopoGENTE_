@@ -326,18 +326,19 @@ namespace TopoGente.Core.Services
             var desniveis = new double[nEstacoes];
 
             double perimetroTotal = 0;
+            double somaDn = 0;
 
             for (int i = 0; i < nEstacoes; i++)
             {
                 var leitura = leituras[i];
 
                 double dh = CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
-                // Dn_Calculado = DI * cos(Zênite), Hi e hP ja estão incluidos
                 double dn = CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical, leitura.AlturaInstrumento, leitura.AlturaPrisma);
 
                 distanciasHorizontais[i] = dh;
                 desniveis[i] = dn;
                 perimetroTotal += dh;
+                somaDn += dn;
 
                 var (dx, dy) = CalcularProjecao(dh, azimutesCompensados[i]);
                 deltaX[i] = dx; deltaY[i] = dy;
@@ -356,11 +357,13 @@ namespace TopoGente.Core.Services
             {
                 erroX = (somaDeltasX + pontoPartida.X) - pontoChegada.X;
                 erroY = (somaDeltasY + pontoPartida.Y) - pontoChegada.Y;
+                erroAltimetrico = (pontoPartida.Z + somaDn) - pontoChegada.Z;
             }
             else if (tipoCenario == TipoCenarioPoligonal.Fechada)
             {
                 erroX = somaDeltasX;
                 erroY = somaDeltasY;
+                erroAltimetrico = somaDn;
             }
 
             // Erro linear total e precisão relativa
@@ -378,19 +381,23 @@ namespace TopoGente.Core.Services
                 return poligonalBruta;
             }
 
+            double perimetroKm = perimetroTotal / 1000.0;
+            double toleranciaAltimetrica = 0.15 * Math.Sqrt(perimetroKm); // 15 cm por raiz do perímetro em km
+
+            if (Math.Abs(erroAltimetrico) > toleranciaAltimetrica)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[FALHA] Erro Altimétrico ({Math.Abs(erroAltimetrico):F4} m) superou a tolerância " +
+                    $"da NBR 13.133 ({toleranciaAltimetrica:F4} m). Compensação altimétrica e planimétrica abortadas.");
+
+                // A teoria exige o retorno a campo. O motor aborta e devolve os dados brutos.
+                return poligonalBruta;
+            }
+
             // Coeficientes de Correcao (Bowditch)
             double coefX = perimetroTotal > 0 ? -erroX / perimetroTotal : 0;
             double coefY = perimetroTotal > 0 ? -erroY / perimetroTotal : 0;
-
-            // Aplicacao dos coeficientes de correcao para obter coordenadas compensadas
-            var deltasXCompensados = new double[nEstacoes];
-            var deltasYCompensados = new double[nEstacoes];
-
-            for (int j = 0; j < nEstacoes; j++)
-            {
-                deltasXCompensados[j] = deltaX[j] + (coefX * distanciasHorizontais[j]);
-                deltasYCompensados[j] = deltaY[j] + (coefY * distanciasHorizontais[j]);
-            }
+            double corrZ = -erroAltimetrico / nEstacoes;
 
             // Calculo das coordenadas Finais Compensadas
             var poligonalCompensada = new List<PontoCoordenada>();
@@ -407,18 +414,20 @@ namespace TopoGente.Core.Services
 
             double xAtual = pontoPartida.X;
             double yAtual = pontoPartida.Y;
+            double zAtual = pontoPartida.Z;
 
             for (int j = 0; j < nEstacoes; j++)
             {
-                xAtual += deltasXCompensados[j];
-                yAtual += deltasYCompensados[j];
+                xAtual += deltaX[j] + (coefX * distanciasHorizontais[j]);
+                yAtual += deltaY[j] + (coefY * distanciasHorizontais[j]);
+                zAtual += desniveis[j] + corrZ;
 
                 var novoPonto = new PontoCoordenada
                 {
                     Nome = leituras[j].PontoVisado,
                     X = xAtual,
                     Y = yAtual,
-                    Z = 0, // Cota compensada ainda não calculada
+                    Z = zAtual, 
                     EhPontoPoligonal = true,
                     AzimuteChegada = azimutesCompensados[j]
                 };
@@ -426,41 +435,6 @@ namespace TopoGente.Core.Services
                 poligonalCompensada.Add(novoPonto);
             }
 
-
-            //Calculo do Z altimétrico compensado
-            double somaDn = 0;
-            for (int j = 0; j < nEstacoes; j++)
-            {
-                somaDn += desniveis[j];
-            }
-
-            if (tipoCenario == TipoCenarioPoligonal.Enquadrada)
-            {
-                erroAltimetrico = (pontoPartida.Z + somaDn) - pontoChegada.Z;
-            }
-            else if (tipoCenario == TipoCenarioPoligonal.Fechada)
-            {
-                erroAltimetrico = somaDn;
-            }
-
-            // Tolerancia Altimetrica ainda nao aplicada
-            // Tolerancia = Constante * sqrt(Perimetro_em_KM)
-
-            // Correcao Z = - erroAltimetrico  / n
-            double corrZ = -erroAltimetrico / nEstacoes;
-
-            // Para cada estação: DN_Corrigido = DN_Calculado + CorrZ
-            // Z_Novo = Z_Anterior + DN_Corrigido
-            double zAtual = pontoPartida.Z;
-
-            for (int i = 0; i < nEstacoes; i++)
-            {
-                double dnCorrigido = desniveis[i] + corrZ;
-
-                zAtual += dnCorrigido;
-
-                poligonalCompensada[i + 1].Z = zAtual; // i+1,primeiro ponto é o de partida
-            }
 
             return poligonalCompensada;
         }

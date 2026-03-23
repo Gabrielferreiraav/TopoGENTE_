@@ -45,7 +45,7 @@ namespace TopoGente.Core.Services
 
             var visitante = new CalculoPoligonalVisitor(pontoPartida,azimuteInicial,_calculoService);
 
-            // Execução do Double-Dispatch (O Grafo é varrido sem expor suas listas)
+            // Execução do Double-Dispatch 
             for (iterator.First();!iterator.IsDone();iterator.Next())
             {
                 Estacao noAtual = iterator.CurrentItem();
