@@ -28,10 +28,12 @@ namespace TopoGente.UI
         private readonly IArquivoProjetoService _projetoService;
         private readonly IOrganizarCaminhamento _organizador;
         private readonly IExportadorDxfService _dxfService;
+        private readonly IQaCheckService _qaCheckService;
+        private readonly IClassificadorGrafo _classificadorGrafo;
+
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
         private RelatorioQA? _relatorioQaAtual;
-        private readonly IQaCheckService _qaCheckService;
         private MetadadosCenario? _metadadosAtuais;
         private ResultadoLevantamento? _resultadoAtual;
         private Point _origemMouse;
@@ -492,46 +494,6 @@ namespace TopoGente.UI
                 }
 
                 _metadadosAtuais = ColetarMetadadosDaUI();
-
-                string nomePontoInicial = "M1";
-                if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
-                {
-                    nomePontoInicial = estacaoSelecionada.Nome;
-                }
-                else if (_estacoesEmMemoria != null && _estacoesEmMemoria.Count > 0)
-                {
-                    nomePontoInicial = _estacoesEmMemoria[0].Nome;
-                }
-
-                var pM1 = new PontoCoordenada
-                {
-                    Nome = nomePontoInicial,
-                    X = _metadadosAtuais.PartidaX,
-                    Y = _metadadosAtuais.PartidaY,
-                    Z = _metadadosAtuais.PartidaZ,
-                    EhPontoPoligonal = true
-                };
-
-                double azimuteInicial;
-
-                if (_metadadosAtuais.UsarCoordenadaRe)
-                {
-                    var pontoRe = new PontoCoordenada
-                    {
-                        Nome = "RE",
-                        X = _metadadosAtuais.ReX,
-                        Y = _metadadosAtuais.ReY,
-                        Z = _metadadosAtuais.ReZ,
-                        EhPontoPoligonal = false
-                    };
-
-                    azimuteInicial = new CalculoTopograficoService().CalcularAzimutePorCoordenadas(pM1.X, pM1.Y, pontoRe.X, pontoRe.Y);
-                }
-                else
-                {
-                    azimuteInicial = _metadadosAtuais.AzimutePartida;
-                }
-
                 
                 var pontosConhecidos = _estacoesEmMemoria
                     .Where(e => e.CoordenadaConhecida != null)
@@ -543,7 +505,7 @@ namespace TopoGente.UI
                 // Se cenário Enquadrada, adicionar ponto de chegada aos conhecidos
                 if (_metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada)
                 {
-                    var pontoChegada = new PontoCoordenada
+                    pontosConhecidos["CHEGADA"] = new PontoCoordenada
                     {
                         Nome = "CHEGADA",
                         X = _metadadosAtuais.ChegadaX ?? 0,
@@ -552,12 +514,12 @@ namespace TopoGente.UI
                         EhPontoPoligonal = true
                     };
 
-                    pontosConhecidos["CHEGADA"] = pontoChegada;
                 }
 
                 //Processar
-                var leituras = ColetarLeituras(_estacoesEmMemoria);
-                _resultadoAtual = _processadorService.Processar(_metadadosAtuais, leituras, pontosConhecidos);
+                _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, _metadadosAtuais);
+
+                _resultadoAtual = _processadorService.Processar(_metadadosAtuais, _estacoesEmMemoria, pontosConhecidos);
 
                 _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, _resultadoAtual, pontosConhecidos);
 
@@ -589,9 +551,15 @@ namespace TopoGente.UI
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
                 }
-                else 
-                { 
-                MessageBox.Show("Cálculo realizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                else if (!_resultadoAtual.AprovadoNorma)
+                {
+                    string erros = string.Join("\n", _resultadoAtual.Alertas);
+                    MessageBox.Show($"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{erros}\n\nA compensação foi abortada. As coordenadas exibidas são puramente BRUTAS e impróprias para uso final.",
+                    "Falha de Tolerância", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                else
+                {
+                    MessageBox.Show("Cálculo realizado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (FormatException)

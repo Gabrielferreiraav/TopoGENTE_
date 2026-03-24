@@ -133,7 +133,11 @@ namespace TopoGente.Core.Services
                     anguloFechamento = leituraFechamento?.AnguloHorizontal ?? 0;
 
                     resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, PontoPartida, PontoPartida.AzimuteChegada, PontoPartida.AzimuteChegada,
-                        leiturasPoligonal, poligonalBruta, metadadosAtuais.TipoCenario, anguloFechamento, out double ea, out double erroX, out double erroY, out double erroLinearT, out double precisaoRelativa, out double erroAltimetrico);
+                        leiturasPoligonal, poligonalBruta, metadadosAtuais.TipoCenario, anguloFechamento, out double ea, out double erroX, out double erroY, out double erroLinearT, out double precisaoRelativa, out double erroAltimetrico,
+                        out bool aprovado, out string alerta);
+
+                    resultado.AprovadoNorma = aprovado;
+                    if(!aprovado) resultado.Alertas.Add(alerta);
 
                     resultado.ErroAngular = ea; resultado.ErroLinear = erroLinearT; resultado.Precisao = precisaoRelativa;
                     resultado.ErroFechamentoX = erroX; resultado.ErroFechamentoY = erroY; resultado.ErroFechamentoZ = erroAltimetrico;
@@ -155,10 +159,13 @@ namespace TopoGente.Core.Services
                     if (ultimaLeituraReferencia != null) anguloFechamento = ultimaLeituraReferencia.AnguloHorizontal;
 
                     resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, pontoChegadaConhecido, PontoPartida.AzimuteChegada, metadadosAtuais.AzimuteChegada, leiturasPoligonal, poligonalBruta,
-                        metadadosAtuais.TipoCenario, anguloFechamento, out double eaEnq, out double erroXEnq, out double erroYEnq, out double erroLinearEnq, out double precisaoRelativaEnq, out double erroAltimetricoEnq);
+                        metadadosAtuais.TipoCenario, anguloFechamento, out double eaEnq, out double erroXEnq, out double erroYEnq, out double erroLinearEnq, out double precisaoRelativaEnq, out double erroAltimetricoEnq,
+                        out bool aprovadoEnq, out string alertaEnq);
 
                     resultado.ErroAngular = eaEnq; resultado.ErroFechamentoX = erroXEnq; resultado.ErroFechamentoY = erroYEnq;
                     resultado.ErroLinear = erroLinearEnq; resultado.ErroFechamentoZ = erroAltimetricoEnq; resultado.Precisao = precisaoRelativaEnq;
+                    resultado.AprovadoNorma = aprovadoEnq;
+                    if (!aprovadoEnq) resultado.Alertas.Add(alertaEnq);
                     break;
 
                 case TipoCenarioPoligonal.AbertaOrientada:
@@ -318,5 +325,9 @@ namespace TopoGente.Core.Services
         public double ErroAngular { get; set; }
 
         public TipoCenarioPoligonal TipoCenario { get; set; }
+
+        public bool AprovadoNorma { get; set; } = true;
+
+        public List<string> Alertas { get; set; } = new List<string>();
     }
 }

@@ -252,12 +252,14 @@ namespace TopoGente.Core.Services
             double azimuteInicial, double? azimuteChegada,
             List<LeituraEstacaoTotal> leituras, List<PontoCoordenada> poligonalBruta,
             TipoCenarioPoligonal tipoCenario, double anguloFechamento, out double erroAngular, out double erroX, out double erroY,
-            out double erroLinearTotal, out double precisaoRelativa, out double erroAltimetrico)
+            out double erroLinearTotal, out double precisaoRelativa, out double erroAltimetrico,out bool aprovadoNorma, out string alertaReprovacao)
         {
             erroAngular = 0; erroX = 0; erroY = 0; erroAngular = 0; erroLinearTotal = 0; precisaoRelativa = 0; erroAltimetrico = 0;
 
             if (leituras == null || leituras.Count == 0)
             {
+                aprovadoNorma = false;
+                alertaReprovacao = "Nenhuma leitura fornecida. Compensação não realizada.";
                 return new List<PontoCoordenada> { pontoPartida };
             }
 
@@ -303,7 +305,10 @@ namespace TopoGente.Core.Services
                 erroY =  poligonalBruta[^1].Y - pontoChegada.Y; // Ajuste simplificado pro log
                 erroLinearTotal = Math.Sqrt((erroX * erroX) + (erroY * erroY));
                 precisaoRelativa = 0;
-                
+                aprovadoNorma = false;
+                alertaReprovacao = $"Erro Angular ({erroAngular:F4}°) superou a tolerância da NBR 13.133 ({toleranciaGraus:F4}°).";
+
+
                 return poligonalBruta;
             }
 
@@ -378,6 +383,8 @@ namespace TopoGente.Core.Services
             if (precisaoRelativa > precisaoMinima)
             {
                 System.Diagnostics.Debug.WriteLine($"[FALHA] Precisão Linear (1:{(1 / precisaoRelativa):F0}) inferior ao exigido (1:12000). Compensação abortada.");
+                aprovadoNorma = false;
+                alertaReprovacao = $"Precisão Linear (1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa) : 0):F0}) inferior ao exigido (1:12000).";
                 return poligonalBruta;
             }
 
@@ -391,6 +398,8 @@ namespace TopoGente.Core.Services
                     $"da NBR 13.133 ({toleranciaAltimetrica:F4} m). Compensação altimétrica e planimétrica abortadas.");
 
                 // A teoria exige o retorno a campo. O motor aborta e devolve os dados brutos.
+                aprovadoNorma = false;
+                alertaReprovacao = $"Erro Altimétrico ({Math.Abs(erroAltimetrico):F4} m) superou a tolerância da NBR 13.133 ({toleranciaAltimetrica:F4} m).";
                 return poligonalBruta;
             }
 
@@ -435,7 +444,8 @@ namespace TopoGente.Core.Services
                 poligonalCompensada.Add(novoPonto);
             }
 
-
+            aprovadoNorma = true;
+            alertaReprovacao = string.Empty;
             return poligonalCompensada;
         }
 
