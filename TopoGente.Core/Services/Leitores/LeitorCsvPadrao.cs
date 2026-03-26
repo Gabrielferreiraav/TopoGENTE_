@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
@@ -16,6 +17,7 @@ namespace TopoGente.Core.Services.Leitores
         public List<Estacao> Ler(string[] linhas)
         {
             var leiturasBrutas = new List<LeituraEstacaoTotal>();
+            var avisoImportacao = new List<string>();
             int numeroLinha = 0;
             var cultura = CultureInfo.InvariantCulture;
 
@@ -65,8 +67,14 @@ namespace TopoGente.Core.Services.Leitores
 
                     leiturasBrutas.Add(leitura);
                 }
-                catch
+                catch (FormatException)
                 {
+                    avisoImportacao.Add($"Erro léxico na linha {numeroLinha}: Falha ao converter os dados numéricos. Leitura ignorada.");
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    avisoImportacao.Add($"Erro inesperado na linha {numeroLinha}: {ex.Message}. Leitura ignorada.");
                     continue;
                 }
             }
@@ -79,6 +87,7 @@ namespace TopoGente.Core.Services.Leitores
             }).ToList();
 
             return estacoes;
+
         }
     }
 }

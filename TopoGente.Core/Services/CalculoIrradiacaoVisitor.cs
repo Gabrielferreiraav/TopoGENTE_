@@ -25,7 +25,7 @@ namespace TopoGente.Core.Services
             double azimuteInicial,
             CalculoTopograficoService mathService)
         {
-            _pontosCompensados = poligonalCompensada.ToDictionary(p => p.Nome, StringComparer.OrdinalIgnoreCase);
+            _pontosCompensados = poligonalCompensada.GroupBy(p => p.Nome,StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,g=> g.First(), StringComparer.OrdinalIgnoreCase);
             _pontosConhecidos = pontosConhecidos ?? new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
             _azimuteInicial = azimuteInicial;
             _mathService = mathService;

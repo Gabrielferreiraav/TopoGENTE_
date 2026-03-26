@@ -95,6 +95,34 @@ namespace TopoGente.Core.Services
             var poligonalBruta = OrquestrarCalculoPoligonal(PontoPartida, azimuteInicial, todasEstacoes);
             resultado.PoligonalBruta = poligonalBruta;
 
+            //Limite do Plano Topográfico (RNF02)
+
+            // Extracao de limites espacias extremos da malha
+            double minX = poligonalBruta.Min(p => p.X);
+            double maxX = poligonalBruta.Max(p => p.X);
+            double minY = poligonalBruta.Min(p => p.Y);
+            double maxY = poligonalBruta.Max(p => p.Y);
+
+            // eixos de Bounding Box
+            double dimensaoX = maxX - minX;
+            double dimensaoY = maxY - minY;
+
+            //Diagonal Euclidiana max da area levantada
+            double diagonalPlanoMetros = Math.Sqrt((dimensaoX * dimensaoX) + (dimensaoY * dimensaoY));
+            double diagonalPlanoKm = diagonalPlanoMetros / 1000.0;
+
+            //Trava de seguranca
+            if (diagonalPlanoKm > 35.0)
+            {
+                throw new NotSupportedException(
+                $"OPERAÇÃO ABORTADA: A dimensão máxima deste levantamento ({diagonalPlanoKm:F2} km) " +
+                $"excede o limite físico de 35 km do plano topográfico. " +
+                $"Para distâncias maiores, a Topografia clássica não garante a exatidão e " +
+                $"é estritamente necessário utilizar cálculos e reduções geodésicas."
+    );
+            }
+
+
             var todasLeituras = todasEstacoes.SelectMany(e => e.Leituras).ToList();
             var leiturasPoligonal = todasLeituras.Where(l => l.Tipo == TipoLeitura.Poligonal).ToList();
             var leiturasRe = todasLeituras.Where(l => l.Tipo == TipoLeitura.Re).ToList();
