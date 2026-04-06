@@ -8,10 +8,11 @@
 
   <ItemGroup>
     <Compile Remove="Services\LeituraArquivoService.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="netDxf" Version="2023.11.10" />
+    <Compile Remove="Services\LeituraArquivoFactory.cs" />
+    <Compile Remove="Services\ArquivoProjetoService.cs" />
+    <Compile Remove="Services\ExportadorDxfService.cs" />
+    <Compile Remove="Services\ExportarTxtService.cs" />
+    <Compile Remove="Services\Leitores\**\*.cs" />
   </ItemGroup>
 
 </Project>

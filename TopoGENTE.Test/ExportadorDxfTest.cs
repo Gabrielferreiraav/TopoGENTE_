@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
+using System.IO;
 using TopoGente.Core.Entities;
-using TopoGente.Core.Services;
+using TopoGente.Infrastructure.Adapters.Exportadores;
 
 namespace TopoGENTE.Test
 {
@@ -13,17 +12,20 @@ namespace TopoGENTE.Test
         {
             var servicoExportacao = new ExportadorDxfService();
             string caminhoArquivo = Path.GetTempFileName() + ".dxf";
+
             var pontos = new List<PontoCoordenada>
             {
-                new PontoCoordenada {Nome = "A1", X = 100, Y = 200, Z = 10, EhPontoPoligonal = true },
-                new PontoCoordenada { Nome ="P1",X = 110, Y = 210, Z = 11,EhPontoPoligonal = false },
+                new PontoCoordenada { Nome = "A1", X = 100, Y = 200, Z = 10, EhPontoPoligonal = true },
+                new PontoCoordenada { Nome = "P1", X = 110, Y = 210, Z = 11, EhPontoPoligonal = false },
             };
 
             try
             {
                 servicoExportacao.SalvarDxf(pontos, caminhoArquivo);
+
                 Assert.True(File.Exists(caminhoArquivo));
                 string conteudo = File.ReadAllText(caminhoArquivo);
+
                 Assert.Contains("SECTION", conteudo);
                 Assert.Contains("HEADER", conteudo);
                 Assert.Contains("A1", conteudo);

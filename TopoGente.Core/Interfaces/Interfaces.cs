@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using TopoGente.Core.Entities;
-using TopoGente.Core.Services;
-
 
 namespace TopoGente.Core.Interfaces
 {
@@ -21,7 +19,6 @@ namespace TopoGente.Core.Interfaces
         List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato, string[] linhasArquivo);
 
     }
-
 
     public interface ILevantamentoProcessor
     {
@@ -44,6 +41,12 @@ namespace TopoGente.Core.Interfaces
     public interface IExportadorDxfService
     {
         void SalvarDxf(List<PontoCoordenada> pontos, string caminhoArquivo);
+    }
+
+    public interface IExportarTxtService
+    {
+        void ExportarCoordenadasGestor(ResultadoLevantamento resultado, string caminhoArquivo);
+        void ExportarMemoriaCalculo(ResultadoLevantamento resultado, string caminhoArquivo);
     }
 
     public interface IQaCheckService

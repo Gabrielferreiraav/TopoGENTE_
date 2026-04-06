@@ -1,8 +1,11 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Windows;
-using TopoGente.Core.Interfaces;
-using TopoGente.Core.Services;
+﻿using System.Windows;
+using TopoGente.Core.Interfaces; // Portas
+using TopoGente.Core.Services;   // Regras de negócio (dentro)
+
+// Referências exclusivas do Main para a Infraestrutura (fora)
+using TopoGente.Infrastructure.Adapters.Leitores;
+using TopoGente.Infrastructure.Adapters.Exportadores;
+using TopoGente.Infrastructure.Adapters.Storage;
 
 namespace TopoGente.UI
 {
@@ -15,18 +18,31 @@ namespace TopoGente.UI
         {
             base.OnStartup(e);
 
-            ILeituraArquivoFactory leitor = new LeituraArquivoFactory();
+            // 1. Adaptadores concretos (fora)
+            ILeituraArquivoFactory leitorFactory = new LeituraArquivoFactory();
+            IArquivoProjetoService projetoService = new ArquivoProjetoService();
+            IExportadorDxfService dxfService = new ExportadorDxfService();
+            IExportarTxtService exportarTxtService = new ExportarTxtService();
+
+            // 2. Serviços do domínio (dentro)
             IClassificadorGrafo classificador = new ClassificadorGrafo();
             ILevantamentoProcessor processador = new LevantamentoProcessor(classificador);
-            IArquivoProjetoService projeto = new ArquivoProjetoService();
-            IQaCheckService qaCheck = new QaCheckService();
             IOrganizarCaminhamento organizar = new OrganizarCaminhamento();
-            IExportadorDxfService dxfService = new ExportadorDxfService();
+            IQaCheckService qaCheck = new QaCheckService();
 
-            MainWindow janelaPrincipal = new MainWindow(leitor, processador, projeto, organizar,dxfService, qaCheck);
+            // 3. Injeção de dependência (costura)
+            MainWindow janelaPrincipal = new MainWindow(
+                leitorFactory,
+                processador,
+                projetoService,
+                organizar,
+                dxfService,
+                exportarTxtService,
+                qaCheck,
+                classificador
+            );
 
             janelaPrincipal.Show();
         }
-
     }
 }

@@ -9,11 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="netDxf" Version="2023.11.10" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\TopoGente.Core\TopoGente.Core.csproj" />
+    <ProjectReference Include="..\TopoGente.Infrastructure\TopoGente.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

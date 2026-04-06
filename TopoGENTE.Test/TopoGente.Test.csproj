@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TopoGente.Core\TopoGente.Core.csproj" />
+    <ProjectReference Include="..\TopoGente.Infrastructure\TopoGente.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

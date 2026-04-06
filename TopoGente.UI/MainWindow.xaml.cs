@@ -9,7 +9,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using TopoGente.Core.Entities;
-using TopoGente.Core.Services;
 using System.IO;
 using System.Windows;
 using System.Collections.ObjectModel;
@@ -28,6 +27,7 @@ namespace TopoGente.UI
         private readonly IArquivoProjetoService _projetoService;
         private readonly IOrganizarCaminhamento _organizador;
         private readonly IExportadorDxfService _dxfService;
+        private readonly IExportarTxtService _exportarTxtService;
         private readonly IQaCheckService _qaCheckService;
         private readonly IClassificadorGrafo _classificadorGrafo;
 
@@ -39,24 +39,31 @@ namespace TopoGente.UI
         private Point _origemMouse;
         private bool _estaArrastando = false;
 
-        public MainWindow(ILeituraArquivoFactory leitorService,
-        ILevantamentoProcessor processadorService,
-        IArquivoProjetoService projetoService,IOrganizarCaminhamento organizador,
-        IExportadorDxfService dxfService, IQaCheckService qaCheckService)
-        {
-            InitializeComponent();
-            
-            _leitorService = leitorService;
-            _processadorService = processadorService;
-            _organizador = organizador;
-            _dxfService = dxfService;
-            _qaCheckService = qaCheckService;
-            _projetoService = projetoService;
+        public MainWindow(
+    ILeituraArquivoFactory leitorService,
+    ILevantamentoProcessor processadorService,
+    IArquivoProjetoService projetoService,
+    IOrganizarCaminhamento organizador,
+    IExportadorDxfService dxfService,
+    IExportarTxtService exportarTxtService,
+    IQaCheckService qaCheckService,
+    IClassificadorGrafo classificadorGrafo)
+{
+    InitializeComponent();
 
-            _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
-            
-            ConfigurarComboTipo();
-        }
+    _leitorService = leitorService;
+    _processadorService = processadorService;
+    _organizador = organizador;
+    _dxfService = dxfService;
+    _exportarTxtService = exportarTxtService;
+    _qaCheckService = qaCheckService;
+    _projetoService = projetoService;
+    _classificadorGrafo = classificadorGrafo;
+
+    _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
+
+    ConfigurarComboTipo();
+}
         private void ConfigurarComboTipo()
         {
             var colTipo = gridCaderneta.Columns[4] as DataGridComboBoxColumn;
@@ -595,7 +602,6 @@ namespace TopoGente.UI
             {
                 try
                 {
-                    var exportacaoService = new ExportarTxtService();
 
                     string caminho = saveDialog.FileName;
 
@@ -605,8 +611,8 @@ namespace TopoGente.UI
 
                     string caminhoMemoria = System.IO.Path.Combine(diretorio, $"{nomeSemExtensao}_MemoriaCalculo{nomeExtensao}");
 
-                    exportacaoService.ExportarCoordenadasGestor(_resultadoAtual, caminho);
-                    exportacaoService.ExportarMemoriaCalculo(_resultadoAtual, caminhoMemoria);
+                    _exportarTxtService.ExportarCoordenadasGestor(_resultadoAtual, caminho);
+                    _exportarTxtService.ExportarMemoriaCalculo(_resultadoAtual, caminhoMemoria);
 
                     MessageBox.Show($"Arquivos exportados com sucesso em:\n\n1. {caminho}\n2. {caminhoMemoria}",
                             "Sucesso Geométrico", MessageBoxButton.OK, MessageBoxImage.Information);
