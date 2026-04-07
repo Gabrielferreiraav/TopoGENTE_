@@ -4,7 +4,7 @@ using System.Globalization;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Utilities;
 
-namespace TopoGente.Core.Infrastructure
+namespace TopoGente.Infrastructure.Adapters.Leitores
 {
     public class LeituraArquivoService
     {
