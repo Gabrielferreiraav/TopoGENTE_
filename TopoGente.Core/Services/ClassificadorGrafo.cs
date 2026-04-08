@@ -15,7 +15,7 @@ namespace TopoGente.Core.Services
 
 
             // Extrai uma lista cronológica de todos os nomes únicos dos pontos ocupados (Caminho Principal)
-            List<string> caminhoPrincipal = todasEstacoes.Select(e => e.Nome.ToUpper()).ToList();
+            List<string> caminhoPrincipal = todasEstacoes.Select(e => e.Nome.ToUpper()).ToList(); // VERIFICAR SE É REALMENTE CRONOLOGICA, JA QUE O QUE DEFINIE A ORDEM É O ORDEM DE DAS LEITURAS, ENTÃO SE HOUVER ESTAÇÕES COM NOMES QUE NAO SEJAM CRONOLOGICOS EX: TEMOS UMA POLIGOANL CUJO  E0-> E2 -> E3 ->E1 -> E0 , ISSO PODE GERAR PROBLEMAS. ALÉM DISSO, SE HOUVER ESTAÇÕES REPETIDAS, ISSO TAMBÉM PODE GERAR PROBLEMAS. VER SE É NECESSÁRIO CRIAR UM CAMINHO PRINCIPAL BASEADO NAS ESTAÇÕES ÚNICAS E NA ORDEM DE OCUPAÇÃO.)
 
             // Condicoes de contorno para o caminho principal
             string? noRePartida = metadados.NomeRe?.ToUpperInvariant();
@@ -33,7 +33,7 @@ namespace TopoGente.Core.Services
                 if (i > 0)
                 {
                     estacaoAnterior = caminhoPrincipal[i - 1];
-                }else if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada)
+                }else if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada && i == 0)
                 {
                     estacaoAnterior = caminhoPrincipal.Last();
                 }

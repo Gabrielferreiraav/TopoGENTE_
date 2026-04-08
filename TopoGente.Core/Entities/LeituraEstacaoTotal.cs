@@ -22,7 +22,7 @@ namespace TopoGente.Core.Entities
         public double AlturaPrisma { get; set; }      // Hp
 
         // Metadados
-        public DateTime DataLeitura { get; set; } = DateTime.Now;
+        //public DateTime DataLeitura { get; set; } = DateTime.Now;
         public string Observacao { get; set; } = string.Empty;
         public TipoLeitura Tipo { get; set; } = TipoLeitura.Irradiacao;
         public bool EhLeituraDePoligonal => Tipo == TipoLeitura.Poligonal;

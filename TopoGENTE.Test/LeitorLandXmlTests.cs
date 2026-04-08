@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 using TopoGente.Core.Entities;
-using TopoGente.Core.Services.Leitores;
+using TopoGente.Infrastructure.Adapters.Leitores;
 using Xunit;
 
 namespace TopoGENTE.Test
