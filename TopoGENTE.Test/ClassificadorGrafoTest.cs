@@ -173,5 +173,42 @@ namespace TopoGente.Core.Tests
             var exceptionVazio = Record.Exception(() => _classificador.ClassificarArestasGrafo(new List<Estacao>(), metadados));
             Assert.Null(exceptionVazio);
         }
+
+        [Fact]
+        public void Testar_Ausencia_De_NomeRe_Causa_Falha_Na_Classificacao()
+        {
+            // Arrange: Simula o estado exato relatado pelo usuário (sem informar NomeRe)
+            var classificador = new ClassificadorGrafo();
+            var metadadosVazios = new MetadadosCenario
+            {
+                TipoCenario = TipoCenarioPoligonal.Fechada,
+                // NomeRe não foi informado!
+            };
+
+            var leituraM0_REF = new LeituraEstacaoTotal { EstacaoOcupada = "M0", PontoVisado = "REF" };
+            var estacoes = new List<Estacao>
+            {
+                new Estacao { Nome = "M0", Leituras = new List<LeituraEstacaoTotal> { leituraM0_REF } }
+            };
+
+            // Act
+            classificador.ClassificarArestasGrafo(estacoes, metadadosVazios);
+
+            // Assert: Como NomeRe não foi fornecido, o sistema falha e classifica REF como Irradiação
+            Assert.Equal(TipoLeitura.Irradiacao, leituraM0_REF.Tipo);
+
+            // --- CORREÇÃO (A Prova de que a arquitetura funciona se a UI obedecer) ---
+            var metadadosCorrigidos = new MetadadosCenario
+            {
+                TipoCenario = TipoCenarioPoligonal.Fechada,
+                NomeRe = "REF" // O Metadado obrigatoriamente injetado pela UI
+            };
+
+            // Act
+            classificador.ClassificarArestasGrafo(estacoes, metadadosCorrigidos);
+
+            // Assert: Com o metadado, a visada é rigorosamente classificada como Ré
+            Assert.Equal(TipoLeitura.Re, leituraM0_REF.Tipo);
+        }
     }
 }

@@ -45,6 +45,10 @@ namespace TopoGente.Core.Services
                 {
                     string pontoVisado = leitura.PontoVisado.ToUpperInvariant();
 
+                    System.Diagnostics.Debug.WriteLine($"[ClassificadorGrafo] Analisando Estação: {estacaoAtual} -> Visada: {leitura.PontoVisado}");
+                    System.Diagnostics.Debug.WriteLine($"   - Estacao Anterior: {estacaoAnterior ?? "NULL"}");
+                    System.Diagnostics.Debug.WriteLine($"   - noRePartida fornecido pelos Metadados: {noRePartida ?? "NULL"}");
+
                     // REGRA 1: Dedução de RÉ (Backsight)
                     // É o nó anterior no caminhamento OU a referência externa de partida
                     if (pontoVisado == estacaoAnterior || pontoVisado == noRePartida || pontoVisado == noReReferencia)

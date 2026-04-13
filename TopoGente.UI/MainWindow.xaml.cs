@@ -474,7 +474,8 @@ namespace TopoGente.UI
                 ReX = usarRe ? double.Parse(txtReX.Text) : 0,
                 ReY = usarRe ? double.Parse(txtReY.Text) : 0,
                 ReZ = usarRe ? double.Parse(txtZ.Text) : 0,
-                AzimuteChegada = null
+                AzimuteChegada = null,
+                NomeRe = txtNomeRe.Text.Trim()
             };
 
             if (cenario == TipoCenarioPoligonal.Enquadrada)
@@ -483,6 +484,7 @@ namespace TopoGente.UI
                 meta.ChegadaY = double.Parse(txtChegadaY.Text);
                 meta.ChegadaZ = double.Parse(txtChegadaZ.Text);
                 meta.AzimuteChegada = ConverterAzimute(txtAzimuteChegada.Text);
+                meta.NomeChegada = txtNomeChegada.Text.Trim();
             }
 
             return meta;
@@ -525,6 +527,33 @@ namespace TopoGente.UI
 
                 //Processar
                 _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, _metadadosAtuais);
+
+                var leiturasClassificadas = _estacoesEmMemoria.SelectMany( e => e.Leituras).ToList();
+
+                if (!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Re))
+                {
+                    MessageBox.Show("Bloqueio Topológico: O motor não detectou nenhuma visada de Ré. Verifique se o 'Nome da Ré' digitado na interface corresponde ao ponto visado na primeira estação da caderneta.",
+                    "Pré-condição Falhou", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if(!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Poligonal))
+                {
+                    MessageBox.Show("Bloqueio Topológico: Nenhuma aresta de Vante (Poligonal) foi identificada para dar seguimento ao caminhamento.",
+                    "Pré-condição Falhou", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                foreach(var leitura in  leiturasClassificadas.Where(l => l.Tipo == TipoLeitura.Poligonal || l.Tipo == TipoLeitura.Re)) 
+                {
+                    var valid = LeituraValidator.Validar(leitura);
+                    if(!valid.IsValid)
+                    {
+                        MessageBox.Show($"Dados corrompidos na estação '{leitura.EstacaoOcupada}' visando '{leitura.PontoVisado}':\n" + string.Join("\n", valid.Errors),
+                        "Falha de Validação Geométrica", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
 
                 _resultadoAtual = _processadorService.Processar(_metadadosAtuais, _estacoesEmMemoria, pontosConhecidos);
 
@@ -819,29 +848,7 @@ namespace TopoGente.UI
             {
                 return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma leitura encontrada" };
             }
-
-            if (!leituras.Any(l => l.Tipo == TipoLeitura.Re))
-            {
-                return new GateResultado { PodeCalcular = false, Motivo = "Não há leituras de Re" };
-            }
-
-            if (!leituras.Any(l => l.Tipo == TipoLeitura.Poligonal))
-            {
-                return new GateResultado { PodeCalcular = false, Motivo = "Não há leituras de Poligonal" };
-            }
-
-            foreach (var leitura in leituras.Where(l => l.Tipo is TipoLeitura.Re or TipoLeitura.Poligonal))
-            {
-                var valid = LeituraValidator.Validar(leitura);
-                if (!valid.IsValid)
-                {
-                    return new GateResultado
-                    {
-                        PodeCalcular = false,
-                        Motivo = " Leituras invalidas " + string.Join(" | ", valid.Errors)
-                    };
-                }
-            }
+            
 
             return new GateResultado { PodeCalcular = true };
         }
