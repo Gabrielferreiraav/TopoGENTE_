@@ -84,4 +84,10 @@ namespace TopoGente.Core.Interfaces
     {
         void ClassificarArestasGrafo(List<Estacao> todasEstacoes, MetadadosCenario metadados);
     }
+
+    public interface IMalhaTriagularService
+
+    {
+        List <TrianguloTopografico> GerarMalha(List<PontoCoordenada> nuvemPontos;
+    }
 }
