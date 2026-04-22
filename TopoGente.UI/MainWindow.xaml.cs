@@ -11,6 +11,7 @@ using System.Windows.Shapes;
 using TopoGente.Core.Entities;
 using System.IO;
 using System.Windows;
+using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Diagnostics;
@@ -30,6 +31,8 @@ namespace TopoGente.UI
         private readonly IExportarTxtService _exportarTxtService;
         private readonly IQaCheckService _qaCheckService;
         private readonly IClassificadorGrafo _classificadorGrafo;
+
+        private static readonly CultureInfo CulturaPtBr = CultureInfo.GetCultureInfo("pt-BR");
 
         private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
         private List<Estacao> _estacoesEmMemoria;
@@ -445,6 +448,45 @@ namespace TopoGente.UI
             pnlCoordenadaRe.Visibility = usarAzimute ? Visibility.Collapsed : Visibility.Visible;
         }
 
+        private static double LerDoubleUi(string? texto, string nomeCampo)
+        {
+            var s = (texto ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(s))
+                throw new FormatException($"Campo '{nomeCampo}' está vazio.");
+
+            const NumberStyles styles = NumberStyles.Float | NumberStyles.AllowThousands;
+
+            // Preferir cultura pt-BR: "1000,25" e "1.000,25"
+            if (double.TryParse(s, styles, CulturaPtBr, out var vPt))
+                return vPt;
+
+            // Fallback Invariant: "1000.25" e "1,000.25"
+            if (double.TryParse(s, styles, CultureInfo.InvariantCulture, out var vInv))
+                return vInv;
+
+            // Último fallback ,quando colam valores mesclados
+            // remove espaços e tenta normalizar separador decimal pelo último separador encontrado
+            var sn = s.Replace(" ", "");
+            var lastComma = sn.LastIndexOf(',');
+            var lastDot = sn.LastIndexOf('.');
+
+            if (lastComma >= 0 || lastDot >= 0)
+            {
+                var decimalSep = lastComma > lastDot ? ',' : '.';
+                var groupSep = decimalSep == ',' ? '.' : ',';
+
+                sn = sn.Replace(groupSep.ToString(), "");
+                if (decimalSep != '.')
+                    sn = sn.Replace(decimalSep, '.');
+
+                if (double.TryParse(sn, NumberStyles.Float, CultureInfo.InvariantCulture, out var vHeur))
+                    return vHeur;
+            }
+
+            throw new FormatException($"Valor inválido no campo '{nomeCampo}': '{texto}'.");
+        }
+
 
         /// <sumary>
         /// Lê os campos de entrada da UI e devolve <see cref="MetadadosCenario"/> para ser usado no processamento do levantamento. 
@@ -466,23 +508,23 @@ namespace TopoGente.UI
             var meta = new MetadadosCenario
             {
                 TipoCenario = cenario,
-                PartidaX = double.Parse(txtX.Text),
-                PartidaY = double.Parse(txtY.Text),
-                PartidaZ = double.Parse(txtZ.Text),
+                PartidaX = LerDoubleUi(txtX.Text, "X (Partida)"),
+                PartidaY = LerDoubleUi(txtY.Text, "Y (Partida)"),
+                PartidaZ = LerDoubleUi(txtZ.Text, "Z (Partida)"),
                 UsarCoordenadaRe = usarRe,
                 AzimutePartida = usarRe ? 0 : ConverterAzimute(txtAzimute.Text),
-                ReX = usarRe ? double.Parse(txtReX.Text) : 0,
-                ReY = usarRe ? double.Parse(txtReY.Text) : 0,
-                ReZ = usarRe ? double.Parse(txtZ.Text) : 0,
+                ReX = usarRe ? LerDoubleUi(txtReX.Text, "X (Ré)") : 0,
+                ReY = usarRe ? LerDoubleUi(txtReY.Text, "Y (Ré)") : 0,
+                ReZ = usarRe ? LerDoubleUi(txtReZ.Text, "Z (Ré)") : 0,
                 AzimuteChegada = null,
                 NomeRe = txtNomeRe.Text.Trim()
             };
 
             if (cenario == TipoCenarioPoligonal.Enquadrada)
             {
-                meta.ChegadaX = double.Parse(txtChegadaX.Text);
-                meta.ChegadaY = double.Parse(txtChegadaY.Text);
-                meta.ChegadaZ = double.Parse(txtChegadaZ.Text);
+                meta.ChegadaX = LerDoubleUi(txtChegadaX.Text, "X (Chegada)");
+                meta.ChegadaY = LerDoubleUi(txtChegadaY.Text, "Y (Chegada)");
+                meta.ChegadaZ = LerDoubleUi(txtChegadaZ.Text, "Z (Chegada)");
                 meta.AzimuteChegada = ConverterAzimute(txtAzimuteChegada.Text);
                 meta.NomeChegada = txtNomeChegada.Text.Trim();
             }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+/*
 using TriangleNet.Geometry;
 using TriangleNet.Meshing;
 using TopoGente.Core.Interfaces;
@@ -16,3 +17,4 @@ namespace TopoGente.Infrastructure.Adapters.Geometria
         }
     }
 }
+*/
