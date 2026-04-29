@@ -9,6 +9,59 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ControlzEx" Version="4.4.0" />
+    <PackageReference Include="MahApps.Metro" Version="2.4.11" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.77" />
+    <PackageReference Include="MaterialDesignColors" Version="5.3.1" />
+    <PackageReference Include="MaterialDesignThemes" Version="5.3.1" />
+    <PackageReference Include="MaterialDesignThemes.MahApps" Version="5.3.1" />
+
+    <PackageReference Include="MahApps.Metro.IconPacks.Core" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.BootstrapIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.BoxIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.BoxIcons2" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.CircumIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Codicons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Coolicons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Entypo" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.EvaIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.FeatherIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.FileIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Fontaudio" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.FontAwesome" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.FontAwesome5" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.FontAwesome6" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Fontisto" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.ForkAwesome" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.GameIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Ionicons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.JamIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.KeyruneIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Lucide" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Material" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.MaterialDesign" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.MaterialLight" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.MemoryIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Microns" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.MingCuteIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Modern" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.MynaUIIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Octicons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.PhosphorIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.PicolIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.PixelartIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.RadixIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.RemixIcon" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.RPGAwesome" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.SimpleIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Typicons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Unicons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.VaadinIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.WeatherIcons" Version="6.2.1" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Zondicons" Version="6.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\TopoGente.Core\TopoGente.Core.csproj" />
     <ProjectReference Include="..\TopoGente.Infrastructure\TopoGente.Infrastructure.csproj" />
   </ItemGroup>

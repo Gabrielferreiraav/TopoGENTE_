@@ -1,0 +1,62 @@
+<Controls:MetroWindow x:Class="TopoGente.UI.CadernetaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+        mc:Ignorable="d"
+        Title="TopoGente - Cadernetas e Coordenadas" Height="600" Width="900"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="10">
+        <TabControl>
+            <TabItem Header=" 📝 Caderneta (Por Estação) " FontSize="14">
+                <Grid Background="#FCFCFC">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                        <TextBlock Text="Selecione a Estação:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
+
+                        <ComboBox x:Name="cmbEstacoes" Width="300"
+                                  DisplayMemberPath="Nome"
+                                  SelectionChanged="cmbEstacoes_SelectionChanged"/>
+
+                        <TextBlock x:Name="txtInfoEstacao" Text="Hi: -" VerticalAlignment="Center" Margin="15,0" Foreground="Gray"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="gridCaderneta" Grid.Row="1" AutoGenerateColumns="False"
+                              CanUserAddRows="False" Margin="5" BorderThickness="1" BorderBrush="#DDD"
+                              SelectionChanged="gridCaderneta_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ponto Visado" Binding="{Binding PontoVisado}" Width="100" FontWeight="Bold"/>
+                            <DataGridTextColumn Header="Ang. Horiz." Binding="{Binding AnguloHorizontal, StringFormat=F4}" Width="90"/>
+                            <DataGridTextColumn Header="Ang. Vert." Binding="{Binding AnguloVertical, StringFormat=F4}" Width="90"/>
+                            <DataGridTextColumn Header="Dist. Inc." Binding="{Binding DistanciaInclinada, StringFormat=F3}" Width="80"/>
+                            <DataGridTextColumn Header="HS (Prisma)" Binding="{Binding AlturaPrisma, StringFormat=F3}" Width="80"/>
+                            <DataGridTextColumn Header="Descrição" Binding="{Binding Observacao}" Width="150"/>
+                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header=" 📍 Coordenadas Calculadas " FontSize="14">
+                <Grid Background="White">
+                    <DataGrid x:Name="gridResultados" AutoGenerateColumns="False"
+                              CanUserAddRows="False" IsReadOnly="True" Margin="5" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ponto" Binding="{Binding Nome}" Width="80" FontWeight="Bold"/>
+                            <DataGridTextColumn Header="Este (X)" Binding="{Binding X, StringFormat=F3}" Width="*"/>
+                            <DataGridTextColumn Header="Norte (Y)" Binding="{Binding Y, StringFormat=F3}" Width="*"/>
+                            <DataGridTextColumn Header="Cota (Z)" Binding="{Binding Z, StringFormat=F3}" Width="*"/>
+                            <DataGridTextColumn Header="Descrição" Binding="{Binding TipoDescricao}" Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Controls:MetroWindow>

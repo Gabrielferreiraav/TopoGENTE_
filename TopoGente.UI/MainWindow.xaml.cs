@@ -1,28 +1,19 @@
-﻿using Microsoft.Win32;
-using System.Text;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using TopoGente.Core.Entities;
-using System.IO;
-using System.Windows;
+﻿using MahApps.Metro.Controls;
+using Microsoft.Win32;
 using System.Globalization;
-using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
-using System.Diagnostics;
-using TopoGente.Core.Validators;
+using System.Windows;
+using System.Windows.Controls;
+using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
+using TopoGente.Core.Validators;
+using TopoGente.UI.Eventing;
 
 namespace TopoGente.UI
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : MetroWindow
     {
-        // Instâncias dos serviços
         private readonly ILeituraArquivoFactory _leitorService;
         private readonly ILevantamentoProcessor _processadorService;
         private readonly IArquivoProjetoService _projetoService;
@@ -31,250 +22,37 @@ namespace TopoGente.UI
         private readonly IExportarTxtService _exportarTxtService;
         private readonly IQaCheckService _qaCheckService;
         private readonly IClassificadorGrafo _classificadorGrafo;
+        private readonly IUiEventHub _uiEventHub;
 
         private static readonly CultureInfo CulturaPtBr = CultureInfo.GetCultureInfo("pt-BR");
 
-        private ObservableCollection<LeituraEstacaoTotal> _leituraEmMemoria;
-        private List<Estacao> _estacoesEmMemoria;
+        private List<Estacao> _estacoesEmMemoria = new();
         private RelatorioQA? _relatorioQaAtual;
         private MetadadosCenario? _metadadosAtuais;
         private ResultadoLevantamento? _resultadoAtual;
-        private Point _origemMouse;
-        private bool _estaArrastando = false;
 
         public MainWindow(
-    ILeituraArquivoFactory leitorService,
-    ILevantamentoProcessor processadorService,
-    IArquivoProjetoService projetoService,
-    IOrganizarCaminhamento organizador,
-    IExportadorDxfService dxfService,
-    IExportarTxtService exportarTxtService,
-    IQaCheckService qaCheckService,
-    IClassificadorGrafo classificadorGrafo)
-{
-    InitializeComponent();
-
-    _leitorService = leitorService;
-    _processadorService = processadorService;
-    _organizador = organizador;
-    _dxfService = dxfService;
-    _exportarTxtService = exportarTxtService;
-    _qaCheckService = qaCheckService;
-    _projetoService = projetoService;
-    _classificadorGrafo = classificadorGrafo;
-
-    _leituraEmMemoria = new ObservableCollection<LeituraEstacaoTotal>();
-
-    ConfigurarComboTipo();
-}
-        private void ConfigurarComboTipo()
+            ILeituraArquivoFactory leitorService,
+            ILevantamentoProcessor processadorService,
+            IArquivoProjetoService projetoService,
+            IOrganizarCaminhamento organizador,
+            IExportadorDxfService dxfService,
+            IExportarTxtService exportarTxtService,
+            IQaCheckService qaCheckService,
+            IClassificadorGrafo classificadorGrafo,
+            IUiEventHub uiEventHub)
         {
-            var colTipo = gridCaderneta.Columns[4] as DataGridComboBoxColumn;
-            if (colTipo != null)
-            {
-                colTipo.ItemsSource = Enum.GetValues(typeof(TipoLeitura));
-            }
-        }
-        private void Canvas_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            var mat = transformacaoCanvas.Matrix;
+            InitializeComponent();
 
-            double escala = e.Delta > 0 ? 1.15 : 0.85;
-
-            // pega a posição do mouse para dar zoom onde o mouse está apontando
-            Point mousePos = e.GetPosition(canvasDesenho);
-
-            // aplica a escala na matriz
-            mat.ScaleAt(escala, escala, mousePos.X, mousePos.Y);
-            transformacaoCanvas.Matrix = mat;
-
-            e.Handled = true; // Impede que o scroll propague
-        }
-        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Middle && e.ButtonState == MouseButtonState.Pressed)
-            {
-                var border = sender as IInputElement;
-                if (border != null)
-                {
-                    _origemMouse = e.GetPosition(border);
-                    _estaArrastando = true;
-                    border.CaptureMouse();
-                    // indicar movimento
-                    Cursor = Cursors.SizeAll;
-                }
-            }
-        }
-        private void Canvas_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (_estaArrastando && e.ChangedButton == MouseButton.Middle)
-            {
-                var border = sender as IInputElement;
-                if (border != null)
-                {
-                    _estaArrastando = false;
-                    border?.ReleaseMouseCapture();
-                    Cursor = Cursors.Arrow;
-                }
-            }
-        }
-        private void Canvas_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_estaArrastando && e.MiddleButton == MouseButtonState.Pressed)
-            {
-                var border = sender as IInputElement;
-                if (border != null)
-                {
-                    var posicaoAtual = e.GetPosition(border);
-
-                    // deslocamento do mouse
-                    var delta = posicaoAtual - _origemMouse;
-
-                    // aplica o deslocamento na matriz
-                    var mat = transformacaoCanvas.Matrix;
-                    mat.Translate(delta.X, delta.Y);
-                    transformacaoCanvas.Matrix = mat;
-                    _origemMouse = posicaoAtual;
-                }
-            }
-        }
-        private void bntResetZoom_Click(object sender, RoutedEventArgs e)
-        {
-            // reseta a transformação
-            transformacaoCanvas.Matrix = Matrix.Identity;
-        }
-        private void chkMostrarNomes_Changed(object sender, RoutedEventArgs e)
-        {
-            if (canvasDesenho == null)
-            {
-                return;
-            }
-            foreach (var child in canvasDesenho.Children)
-            {
-                if (child is TextBlock texto)
-                {
-                    texto.Visibility = (chkMostrarNomes.IsChecked == true)
-                        ? Visibility.Visible
-                        : Visibility.Collapsed;
-                }
-            }
-        }
-        private void DesenharLevantamento(List<PontoCoordenada> pontos)
-        {
-            transformacaoCanvas.Matrix = Matrix.Identity;
-            canvasDesenho.Children.Clear();
-
-            if (pontos == null || pontos.Count == 0) return;
-
-            // Descobrir os limites  para o Zoom
-            double minX = pontos.Min(p => p.X);
-            double maxX = pontos.Max(p => p.X);
-            double minY = pontos.Min(p => p.Y);
-            double maxY = pontos.Max(p => p.Y);
-
-            // largura e altura real do levantamento
-            double larguraReal = maxX - minX;
-            double alturaReal = maxY - minY;
-
-            if (larguraReal == 0) larguraReal = 10;
-            if (alturaReal == 0) alturaReal = 10;
-
-            double margem = Math.Max(larguraReal, alturaReal) * 0.1;
-            minX -= margem; maxX += margem;
-            minY -= margem; maxY += margem;
-
-            larguraReal = maxX - minX;
-            alturaReal = maxY - minY;
-
-            // Usa o ActualWidth do Canvas 
-            double telaW = canvasDesenho.ActualWidth;
-            double telaH = canvasDesenho.ActualHeight;
-
-            if (telaW == 0) telaW = 800;
-            if (telaH == 0) telaH = 500;
-
-            double escalaX = telaW / larguraReal;
-            double escalaY = telaH / alturaReal;
-
-            // Usa a menor escala para garantir que tudo caiba
-            double escala = Math.Min(escalaX, escalaY);
-
-            // para converter Coordenada Real -> Pixel na Tela
-            Point ParaTela(double x, double y)
-            {
-                double xTela = (x - minX) * escala;
-                double yTela = (maxY - y) * escala;
-                return new Point(xTela, yTela);
-            }
-
-            // Se tiver mais de 50 pontos, desliga os nomes por padrão para não poluir
-            if (pontos.Count > 50)
-            {
-                chkMostrarNomes.IsChecked = false;
-            }
-            else
-            {
-                chkMostrarNomes.IsChecked = true;
-            }
-
-            // Define a visibilidade baseada no estado atual do CheckBox
-            Visibility visibilidadeTexto = (chkMostrarNomes.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
-
-            // Desenhar Linhas da Poligonal
-            // Filtra apenas os pontos que fazem parte da poligonal principal
-            var poligonal = pontos.Where(p => p.EhPontoPoligonal).ToList();
-
-            for (int i = 0; i < poligonal.Count - 1; i++)
-            {
-                Point p1 = ParaTela(poligonal[i].X, poligonal[i].Y);
-                Point p2 = ParaTela(poligonal[i + 1].X, poligonal[i + 1].Y);
-
-                Line linha = new Line
-                {
-                    X1 = p1.X,
-                    Y1 = p1.Y,
-                    X2 = p2.X,
-                    Y2 = p2.Y,
-                    Stroke = Brushes.Blue,
-                    StrokeThickness = 2
-                };
-                canvasDesenho.Children.Add(linha);
-            }
-
-            // Desenhar Pontos e Textos
-            foreach (var p in pontos)
-            {
-                Point pos = ParaTela(p.X, p.Y);
-
-                Ellipse pontoGeo = new Ellipse
-                {
-                    Width = 6,
-                    Height = 6,
-                    // Azul para Poligonal, Verde para Irradiação
-                    Fill = p.EhPontoPoligonal ? Brushes.Blue : Brushes.Green,
-                    // Tooltip para ver coordenadas ao passar o mouse
-                    ToolTip = $"{p.Nome}\nE: {p.X:F3}\nN: {p.Y:F3}\nZ: {p.Z:F3}"
-                };
-
-                // Centralizar a bolinha na coordenada exata 
-                Canvas.SetLeft(pontoGeo, pos.X - 3);
-                Canvas.SetTop(pontoGeo, pos.Y - 3);
-                canvasDesenho.Children.Add(pontoGeo);
-
-
-                TextBlock texto = new TextBlock
-                {
-                    Text = p.Nome,
-                    FontSize = 10,
-                    Foreground = Brushes.Black,
-                    Visibility = visibilidadeTexto
-                };
-
-                // Posiciona o texto um pouco ao lado e acima do ponto
-                Canvas.SetLeft(texto, pos.X + 5);
-                Canvas.SetTop(texto, pos.Y - 5);
-                canvasDesenho.Children.Add(texto);
-            }
+            _leitorService = leitorService;
+            _processadorService = processadorService;
+            _organizador = organizador;
+            _dxfService = dxfService;
+            _exportarTxtService = exportarTxtService;
+            _qaCheckService = qaCheckService;
+            _projetoService = projetoService;
+            _classificadorGrafo = classificadorGrafo;
+            _uiEventHub = uiEventHub;
         }
 
         private static FormatoArquivoEntrada ObterFormatoEntrada(ComboBox cmbFormatoArquivo)
@@ -306,7 +84,6 @@ namespace TopoGente.UI
                     var estacoesBrutas = _leitorService.ProcessarArquivo(formato, linhas);
                     _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
 
-                    cmbEstacoes.ItemsSource = _estacoesEmMemoria;
                     if (_estacoesEmMemoria.Count > 0)
                     {
                         var estacaoInicial = _estacoesEmMemoria[0];
@@ -317,25 +94,14 @@ namespace TopoGente.UI
                             txtZ.Text = estacaoInicial.CoordenadaConhecida.Z.ToString("F3");
                         }
                     }
-                    AplicarGateUIAposCarregarouAbrir(formato, System.IO.Path.GetFileName(openFileDialog.FileName));
+
+                    _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
+                    AplicarGateUIAposCarregarouAbrir(formato, Path.GetFileName(openFileDialog.FileName));
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Erro ao ler arquivo: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            }
-        }
-        private void cmbEstacoes_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
-            {
-                gridCaderneta.ItemsSource = estacaoSelecionada.Leituras;
-                txtInfoEstacao.Text = $"Altura do Instrumento: {estacaoSelecionada.AlturaInstrumento:F3} m";
-            }
-            else
-            {
-                gridCaderneta.ItemsSource = null;
-                txtInfoEstacao.Text = "Hi: -";
             }
         }
 
@@ -345,19 +111,14 @@ namespace TopoGente.UI
                 return 0;
 
             entrada = entrada.Trim();
-
-            // precisa atribuir
             entrada = entrada.Replace(',', '.');
 
-            //  tem ponto -> pode ser "GGG.MMSS" (compacto) OU decimal puro
             if (entrada.Contains('.'))
             {
                 var partes = entrada.Split('.', 2);
                 var parteInteira = partes[0];
                 var parteDecimal = partes.Length > 1 ? partes[1] : "0";
 
-                // Se tiver pelo menos 4 casas, pode ser compacto.
-                // Decide pelo MM/SS: se invalido, trata como decimal puro.
                 if (parteDecimal.Length >= 4)
                 {
                     var mmss = parteDecimal.PadRight(4, '0')[..4];
@@ -367,15 +128,13 @@ namespace TopoGente.UI
 
                     if (mm < 60 && ss < 60)
                     {
-                        
                         var compactoTexto = $"{parteInteira}.{mmss}";
-                        double compacto = double.Parse(compactoTexto, System.Globalization.CultureInfo.InvariantCulture);
+                        double compacto = double.Parse(compactoTexto, CultureInfo.InvariantCulture);
                         return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(compacto);
                     }
                 }
 
-                // Decimal puro
-                double decimalPuro = double.Parse(entrada, System.Globalization.CultureInfo.InvariantCulture);
+                double decimalPuro = double.Parse(entrada, CultureInfo.InvariantCulture);
 
                 if (decimalPuro < 0 || decimalPuro >= 360)
                 {
@@ -387,17 +146,14 @@ namespace TopoGente.UI
                 return decimalPuro;
             }
 
-            // sem ponto -> pode ser "GGMMSS" (ex: 1351245) ou graus inteiros (ex: 135)
-            if (!double.TryParse(entrada, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var valor))
+            if (!double.TryParse(entrada, NumberStyles.Float, CultureInfo.InvariantCulture, out var valor))
                 throw new FormatException($"Azimute inválido: '{entrada}'.");
 
             if (valor < 360)
-                return valor; // graus inteiros (ou <360)
+                return valor;
 
-            //  Interpretar como GGMMSS e converter para GGG.MMSS antes de chamar DeFormatoCompacto
             var digits = entrada;
 
-            // precisa ter pelo menos 5 dígitos para existir MMSS
             if (digits.Length < 5)
                 throw new FormatException($"Formato GGMMSS inválido: '{entrada}'.");
 
@@ -415,24 +171,19 @@ namespace TopoGente.UI
             }
 
             var compactoSemPonto = $"{grausTexto}.{mmssTexto}";
-            double compacto2 = double.Parse(compactoSemPonto, System.Globalization.CultureInfo.InvariantCulture);
+            double compacto2 = double.Parse(compactoSemPonto, CultureInfo.InvariantCulture);
             return TopoGente.Core.Utilities.ConversorAngulos.DeFormatoCompacto(compacto2);
         }
-
 
         private void cmbCenario_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (pnlChegada == null) return;
 
             var tag = (cmbCenario.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-            // Ponto de Chegada (visivel para enquqadrada)
             pnlChegada.Visibility = tag == "Enquadrada" ? Visibility.Visible : Visibility.Collapsed;
 
-            // Fechada e Enquadrada 
-             rbAzimute.IsChecked = true;
-             rbCoordenadaRe.IsEnabled = true;
-            
+            rbAzimute.IsChecked = true;
+            rbCoordenadaRe.IsEnabled = true;
         }
 
         private void rbOrientacao_Changed(object sender, RoutedEventArgs e)
@@ -457,16 +208,12 @@ namespace TopoGente.UI
 
             const NumberStyles styles = NumberStyles.Float | NumberStyles.AllowThousands;
 
-            // Preferir cultura pt-BR: "1000,25" e "1.000,25"
             if (double.TryParse(s, styles, CulturaPtBr, out var vPt))
                 return vPt;
 
-            // Fallback Invariant: "1000.25" e "1,000.25"
             if (double.TryParse(s, styles, CultureInfo.InvariantCulture, out var vInv))
                 return vInv;
 
-            // Último fallback ,quando colam valores mesclados
-            // remove espaços e tenta normalizar separador decimal pelo último separador encontrado
             var sn = s.Replace(" ", "");
             var lastComma = sn.LastIndexOf(',');
             var lastDot = sn.LastIndexOf('.');
@@ -487,10 +234,6 @@ namespace TopoGente.UI
             throw new FormatException($"Valor inválido no campo '{nomeCampo}': '{texto}'.");
         }
 
-
-        /// <sumary>
-        /// Lê os campos de entrada da UI e devolve <see cref="MetadadosCenario"/> para ser usado no processamento do levantamento. 
-        /// </sumary>
         private MetadadosCenario ColetarMetadadosDaUI()
         {
             var tag = (cmbCenario.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Fechada";
@@ -532,12 +275,10 @@ namespace TopoGente.UI
             return meta;
         }
 
-
         private void btnProcessar_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-
                 if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0)
                 {
                     MessageBox.Show("Nenhuma estação carregada.", "Aviso");
@@ -545,15 +286,13 @@ namespace TopoGente.UI
                 }
 
                 _metadadosAtuais = ColetarMetadadosDaUI();
-                
+
                 var pontosConhecidos = _estacoesEmMemoria
                     .Where(e => e.CoordenadaConhecida != null)
                     .Select(e => e.CoordenadaConhecida!)
                     .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(g=> g.Key, g=> g.First(), StringComparer.OrdinalIgnoreCase);
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-
-                // Se cenário Enquadrada, adicionar ponto de chegada aos conhecidos
                 if (_metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada)
                 {
                     pontosConhecidos["CHEGADA"] = new PontoCoordenada
@@ -564,13 +303,11 @@ namespace TopoGente.UI
                         Z = _metadadosAtuais.ChegadaZ ?? 0,
                         EhPontoPoligonal = true
                     };
-
                 }
 
-                //Processar
                 _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, _metadadosAtuais);
 
-                var leiturasClassificadas = _estacoesEmMemoria.SelectMany( e => e.Leituras).ToList();
+                var leiturasClassificadas = _estacoesEmMemoria.SelectMany(e => e.Leituras).ToList();
 
                 if (!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Re))
                 {
@@ -579,17 +316,17 @@ namespace TopoGente.UI
                     return;
                 }
 
-                if(!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Poligonal))
+                if (!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Poligonal))
                 {
                     MessageBox.Show("Bloqueio Topológico: Nenhuma aresta de Vante (Poligonal) foi identificada para dar seguimento ao caminhamento.",
                     "Pré-condição Falhou", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                foreach(var leitura in  leiturasClassificadas.Where(l => l.Tipo == TipoLeitura.Poligonal || l.Tipo == TipoLeitura.Re)) 
+                foreach (var leitura in leiturasClassificadas.Where(l => l.Tipo == TipoLeitura.Poligonal || l.Tipo == TipoLeitura.Re))
                 {
                     var valid = LeituraValidator.Validar(leitura);
-                    if(!valid.IsValid)
+                    if (!valid.IsValid)
                     {
                         MessageBox.Show($"Dados corrompidos na estação '{leitura.EstacaoOcupada}' visando '{leitura.PontoVisado}':\n" + string.Join("\n", valid.Errors),
                         "Falha de Validação Geométrica", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -598,28 +335,10 @@ namespace TopoGente.UI
                 }
 
                 _resultadoAtual = _processadorService.Processar(_metadadosAtuais, _estacoesEmMemoria, pontosConhecidos);
-
                 _relatorioQaAtual = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, _resultadoAtual, pontosConhecidos);
 
-                gridResultados.ItemsSource = _resultadoAtual.TodosOsPontos;
-                canvasDesenho.UpdateLayout();
-                DesenharLevantamento(_resultadoAtual.TodosOsPontos);
+                _uiEventHub.PublicarResultado(_resultadoAtual);
 
-                txtPerimetro.Text = $"{_resultadoAtual.Perimetro:F2} m";
-
-                if (_resultadoAtual.PoligonalFechada)
-                {
-                    txtErro.Text = $"{_resultadoAtual.ErroLinear:F3} m";
-                    txtPrecisao.Text = $"1:{_resultadoAtual.Precisao:F0}";
-                }
-                else
-                {
-                    txtErro.Text = "-";
-                    txtPrecisao.Text = "-";
-                }
-
-                //btnExportarDxf.IsEnabled = true;
-                tabsPrincipal.SelectedIndex = 1;
                 if (_metadadosAtuais.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
                 {
                     MessageBox.Show(
@@ -652,9 +371,7 @@ namespace TopoGente.UI
 
         private void bntExportarTxt_Click(object sender, EventArgs e)
         {
-            var pontosParaExportar = gridResultados.ItemsSource as List<PontoCoordenada>;
-
-            if (pontosParaExportar == null || pontosParaExportar.Count == 0 || _resultadoAtual == null )
+            if (_resultadoAtual == null || _resultadoAtual.TodosOsPontos.Count == 0)
             {
                 MessageBox.Show("Não há Levantamento para exportar ", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -668,126 +385,82 @@ namespace TopoGente.UI
                 DefaultExt = ".txt",
             };
 
-
             if (saveDialog.ShowDialog() == true)
             {
                 try
                 {
-
                     string caminho = saveDialog.FileName;
 
-                    string diretorio = System.IO.Path.GetDirectoryName(caminho) ?? "";
-                    string nomeSemExtensao = System.IO.Path.GetFileNameWithoutExtension(caminho);
-                    string nomeExtensao = System.IO.Path.GetExtension(caminho);
+                    string diretorio = Path.GetDirectoryName(caminho) ?? "";
+                    string nomeSemExtensao = Path.GetFileNameWithoutExtension(caminho);
+                    string nomeExtensao = Path.GetExtension(caminho);
 
-                    string caminhoMemoria = System.IO.Path.Combine(diretorio, $"{nomeSemExtensao}_MemoriaCalculo{nomeExtensao}");
+                    string caminhoMemoria = Path.Combine(diretorio, $"{nomeSemExtensao}_MemoriaCalculo{nomeExtensao}");
 
                     _exportarTxtService.ExportarCoordenadasGestor(_resultadoAtual, caminho);
                     _exportarTxtService.ExportarMemoriaCalculo(_resultadoAtual, caminhoMemoria);
 
                     MessageBox.Show($"Arquivos exportados com sucesso em:\n\n1. {caminho}\n2. {caminhoMemoria}",
                             "Sucesso Geométrico", MessageBoxButton.OK, MessageBoxImage.Information);
-
                 }
-                catch (Exception ex) { 
+                catch (Exception ex)
+                {
                     MessageBox.Show($"Erro ao exportar arquivo: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
-        /*
-        public void btnSalvarProjeto_Click(object sender, RoutedEventArgs e)
+        private sealed class GateResultado
         {
-            try
-            {
-                if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0)
-                {
-                    MessageBox.Show("Nenhum projeto carregado para salvar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                double x = 0, y = 0, z = 0;
-                double.TryParse(txtX.Text, out x);
-                double.TryParse(txtY.Text, out y);
-                double.TryParse(txtZ.Text, out z);
-
-                double azimuteInicial = 0;
-                if (rbAzimute.IsChecked == true)
-                {
-                    azimuteInicial = ConverterAzimute(txtAzimute.Text);
-                }
-
-                var projeto = new ProjetoTopo
-                {
-                    StartX = x,
-                    StartY = y,
-                    StartZ = z,
-                    StartAzimute = azimuteInicial,
-                    Estacoes = _estacoesEmMemoria,
-                    RelatorioQA = _relatorioQaAtual,
-                    Metadados = _metadadosAtuais
-                };
-
-                var saveDialog = new SaveFileDialog
-                {
-                    Filter = "Arquivo de Projeto TopoGente (*.topo)|*.topo|Todos os Arquivos (*.*)|*.*",
-                    FileName = "ProjetoTopo.topo",
-                    DefaultExt = ".topo",
-                };
-
-                if (saveDialog.ShowDialog() == true)
-                {
-                    _projetoService.SalvarProjeto(projeto, saveDialog.FileName);
-                    MessageBox.Show("Projeto salvo com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro ao salvar projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            public bool PodeCalcular { get; init; }
+            public string Motivo { get; init; } = string.Empty;
         }
-        public void btnAbrirProjeto_Click(object sender, RoutedEventArgs e)
+
+        private static List<LeituraEstacaoTotal> ColetarLeituras(List<Estacao> estacoes)
+            => estacoes?.SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>()).ToList()
+            ?? new List<LeituraEstacaoTotal>();
+
+        private static GateResultado AvaliarGateCalculo(List<Estacao> estacoes)
         {
-            var openDialog = new OpenFileDialog
+            if (estacoes == null || estacoes.Count == 0)
             {
-                Filter = "Arquivo de Projeto TopoGente (*.topo)|*.topo|Todos os Arquivos (*.*)|*.*",
-            };
-
-            if (openDialog.ShowDialog() == true)
-            {
-                try
-                {
-                    var projeto = _projetoService.CarregarProjeto(openDialog.FileName);
-
-                    txtX.Clear(); txtY.Clear(); txtZ.Clear(); txtAzimute.Clear();
-                    cmbEstacoes.ItemsSource = null;
-                    gridCaderneta.ItemsSource = null;
-                    gridResultados.ItemsSource = null;
-                    canvasDesenho.Children.Clear();
-                    txtPerimetro.Text = "-"; txtErro.Text = "-"; txtPrecisao.Text = "-";
-
-                    txtX.Text = projeto.StartX.ToString();
-                    txtY.Text = projeto.StartY.ToString();
-                    txtZ.Text = projeto.StartZ.ToString();
-                    txtAzimute.Text = projeto.StartAzimute.ToString();
-
-                    _estacoesEmMemoria = projeto.Estacoes;
-                    _metadadosAtuais = projeto.Metadados;
-                    
-                    RestaurarMetadadosNaUI(projeto.Metadados);
-                    AplicarGateUIAposCarregarouAbrir(null, System.IO.Path.GetFileName(openDialog.FileName));
-
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Erro ao abrir projeto: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma estacao encontrada" };
             }
-        }*/
+
+            var leituras = ColetarLeituras(estacoes);
+
+            if (leituras.Count == 0)
+            {
+                return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma leitura encontrada" };
+            }
+
+            return new GateResultado { PodeCalcular = true };
+        }
+
+        private void AplicarGateUIAposCarregarouAbrir(FormatoArquivoEntrada? formato, string nomeArquivoParaLabel)
+        {
+            var gate = AvaliarGateCalculo(_estacoesEmMemoria);
+
+            if (gate.PodeCalcular)
+            {
+                btnProcessar.IsEnabled = true;
+                return;
+            }
+
+            btnProcessar.IsEnabled = false;
+
+            MessageBox.Show(
+                "Dados carregados, porém não há observações suficientes para cálculo.\n\n" +
+                $"Motivo: {gate.Motivo}",
+                "Aviso",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
         private void RestaurarMetadadosNaUI(MetadadosCenario? meta)
         {
             if (meta == null) return;
 
-            // Cenário
             cmbCenario.SelectedIndex = meta.TipoCenario switch
             {
                 TipoCenarioPoligonal.Enquadrada => 0,
@@ -796,12 +469,10 @@ namespace TopoGente.UI
                 _ => 1
             };
 
-            // Partida
             txtX.Text = meta.PartidaX.ToString("F3");
             txtY.Text = meta.PartidaY.ToString("F3");
             txtZ.Text = meta.PartidaZ.ToString("F3");
 
-            // Orientação
             if (meta.UsarCoordenadaRe)
             {
                 rbCoordenadaRe.IsChecked = true;
@@ -815,140 +486,12 @@ namespace TopoGente.UI
                 txtAzimute.Text = meta.AzimutePartida.ToString();
             }
 
-            // Chegada
             if (meta.TipoCenario == TipoCenarioPoligonal.Enquadrada)
             {
                 txtChegadaX.Text = meta.ChegadaX?.ToString("F3") ?? "0.0";
                 txtChegadaY.Text = meta.ChegadaY?.ToString("F3") ?? "0.0";
                 txtChegadaZ.Text = meta.ChegadaZ?.ToString("F3") ?? "0.0";
             }
-        }
-        /*
-        public void btnExportarDxf_Click(object sender, RoutedEventArgs e)
-        {
-            var pontosParaExportar = gridResultados.ItemsSource as List<PontoCoordenada>;
-
-            if (pontosParaExportar == null || pontosParaExportar.Count == 0)
-            {
-                MessageBox.Show("Não há coordenadas calculadas para exportar !", "Aviso");
-                return;
-            }
-
-            var saveDialog = new SaveFileDialog
-            {
-                Filter = "Arquivo DXF (*.dxf)|*.dxf|Todos os Arquivos (*.*)|*.*",
-                FileName = "LevantamentoTopoGente.dxf",
-                DefaultExt = ".dxf",
-            };
-            if (saveDialog.ShowDialog() == true)
-            {
-                try
-                {
-                    _dxfService.SalvarDxf(pontosParaExportar, saveDialog.FileName);
-                    MessageBox.Show("Arquivo DXF exportado com sucesso!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Erro ao exportar DXF: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }*/
-
-        private sealed class GateResultado
-        {
-            public bool PodeCalcular { get; init; }
-            public string Motivo { get; init; } = string.Empty;
-        }
-
-        private static List<LeituraEstacaoTotal> ColetarLeituras(List<Estacao> estacoes)
-            => estacoes?.SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>()).ToList()
-            ?? new List<LeituraEstacaoTotal>();
-
-        private static List<PontoCoordenada> ColetarPontosCoordenada(List<Estacao> estacoes)
-            => estacoes?
-            .Where(e => e.CoordenadaConhecida != null)
-            .Select(e => e.CoordenadaConhecida!)
-            .Select(p => new PontoCoordenada
-            {
-                Nome = p.Nome,
-                X = p.X,
-                Y = p.Y,
-                Z = p.Z,
-                EhPontoPoligonal = false
-            }).ToList() ?? new List<PontoCoordenada>();
-
-        private static GateResultado AvaliarGateCalculo(List<Estacao> estacoes)
-        {
-            if (estacoes == null || estacoes.Count ==0)
-            {
-                return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma estacao encontrada" };
-            }
-
-            var leituras = ColetarLeituras(estacoes);
-
-            if (leituras.Count == 0)
-            {
-                return new GateResultado { PodeCalcular = false, Motivo = "Nenhuma leitura encontrada" };
-            }
-            
-
-            return new GateResultado { PodeCalcular = true };
-        }
-
-        private void EntraModoPontos(string mensagem, List<PontoCoordenada> pontos)
-        {
-            btnProcessar.IsEnabled = false;
-            //btnExportarDxf.IsEnabled = pontos.Count > 0;
-
-            gridResultados.ItemsSource = pontos;
-            canvasDesenho.UpdateLayout();
-            DesenharLevantamento(pontos);
-
-            tabsPrincipal.SelectedIndex = 1; // Coordenadas Calculadas
-            MessageBox.Show(mensagem, "Importacao", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private void AplicarGateUIAposCarregarouAbrir(FormatoArquivoEntrada? formato, string nomeArquivoParaLabel)
-        {
-            cmbEstacoes.ItemsSource = _estacoesEmMemoria;
-            if (_estacoesEmMemoria != null && _estacoesEmMemoria.Count > 0 )
-            {
-                cmbEstacoes.SelectedIndex = 0;
-            }
-
-            var gate = AvaliarGateCalculo(_estacoesEmMemoria);
-
-            if (gate.PodeCalcular)
-            {
-                btnProcessar.IsEnabled = true;
-                //btnExportarDxf.IsEnabled = false;
-                return;
-            }
-
-            var pontos = ColetarPontosCoordenada(_estacoesEmMemoria);
-
-            // abrir modo caso ja tenha pontos conhecidos
-
-            if (pontos.Count > 0)
-            {
-                EntraModoPontos(
-                    "Dados carregados, porem sem observacoes suficientes para calculode poligonal. \n \n" +
-                    "Use exportação/visualização ou importe outro formato. \n \n" +
-                    $"Motivo : {gate.Motivo}", pontos);
-                return;
-            }
-
-            btnProcessar.IsEnabled = false;
-            //btnExportarDxf.IsEnabled = false;
-
-            MessageBox.Show(
-                "Dados carregados, porem na há observacoes suficientes para calculo e nem pontos conhecidos suficientes para exibicao \n \n" +
-                $"Motivo : {gate.Motivo}", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-
-        private void gridCaderneta_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
         }
     }
 }
