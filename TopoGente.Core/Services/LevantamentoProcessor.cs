@@ -1,26 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
 using TopoGente.Core.Entities;
-using System.Globalization;
-using System.IO;
 using TopoGente.Core.Interfaces;
+using TopoGente.Core.Strategies;
+using TopoGente.Core.Utilities;
 
 namespace TopoGente.Core.Services
 {
     public class LevantamentoProcessor : ILevantamentoProcessor
     {
-        private readonly CalculoTopograficoService _calculoService;
-
         private readonly IClassificadorGrafo _classificadorGrafo;
+        private readonly CompensacaoStrategyFactory _compensacaoStrategyFactory;
 
         private const double ToleranciaFechamento = 0.05; // 5 cm por km
 
-        public LevantamentoProcessor(IClassificadorGrafo classificadorGrafo)
+        public LevantamentoProcessor(IClassificadorGrafo classificadorGrafo, CompensacaoStrategyFactory compensacaoStrategyFactory)
         {
-            _calculoService = new CalculoTopograficoService();
             _classificadorGrafo = classificadorGrafo;
+            _compensacaoStrategyFactory = compensacaoStrategyFactory;
         }
 
 
@@ -39,38 +37,33 @@ namespace TopoGente.Core.Services
 
 
         // CLIENTE ORQUESTRADOR: Isola o controle do fluxo (Iterator + Visitor)
-        private List<PontoCoordenada> OrquestrarCalculoPoligonal(PontoCoordenada pontoPartida,double azimuteInicial, List<Estacao> todasEstacoes)
+        private List<PontoCoordenada> OrquestrarCalculoPoligonal(PontoCoordenada pontoPartida, double azimuteInicial, List<Estacao> todasEstacoes)
         {
-            ITopografiaIterator iterator = new CaminhamentoPoligonalIterator(todasEstacoes,pontoPartida.Nome);
+            ITopografiaIterator iterator = new CaminhamentoPoligonalIterator(todasEstacoes, pontoPartida.Nome);
 
-            var visitante = new CalculoPoligonalVisitor(pontoPartida,azimuteInicial,_calculoService);
+            var visitante = new CalculoPoligonalVisitor(pontoPartida, azimuteInicial);
 
-            // Execução do Double-Dispatch 
-            for (iterator.First();!iterator.IsDone();iterator.Next())
+            for (iterator.First(); !iterator.IsDone(); iterator.Next())
             {
                 Estacao noAtual = iterator.CurrentItem();
                 noAtual.Accept(visitante);
             }
 
             return visitante.PontosCalculados;
-
         }
 
         public ResultadoLevantamento Processar(
-             MetadadosCenario metadadosAtuais, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos)
-            {
+            MetadadosCenario metadadosAtuais, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos)
+        {
             if (metadadosAtuais == null)
             {
                 throw new DadosInsuficientesException("Dados Inciais não foram prrenchidos.");
             }
 
-            
-
             var resultado = new ResultadoLevantamento();
 
-
             double azimuteInicial = metadadosAtuais.UsarCoordenadaRe
-                ? _calculoService.CalcularAzimutePorCoordenadas(metadadosAtuais.PartidaX, metadadosAtuais.PartidaY, metadadosAtuais.ReX, metadadosAtuais.ReY)
+                ? GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(metadadosAtuais.PartidaX, metadadosAtuais.PartidaY, metadadosAtuais.ReX, metadadosAtuais.ReY)
                 : metadadosAtuais.AzimutePartida;
 
             string nomePontoIncial = todasEstacoes.FirstOrDefault()?.Nome ?? "Partida";
@@ -128,22 +121,24 @@ namespace TopoGente.Core.Services
             var leiturasRe = todasLeituras.Where(l => l.Tipo == TipoLeitura.Re).ToList();
             var leiturasIrradiadas = todasLeituras.Where(l => l.Tipo == TipoLeitura.Irradiacao).ToList();
 
-
             double perimetro = 0;
             if (poligonalBruta != null && poligonalBruta.Count > 1)
             {
                 foreach (var leitura in leiturasPoligonal)
                 {
-                    perimetro += _calculoService.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                    perimetro += GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
                 }
             }
             resultado.Perimetro = perimetro;
 
             double anguloFechamento = 0;
 
-            switch (metadadosAtuais.TipoCenario)
+            var strategyFactory = _compensacaoStrategyFactory;
+
+            var roteiros = new Dictionary<TipoCenarioPoligonal, Action>
             {
-                case TipoCenarioPoligonal.Fechada:
+                [TipoCenarioPoligonal.Fechada] = () =>
+                {
                     resultado.PoligonalFechada = true;
                     resultado.TipoCenario = TipoCenarioPoligonal.Fechada;
 
@@ -153,25 +148,44 @@ namespace TopoGente.Core.Services
                     var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstcaoInicial);
 
                     if (reInicial == null)
+                    {
                         throw new DadosInsuficientesException($"Poligonal fechada exige leitura de Ré inicial na estação '{PontoPartida.Nome}'.");
+                    }
 
                     string nomePontoReInicial = reInicial.PontoVisado;
-                    var leituraFechamento = leiturasRe.Where(r => r.EstacaoOcupada == nomeEstcaoInicial && r.PontoVisado.Equals(nomePontoReInicial, StringComparison.OrdinalIgnoreCase)).LastOrDefault();
+                    var leituraFechamento = leiturasRe
+                        .Where(r => r.EstacaoOcupada == nomeEstcaoInicial && r.PontoVisado.Equals(nomePontoReInicial, StringComparison.OrdinalIgnoreCase))
+                        .LastOrDefault();
 
                     anguloFechamento = leituraFechamento?.AnguloHorizontal ?? 0;
 
-                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, PontoPartida, PontoPartida.AzimuteChegada, PontoPartida.AzimuteChegada,
-                        leiturasPoligonal, poligonalBruta, metadadosAtuais.TipoCenario, anguloFechamento, out double ea, out double erroX, out double erroY, out double erroLinearT, out double precisaoRelativa, out double erroAltimetrico,
-                        out bool aprovado, out string alerta);
+                    var entrada = new CompensacaoPoligonalInputDTO
+                    {
+                        PontoPartida = PontoPartida,
+                        PontoChegada = PontoPartida,
+                        AzimuteInicial = PontoPartida.AzimuteChegada,
+                        AzimuteChegada = PontoPartida.AzimuteChegada,
+                        AnguloFechamento = anguloFechamento,
+                        Leituras = leiturasPoligonal,
+                        PoligonalBruta = poligonalBruta
+                    };
 
-                    resultado.AprovadoNorma = aprovado;
-                    if(!aprovado) resultado.Alertas.Add(alerta);
+                    var estrategia = strategyFactory.Criar(TipoCenarioPoligonal.Fechada);
+                    var compensacao = estrategia.Compensar(entrada);
 
-                    resultado.ErroAngular = ea; resultado.ErroLinear = erroLinearT; resultado.Precisao = precisaoRelativa;
-                    resultado.ErroFechamentoX = erroX; resultado.ErroFechamentoY = erroY; resultado.ErroFechamentoZ = erroAltimetrico;
-                    break;
+                    resultado.Poligonal = compensacao.PoligonalCompensada;
+                    resultado.AprovadoNorma = compensacao.AprovadoNorma;
+                    if (!compensacao.AprovadoNorma) resultado.Alertas.Add(compensacao.AlertaReprovacao);
 
-                case TipoCenarioPoligonal.Enquadrada:
+                    resultado.ErroAngular = compensacao.ErroAngular;
+                    resultado.ErroLinear = compensacao.ErroLinearTotal;
+                    resultado.Precisao = compensacao.PrecisaoRelativa;
+                    resultado.ErroFechamentoX = compensacao.ErroX;
+                    resultado.ErroFechamentoY = compensacao.ErroY;
+                    resultado.ErroFechamentoZ = compensacao.ErroAltimetrico;
+                },
+                [TipoCenarioPoligonal.Enquadrada] = () =>
+                {
                     resultado.TipoCenario = TipoCenarioPoligonal.Enquadrada;
                     resultado.PoligonalFechada = true;
 
@@ -186,43 +200,47 @@ namespace TopoGente.Core.Services
                     var ultimaLeituraReferencia = leiturasRe.LastOrDefault();
                     if (ultimaLeituraReferencia != null) anguloFechamento = ultimaLeituraReferencia.AnguloHorizontal;
 
-                    resultado.Poligonal = _calculoService.CompensarPoligonal(PontoPartida, pontoChegadaConhecido, PontoPartida.AzimuteChegada, metadadosAtuais.AzimuteChegada, leiturasPoligonal, poligonalBruta,
-                        metadadosAtuais.TipoCenario, anguloFechamento, out double eaEnq, out double erroXEnq, out double erroYEnq, out double erroLinearEnq, out double precisaoRelativaEnq, out double erroAltimetricoEnq,
-                        out bool aprovadoEnq, out string alertaEnq);
+                    var entrada = new CompensacaoPoligonalInputDTO
+                    {
+                        PontoPartida = PontoPartida,
+                        PontoChegada = pontoChegadaConhecido,
+                        AzimuteInicial = PontoPartida.AzimuteChegada,
+                        AzimuteChegada = metadadosAtuais.AzimuteChegada,
+                        AnguloFechamento = anguloFechamento,
+                        Leituras = leiturasPoligonal,
+                        PoligonalBruta = poligonalBruta
+                    };
 
-                    resultado.ErroAngular = eaEnq; resultado.ErroFechamentoX = erroXEnq; resultado.ErroFechamentoY = erroYEnq;
-                    resultado.ErroLinear = erroLinearEnq; resultado.ErroFechamentoZ = erroAltimetricoEnq; resultado.Precisao = precisaoRelativaEnq;
-                    resultado.AprovadoNorma = aprovadoEnq;
-                    if (!aprovadoEnq) resultado.Alertas.Add(alertaEnq);
-                    break;
+                    var estrategia = strategyFactory.Criar(TipoCenarioPoligonal.Enquadrada);
+                    var compensacao = estrategia.Compensar(entrada);
 
-                case TipoCenarioPoligonal.AbertaOrientada:
+                    resultado.Poligonal = compensacao.PoligonalCompensada;
+                    resultado.ErroAngular = compensacao.ErroAngular;
+                    resultado.ErroFechamentoX = compensacao.ErroX;
+                    resultado.ErroFechamentoY = compensacao.ErroY;
+                    resultado.ErroLinear = compensacao.ErroLinearTotal;
+                    resultado.ErroFechamentoZ = compensacao.ErroAltimetrico;
+                    resultado.Precisao = compensacao.PrecisaoRelativa;
+
+                    resultado.AprovadoNorma = compensacao.AprovadoNorma;
+                    if (!compensacao.AprovadoNorma) resultado.Alertas.Add(compensacao.AlertaReprovacao);
+                },
+                [TipoCenarioPoligonal.AbertaOrientada] = () =>
+                {
                     resultado.TipoCenario = TipoCenarioPoligonal.AbertaOrientada;
                     resultado.PoligonalFechada = false;
                     ProcessarAberta(resultado, poligonalBruta);
-                    break;
-            }
+                }
+            };
+
+            roteiros[metadadosAtuais.TipoCenario]();
 
             OrquestrarCalculoIrradiacoes(resultado, todasEstacoes, pontosConhecidos, azimuteInicial);
 
             return resultado;
-
         }
 
-        private void OrquestrarCalculoIrradiacoes(ResultadoLevantamento resultado , List<Estacao> todasEstacoes,Dictionary<string,PontoCoordenada>? pontosConhecidos, double azimuteInicial)
-        {
-            var visitante = new CalculoIrradiacaoVisitor(resultado.Poligonal,pontosConhecidos,azimuteInicial,_calculoService);
-
-            foreach (var estacao in todasEstacoes)
-            {
-                estacao.Accept(visitante);
-            }
-
-            resultado.Irradiacoes = visitante.IrradiacoesCalculadas;
-        }
-
-
-        public bool ProcessarFechada(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta, PontoCoordenada pontoPartida, double perimetro)
+        private bool ProcessarFechada(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta, PontoCoordenada pontoPartida, double perimetro)
         {
             if (poligonalBruta.Count <= 1) return false;
             var pontoChegada = poligonalBruta.Last();
@@ -236,20 +254,17 @@ namespace TopoGente.Core.Services
 
             bool fechou = fechouPorNome || fechouPorCoordenada;
 
-            // Calcular erros brutos (antes de compensar)
-            var erros = _calculoService.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
+            var erros = GeometriaTopograficaHelper.CalcularErroFechamento(pontoChegada, pontoPartida, perimetro);
 
             System.Diagnostics.Debug.WriteLine(
                 $"[Fechamento Bruto] fx={erros.erroX:F4} fy={erros.erroY:F4} fz={pontoChegada.Z - pontoPartida.Z:F4} " +
                 $"fLinearXY={erros.erroLinearTotal:F4} precisao={erros.precisaoRelativa:F4} " +
                 $"fechou={fechou} (nome={fechouPorNome}, coord={fechouPorCoordenada}, dist={distanciaFechamento:F4})");
 
-
             return fechou;
-
         }
 
-        public void ProcessarAberta(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta)
+        private void ProcessarAberta(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta)
         {
             resultado.Poligonal = poligonalBruta;
             resultado.ErroFechamentoX = 0;
@@ -259,50 +274,18 @@ namespace TopoGente.Core.Services
             resultado.PrecisaoBruta = 0;
             resultado.ErroLinear = 0;
             resultado.Precisao = 0;
-
         }
 
-
-
-        private double ResolverAzimuteOrientacao(
-            PontoCoordenada estacao,
-            List<LeituraEstacaoTotal> leiturasRe,
-            List<PontoCoordenada> poligonal,
-            Dictionary<string, PontoCoordenada>? pontosConhecidos,
-            double azimuteInicial)
+        private void OrquestrarCalculoIrradiacoes(ResultadoLevantamento resultado, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos, double azimuteInicial)
         {
-            var leituraRe = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == estacao.Nome);
-            if (leituraRe != null)
+            var visitante = new CalculoIrradiacaoVisitor(resultado.Poligonal, pontosConhecidos, azimuteInicial);
+
+            foreach (var estacao in todasEstacoes)
             {
-                PontoCoordenada? pontoReCoord = null;
-
-                if (pontosConhecidos != null && pontosConhecidos.TryGetValue(leituraRe.PontoVisado, out var pk))
-                {
-                    pontoReCoord = pk;
-                }
-                else
-                {
-                    // ponto na poligonal
-                    pontoReCoord = poligonal.FirstOrDefault(p =>
-                    p.Nome.Equals(leituraRe.PontoVisado, StringComparison.OrdinalIgnoreCase));
-                }
-                if (pontoReCoord != null)
-                {
-                    return _calculoService.CalcularAzimutePorCoordenadas(
-                        estacao.X, estacao.Y,
-                        pontoReCoord.X, pontoReCoord.Y
-                    );
-                }
+                estacao.Accept(visitante);
             }
-            return estacao == poligonal.First()
-                            ? azimuteInicial
-                            : (estacao.AzimuteChegada < 180
-                                ? estacao.AzimuteChegada + 180
-                                : estacao.AzimuteChegada - 180);
-        }
 
-
-
+            resultado.Irradiacoes = visitante.IrradiacoesCalculadas;
+}
     }
-
 }

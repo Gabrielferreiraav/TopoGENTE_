@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
+using TopoGente.Core.Utilities;
 
 namespace TopoGente.Core.Services
 {
@@ -15,20 +16,18 @@ namespace TopoGente.Core.Services
 
         private readonly Dictionary<string, PontoCoordenada> _pontosCompensados;
         private readonly Dictionary<string, PontoCoordenada> _pontosConhecidos;
-        private readonly CalculoTopograficoService _mathService;
 
         public List<PontoCoordenada> IrradiacoesCalculadas { get; private set; } = new();
 
         public CalculoIrradiacaoVisitor(
             List<PontoCoordenada> poligonalCompensada,
             Dictionary<string, PontoCoordenada>? pontosConhecidos,
-            double azimuteInicial,
-            CalculoTopograficoService mathService)
+            double azimuteInicial)
         {
-            _pontosCompensados = poligonalCompensada.GroupBy(p => p.Nome,StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,g=> g.First(), StringComparer.OrdinalIgnoreCase);
+            _pontosCompensados = poligonalCompensada.GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
             _pontosConhecidos = pontosConhecidos ?? new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
             _azimuteInicial = azimuteInicial;
-            _mathService = mathService;
         }
 
         public void VisitarEstacao(Estacao estacao)
@@ -70,7 +69,7 @@ namespace TopoGente.Core.Services
 
             if (pontoRe != null)
             {
-                _azimuteReVigente = _mathService.CalcularAzimutePorCoordenadas(
+                _azimuteReVigente = GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(
                     _estacaoAtual!.X, _estacaoAtual.Y, pontoRe.X, pontoRe.Y);
             }
             else if (leitura.EstacaoOcupada.Equals(_pontosCompensados.Values.First().Nome, StringComparison.OrdinalIgnoreCase))
@@ -96,8 +95,7 @@ namespace TopoGente.Core.Services
                     : (_estacaoAtual.AzimuteChegada < 180 ? _estacaoAtual.AzimuteChegada + 180 : _estacaoAtual.AzimuteChegada - 180);
             }
 
-            // Invoca a matemática topográfica pura, sem estado
-            var pontoIrradiado = _mathService.CalcularPontoIrradiado(_estacaoAtual!, leitura, azReUsado);
+            var pontoIrradiado = GeometriaTopograficaHelper.CalcularPontoIrradiado(_estacaoAtual!, leitura, azReUsado);
             IrradiacoesCalculadas.Add(pontoIrradiado);
         }
     }

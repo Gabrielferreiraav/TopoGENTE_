@@ -3,18 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
+using TopoGente.Core.Utilities;
 
 namespace TopoGente.Core.Services
 {
     public sealed class QaCheckService : IQaCheckService
     {
-        private readonly CalculoTopograficoService _calculo;
-
-        public QaCheckService()
-        {
-            _calculo = new CalculoTopograficoService();
-        }
-
         public RelatorioQA GerarRelatorioQaChecks(
             List<Estacao> estacoesOrganizadas,
             ResultadoLevantamento resultado,
@@ -46,7 +40,7 @@ namespace TopoGente.Core.Services
                     : (pEstacao.AzimuteChegada < 180 ? pEstacao.AzimuteChegada + 180 : pEstacao.AzimuteChegada - 180);
 
                 var checks = estacao.Leituras
-                    .Where(l => string.Equals(l.Purpose,"check", StringComparison.OrdinalIgnoreCase))
+                    .Where(l => string.Equals(l.Purpose, "check", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 foreach (var check in checks)
@@ -64,7 +58,7 @@ namespace TopoGente.Core.Services
                         continue;
                     }
 
-                    var pObs = _calculo.CalcularPontoIrradiado(pEstacao, check, azimuteOrientacao);
+                    var pObs = GeometriaTopograficaHelper.CalcularPontoIrradiado(pEstacao, check, azimuteOrientacao);
 
                     var dx = pObs.X - pConhecido.X;
                     var dy = pObs.Y - pConhecido.Y;

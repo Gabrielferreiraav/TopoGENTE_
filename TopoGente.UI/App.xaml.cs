@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Services;
+using TopoGente.Core.Strategies;
 using TopoGente.Infrastructure.Adapters.Exportadores;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using TopoGente.Infrastructure.Adapters.Storage;
@@ -20,7 +21,8 @@ namespace TopoGente.UI
             IExportarTxtService exportarTxtService = new ExportarTxtService();
 
             IClassificadorGrafo classificador = new ClassificadorGrafo();
-            ILevantamentoProcessor processador = new LevantamentoProcessor(classificador);
+            var factory = new CompensacaoStrategyFactory();
+            ILevantamentoProcessor processador = new LevantamentoProcessor(classificador, factory);
             IOrganizarCaminhamento organizador = new OrganizarCaminhamento();
             IQaCheckService qaCheck = new QaCheckService();
 
