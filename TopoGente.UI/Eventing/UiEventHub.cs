@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Interfaces;
 
 namespace TopoGente.UI.Eventing
 {

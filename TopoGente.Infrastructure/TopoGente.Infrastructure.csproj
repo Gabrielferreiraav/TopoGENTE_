@@ -14,8 +14,4 @@
     <PackageReference Include="netDxf" Version="2023.11.10" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="Adapters.Leitores\ResultadoLeituraArquivo.cs" />
-  </ItemGroup>
-
 </Project>
