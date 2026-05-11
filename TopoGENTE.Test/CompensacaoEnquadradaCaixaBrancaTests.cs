@@ -5,7 +5,7 @@ using TopoGente.Core.Strategies;
 
 namespace TopoGente.Tests.CaixaBranca
 {
-    public sealed class CompensacaoEnquadradaCaixaBrancaTests
+    public sealed record CompensacaoEnquadradaCaixaBrancaTests
     {
         private static CompensacaoPoligonalInputDTO CriarEntradaBase()
         {
@@ -53,8 +53,8 @@ namespace TopoGente.Tests.CaixaBranca
         [Fact]
         public void CT01_Deve_Abortar_Quando_Leituras_Ausentes()
         {
-            var entrada = CriarEntradaBase();
-            entrada.Leituras = new List<LeituraEstacaoTotal>();
+            // O record permite a mutação não destrutiva do DTO imutável
+            var entrada = CriarEntradaBase() with { Leituras = new List<LeituraEstacaoTotal>() };
 
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
@@ -66,8 +66,11 @@ namespace TopoGente.Tests.CaixaBranca
         [Fact]
         public void CT02_Deve_Abortar_Quando_Coordenadas_Chegada_Ausentes()
         {
-            var entrada = CriarEntradaBase();
-            entrada.Metadados = new MetadadosCenario { NomeChegada = "E4" };
+            // Clona a entrada base, mas injeta metadados com propriedades nulas para romper o contrato
+            var entrada = CriarEntradaBase() with
+            {
+                Metadados = new MetadadosCenario { NomeChegada = "E4" }
+            };
 
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
@@ -79,8 +82,8 @@ namespace TopoGente.Tests.CaixaBranca
         [Fact]
         public void CT03_Deve_Abortar_Quando_Erro_Angular_Supera_Tolerancia()
         {
-            var entrada = CriarEntradaBase();
-            entrada.AzimuteChegada = 0.0;
+            // Clona o grafo base injetando a anomalia angular diretamente na inicialização
+            var entrada = CriarEntradaBase() with { AzimuteChegada = 0.0 };
 
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);

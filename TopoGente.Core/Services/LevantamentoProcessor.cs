@@ -36,20 +36,67 @@ namespace TopoGente.Core.Services
         }
 
 
-        // CLIENTE ORQUESTRADOR: Isola o controle do fluxo (Iterator + Visitor)
-        private List<PontoCoordenada> OrquestrarCalculoPoligonal(PontoCoordenada pontoPartida, double azimuteInicial, List<Estacao> todasEstacoes)
+        private static IReadOnlyList<string> ValidarSequenciaEstacoes(MetadadosCenario metadadosAtuais, List<Estacao> todasEstacoes)
         {
-            ITopografiaIterator iterator = new CaminhamentoPoligonalIterator(todasEstacoes, pontoPartida.Nome);
-
-            var visitante = new CalculoPoligonalVisitor(pontoPartida, azimuteInicial);
-
-            for (iterator.First(); !iterator.IsDone(); iterator.Next())
+            if (metadadosAtuais.SequenciaEstacoesSelecionadas == null)
             {
-                Estacao noAtual = iterator.CurrentItem();
-                noAtual.Accept(visitante);
+                throw new DadosInsuficientesException("Sequência de estações não foi informada.");
             }
 
-            return visitante.PontosCalculados;
+            var sequencia = metadadosAtuais.SequenciaEstacoesSelecionadas
+                .Where(nome => !string.IsNullOrWhiteSpace(nome))
+                .Select(nome => nome.Trim())
+                .ToList();
+
+            if (sequencia.Count == 0)
+            {
+                throw new DadosInsuficientesException("Sequência de estações não foi informada.");
+            }
+
+            var mapaEstacoes = new HashSet<string>(todasEstacoes.Select(e => e.Nome), StringComparer.OrdinalIgnoreCase);
+            if (sequencia.Any(nome => !mapaEstacoes.Contains(nome)))
+            {
+                throw new DadosInsuficientesException("A sequência informada contém estações não carregadas.");
+            }
+
+            var validadores = new Dictionary<TipoCenarioPoligonal, Action>
+            {
+                { TipoCenarioPoligonal.Fechada, () => ValidarSequenciaFechada(sequencia[0], sequencia[^1]) },
+                { TipoCenarioPoligonal.Enquadrada, () => ValidarSequenciaEnquadrada(sequencia[0], sequencia[^1], metadadosAtuais) }
+            };
+
+            if (validadores.TryGetValue(metadadosAtuais.TipoCenario, out var validar))
+            {
+                validar();
+            }
+
+            return sequencia;
+        }
+
+        private static void ValidarSequenciaFechada(string primeira, string ultima)
+        {
+            if (!string.Equals(primeira, ultima, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DadosInsuficientesException("Poligonal Fechada exige que a estação de partida seja a mesma de fechamento");
+            }
+        }
+
+        private static void ValidarSequenciaEnquadrada(string primeira, string ultima, MetadadosCenario metadadosAtuais)
+        {
+            if (string.Equals(primeira, ultima, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DadosInsuficientesException("Poligonal Enquadrada exige que a estação de partida seja diferente da estação de chegada.");
+            }
+
+            if (metadadosAtuais.ChegadaX is null || metadadosAtuais.ChegadaY is null || metadadosAtuais.ChegadaZ is null)
+            {
+                throw new DadosInsuficientesException("Poligonal enquadrada exige coordenadas conhecidas de chegada.");
+            }
+
+            if (string.IsNullOrWhiteSpace(metadadosAtuais.NomeChegada) || !string.Equals(metadadosAtuais.NomeChegada, ultima, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DadosInsuficientesException("Poligonal enquadrada exige que a estação final corresponda ao nome de chegada informado.");
+            }
         }
 
         public ResultadoLevantamento Processar(
@@ -62,11 +109,15 @@ namespace TopoGente.Core.Services
 
             var resultado = new ResultadoLevantamento();
 
+            var sequenciaEstacoes = ValidarSequenciaEstacoes(metadadosAtuais, todasEstacoes);
+
             double azimuteInicial = metadadosAtuais.UsarCoordenadaRe
                 ? GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(metadadosAtuais.PartidaX, metadadosAtuais.PartidaY, metadadosAtuais.ReX, metadadosAtuais.ReY)
                 : metadadosAtuais.AzimutePartida;
 
-            string nomePontoIncial = todasEstacoes.FirstOrDefault()?.Nome ?? "Partida";
+            string nomePontoIncial = sequenciaEstacoes.FirstOrDefault()
+                ?? todasEstacoes.FirstOrDefault()?.Nome
+                ?? "Partida";
 
             var pontoPartida = new PontoCoordenada
             {
@@ -79,8 +130,71 @@ namespace TopoGente.Core.Services
             };
 
             _classificadorGrafo.ClassificarArestasGrafo(todasEstacoes, metadadosAtuais);
+            var todasLeituras = todasEstacoes.SelectMany(e => e.Leituras).ToList();
+            var leiturasRe = todasLeituras.Where(l => l.Tipo == TipoLeitura.Re).ToList();
+            var leiturasIrradiadas = todasLeituras.Where(l => l.Tipo == TipoLeitura.Irradiacao).ToList();
 
-            var poligonalBruta = OrquestrarCalculoPoligonal(pontoPartida, azimuteInicial, todasEstacoes);
+            // NÓ PREDICADO: Extração ordenada restrita à topologia do engenheiro (Garantia do Iterator GoF)
+            var leiturasPoligonal = new List<LeituraEstacaoTotal>();
+            for (int i = 0; i < sequenciaEstacoes.Count - 1; i++)
+            {
+                string estacaoDe = sequenciaEstacoes[i];
+                string estacaoPara = sequenciaEstacoes[i + 1];
+
+                var estacaoOrigem = todasEstacoes.FirstOrDefault(e => string.Equals(e.Nome, estacaoDe, StringComparison.OrdinalIgnoreCase));
+                var leituraAlvo = estacaoOrigem?.Leituras.FirstOrDefault(l =>
+                    l.Tipo == TipoLeitura.Poligonal &&
+                    string.Equals(l.PontoVisado, estacaoPara, StringComparison.OrdinalIgnoreCase));
+
+                if (leituraAlvo != null)
+                {
+                    leiturasPoligonal.Add(leituraAlvo);
+                }
+                else
+                {
+                    throw new DadosInsuficientesException($"Ruptura Topológica: Não há visada registrada de '{estacaoDe}' para '{estacaoPara}'. Verifique a caderneta.");
+                }
+            }
+
+            var poligonalBruta = new List<PontoCoordenada>
+            {
+                new PontoCoordenada
+                {
+                    Nome = pontoPartida.Nome,
+                    X = pontoPartida.X,
+                    Y = pontoPartida.Y,
+                    Z = pontoPartida.Z,
+                    EhPontoPoligonal = true,
+                    AzimuteChegada = pontoPartida.AzimuteChegada
+                }
+            };
+
+            double azimuteVigente = pontoPartida.AzimuteChegada;
+
+            foreach (var leitura in leiturasPoligonal)
+            {
+                double dh = GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                double dn = GeometriaTopograficaHelper.CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical, leitura.AlturaInstrumento, leitura.AlturaPrisma);
+
+                azimuteVigente = GeometriaTopograficaHelper.Normalizar360(azimuteVigente + leitura.AnguloHorizontal);
+
+                var (dx, dy) = GeometriaTopograficaHelper.CalcularProjecao(dh, azimuteVigente);
+
+                var pontoAnterior = poligonalBruta[^1];
+                var novoPonto = new PontoCoordenada
+                {
+                    Nome = leitura.PontoVisado,
+                    X = pontoAnterior.X + dx,
+                    Y = pontoAnterior.Y + dy,
+                    Z = pontoAnterior.Z + dn,
+                    EhPontoPoligonal = true,
+                    AzimuteChegada = azimuteVigente
+                };
+
+                poligonalBruta.Add(novoPonto);
+                azimuteVigente = GeometriaTopograficaHelper.Normalizar360(azimuteVigente + 180);
+            }
+
             resultado.PoligonalBruta = poligonalBruta;
 
             double minX = poligonalBruta.Min(p => p.X);
@@ -106,11 +220,6 @@ namespace TopoGente.Core.Services
                 $"é estritamente necessário utilizar cálculos e reduções geodésicas."
     );
             }
-
-            var todasLeituras = todasEstacoes.SelectMany(e => e.Leituras).ToList();
-            var leiturasPoligonal = todasLeituras.Where(l => l.Tipo == TipoLeitura.Poligonal).ToList();
-            var leiturasRe = todasLeituras.Where(l => l.Tipo == TipoLeitura.Re).ToList();
-            var leiturasIrradiadas = todasLeituras.Where(l => l.Tipo == TipoLeitura.Irradiacao).ToList();
 
             double perimetro = 0;
             if (poligonalBruta != null && poligonalBruta.Count > 1)

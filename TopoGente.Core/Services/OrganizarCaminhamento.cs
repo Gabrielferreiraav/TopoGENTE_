@@ -84,20 +84,21 @@ namespace TopoGente.Core.Services
     {
         private readonly List<Estacao> _todasEstacoes;
         private readonly string _nomeEstacaoPartida;
-        private Estacao _estacaoAtual;
-        private HashSet<string> _estacoesVisitadas;
+        private readonly IReadOnlyList<string> _sequenciaEstacoes;
+        private Estacao? _estacaoAtual;
+        private int _indiceSequencia;
 
-        public CaminhamentoPoligonalIterator(List<Estacao> todasEstacoes, string nomeEstacaoPartida)
+        public CaminhamentoPoligonalIterator(List<Estacao> todasEstacoes, string nomeEstacaoPartida, IReadOnlyList<string> sequenciaEstacoes)
         {
             _todasEstacoes = todasEstacoes;
             _nomeEstacaoPartida = nomeEstacaoPartida;
-            _estacoesVisitadas = new HashSet<string>();
+            _sequenciaEstacoes = sequenciaEstacoes;
         }
 
         public void First()
         {
-            _estacoesVisitadas.Clear();
-            _estacaoAtual = _todasEstacoes.FirstOrDefault(e => e.Nome.Equals(_nomeEstacaoPartida, StringComparison.InvariantCultureIgnoreCase));
+            _indiceSequencia = 0;
+            _estacaoAtual = ObterEstacaoAtual();
         }
 
         public void Next()
@@ -107,23 +108,8 @@ namespace TopoGente.Core.Services
                 return;
             }
 
-            _estacoesVisitadas.Add(_estacaoAtual.Nome.ToUpper());
-
-            var leituraVante = _estacaoAtual.Leituras
-                .FirstOrDefault(l => l.Tipo == TipoLeitura.Poligonal);
-
-            if (leituraVante != null && !_estacoesVisitadas.Contains(leituraVante.PontoVisado.ToUpper()))
-            {
-                // Pula para o próximo nó do grafo
-                _estacaoAtual = _todasEstacoes.FirstOrDefault(e =>
-                    e.Nome.Equals(leituraVante.PontoVisado, StringComparison.InvariantCultureIgnoreCase));
-
-            }
-            else
-            {
-                _estacaoAtual = null; // Fim do caminho
-
-            }
+            _indiceSequencia++;
+            _estacaoAtual = ObterEstacaoAtual();
         }
 
         public bool IsDone()=> _estacaoAtual == null;
@@ -136,6 +122,22 @@ namespace TopoGente.Core.Services
                 
             }
             return _estacaoAtual;
+        }
+
+        private Estacao? ObterEstacaoAtual()
+        {
+            if (_sequenciaEstacoes == null || _sequenciaEstacoes.Count == 0)
+            {
+                return _todasEstacoes.FirstOrDefault(e => e.Nome.Equals(_nomeEstacaoPartida, StringComparison.InvariantCultureIgnoreCase));
+            }
+
+            if (_indiceSequencia >= _sequenciaEstacoes.Count)
+            {
+                return null;
+            }
+
+            var nomeEstacao = _sequenciaEstacoes[_indiceSequencia];
+            return _todasEstacoes.FirstOrDefault(e => e.Nome.Equals(nomeEstacao, StringComparison.InvariantCultureIgnoreCase));
         }
     }
 }

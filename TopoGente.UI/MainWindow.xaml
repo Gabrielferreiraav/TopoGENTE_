@@ -13,6 +13,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <GroupBox Header="Metadados de Partida" Grid.Row="0" Padding="10" Margin="0,0,0,10">
@@ -163,7 +164,41 @@
             </StackPanel>
         </GroupBox>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
+        <Grid Grid.Row="1" Margin="0,0,0,10" Background="#F7F9FC">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Header="Estações Carregadas" Margin="5" Padding="6">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <ListBox x:Name="lstEstacoesDisponiveis" Grid.Row="0" MinHeight="120"/>
+                    <Button x:Name="btnAdicionarSequencia" Grid.Row="1" Content="Adicionar →" Margin="0,6,0,0" Width="120" HorizontalAlignment="Left" Click="btnAdicionarSequencia_Click"/>
+                </Grid>
+            </GroupBox>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6">
+                <Button x:Name="btnSubirSequencia" Content="▲" Width="36" Height="30" Margin="0,0,0,8" Click="btnSubirSequencia_Click"/>
+                <Button x:Name="btnDescerSequencia" Content="▼" Width="36" Height="30" Margin="0,0,0,8" Click="btnDescerSequencia_Click"/>
+                <Button x:Name="btnRemoverSequencia" Content="×" Width="36" Height="30" Click="btnRemoverSequencia_Click"/>
+            </StackPanel>
+
+            <GroupBox Header="Sequência (O 1º Item é a Partida)" Grid.Column="2" Margin="5" Padding="6">
+                <StackPanel>
+                    <ListBox x:Name="lstSequenciaPoligonal" MinHeight="120"/>
+                    <TextBlock Text="Atenção: Em poligonais fechadas, repita a estação de partida no final da lista."
+                               FontStyle="Italic" FontSize="11" Margin="0,6,0,0"/>
+                </StackPanel>
+            </GroupBox>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
             <TextBlock Text="Formato : " VerticalAlignment="Center" Margin="5,0"/>
             <ComboBox x:Name="cmbFormatoArquivo" Width="160" Height="25" Margin="5,0" SelectedIndex="0">
                 <ComboBoxItem Content=" Csv/txt"/>
@@ -172,6 +207,10 @@
                     Width="130" Height="25" Click="btnCarregarArquivo_Click" FontWeight="SemiBold" Margin="5,0"/>
             <Button x:Name="btnProcessar" Content="⚙️ CALCULAR" 
                     Width="120" Height="25" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold" Background="#DDFFDD"/>
+            <Button x:Name="btnExibirCaderneta" Content="Ver Caderneta"
+                    Width="120" Height="25" Margin="5,0" FontWeight="SemiBold" Click="btnExibirCaderneta_Click"/>
+            <Button x:Name="btnExibirGrafico" Content="Ver Gráfico"
+                    Width="110" Height="25" Margin="5,0" FontWeight="SemiBold" Click="btnExibirGrafico_Click"/>
             <Button x:Name="bntExportarTxt" Content="Exportar Relatorio e Coord (TXT)" Width="220" Height="25"
                     Margin="5,0" FontWeight="SemiBold" Click="bntExportarTxt_Click"/>
         </StackPanel>

@@ -42,5 +42,7 @@ namespace TopoGente.Core.Entities
         public string? NomeChegada { get; set; }
         public string? NomeReReferencia { get; set; }
 
+        public List<string> SequenciaEstacoesSelecionadas { get; set; } = new();
+
     }
 }

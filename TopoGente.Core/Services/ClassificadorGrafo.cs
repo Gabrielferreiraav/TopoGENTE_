@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
 
@@ -8,84 +8,62 @@ namespace TopoGente.Core.Services
 {
     public class ClassificadorGrafo : IClassificadorGrafo
     {
-        public void ClassificarArestasGrafo(
-            List<Estacao>todasEstacoes , MetadadosCenario metadados)
+        public void ClassificarArestasGrafo(List<Estacao> todasEstacoes, MetadadosCenario metadados)
         {
-            if (todasEstacoes == null || !todasEstacoes.Any()) return;
+            if (todasEstacoes == null || !todasEstacoes.Any() || metadados.SequenciaEstacoesSelecionadas == null) return;
 
+            // O Caminho principal é EXATAMENTE a sequência ditada pelo engenheiro via UI.
+            var sequencia = metadados.SequenciaEstacoesSelecionadas.Select(s => s.ToUpperInvariant()).ToList();
+            if (sequencia.Count == 0) return;
 
-            // Extrai uma lista cronológica de todos os nomes únicos dos pontos ocupados (Caminho Principal)
-            List<string> caminhoPrincipal = todasEstacoes.Select(e => e.Nome.ToUpper()).ToList(); // VERIFICAR SE É REALMENTE CRONOLOGICA, JA QUE O QUE DEFINIE A ORDEM É O ORDEM DE DAS LEITURAS, ENTÃO SE HOUVER ESTAÇÕES COM NOMES QUE NAO SEJAM CRONOLOGICOS EX: TEMOS UMA POLIGOANL CUJO  E0-> E2 -> E3 ->E1 -> E0 , ISSO PODE GERAR PROBLEMAS. ALÉM DISSO, SE HOUVER ESTAÇÕES REPETIDAS, ISSO TAMBÉM PODE GERAR PROBLEMAS. VER SE É NECESSÁRIO CRIAR UM CAMINHO PRINCIPAL BASEADO NAS ESTAÇÕES ÚNICAS E NA ORDEM DE OCUPAÇÃO.)
+            var arestasVante = new HashSet<string>();
+            var arestasRe = new HashSet<string>();
 
-            // Condicoes de contorno para o caminho principal
-            string? noRePartida = metadados.NomeRe?.ToUpperInvariant();
-            string? noChegada = metadados.NomeChegada?.ToUpperInvariant();
-            string? noReReferencia = metadados.NomeReReferencia?.ToUpperInvariant();
-
-            string estacaoInicial = caminhoPrincipal.First();
-            estacaoInicial = estacaoInicial.ToUpperInvariant();
-
-            // Navegacao e classificacao das arestas
-            for (int i = 0; i < todasEstacoes.Count; i++)
+            // NÓ PREDICADO: Construção do direcionamento topológico
+            for (int i = 0; i < sequencia.Count - 1; i++)
             {
-                string estacaoAtual = caminhoPrincipal[i];
-                string? estacaoAnterior =  null;
-                if (i > 0)
-                {
-                    estacaoAnterior = caminhoPrincipal[i - 1];
-                }else if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada && i == 0)
-                {
-                    estacaoAnterior = caminhoPrincipal.Last();
-                }
+                string de = sequencia[i];
+                string para = sequencia[i + 1];
+                arestasVante.Add($"{de}->{para}");
+                arestasRe.Add($"{para}->{de}"); // Mapeamento reverso para trânsito de Ré
+            }
 
+            string? nomeReReferencia = metadados.NomeRe?.ToUpperInvariant();
+            string? nomeChegada = metadados.NomeChegada?.ToUpperInvariant();
 
-                string? estacaoProxima = i < caminhoPrincipal.Count - 1 ? caminhoPrincipal[i + 1] : null;
+            foreach (var estacao in todasEstacoes)
+            {
+                string estacaoOcupada = estacao.Nome.ToUpperInvariant();
 
-                foreach (var leitura in todasEstacoes[i].Leituras)
+                foreach (var leitura in estacao.Leituras)
                 {
                     string pontoVisado = leitura.PontoVisado.ToUpperInvariant();
 
-                    System.Diagnostics.Debug.WriteLine($"[ClassificadorGrafo] Analisando Estação: {estacaoAtual} -> Visada: {leitura.PontoVisado}");
-                    System.Diagnostics.Debug.WriteLine($"   - Estacao Anterior: {estacaoAnterior ?? "NULL"}");
-                    System.Diagnostics.Debug.WriteLine($"   - noRePartida fornecido pelos Metadados: {noRePartida ?? "NULL"}");
-
-                    // REGRA 1: Dedução de RÉ (Backsight)
-                    // É o nó anterior no caminhamento OU a referência externa de partida
-                    if (pontoVisado == estacaoAnterior || pontoVisado == noRePartida || pontoVisado == noReReferencia)
+                    // 1. Verificação Estrita de Ré
+                    if (pontoVisado == nomeReReferencia || arestasRe.Contains($"{estacaoOcupada}->{pontoVisado}"))
                     {
                         leitura.Tipo = TipoLeitura.Re;
                         continue;
                     }
 
-                    // REGRA 2: Dedução de VANTE DE TRANSMISSÃO (Poligonal padrão)
-                    // É cronologicamente a próxima estação a ser ocupada
-                    if (pontoVisado == estacaoProxima)
+                    // 2. Verificação Estrita de Vante (Poligonal)
+                    if (arestasVante.Contains($"{estacaoOcupada}->{pontoVisado}"))
                     {
                         leitura.Tipo = TipoLeitura.Poligonal;
                         continue;
                     }
 
-                    if (metadados.TipoCenario == TipoCenarioPoligonal.Fechada &&
-                    i == caminhoPrincipal.Count - 1 &&
-                    pontoVisado == estacaoInicial)
+                    // 2.1 Ancoragem Final para Cenários Enquadrados
+                    if (metadados.TipoCenario == TipoCenarioPoligonal.Enquadrada && pontoVisado == nomeChegada)
                     {
-                            leitura.Tipo = TipoLeitura.Poligonal;
-                            continue;
-                    } 
-                    if (metadados.TipoCenario == TipoCenarioPoligonal.Enquadrada && pontoVisado == noChegada)
-                    {
-
-                            leitura.Tipo = TipoLeitura.Poligonal;
-                            continue;
-
+                        leitura.Tipo = TipoLeitura.Poligonal;
+                        continue;
                     }
 
+                    // 3. Degradação para Irradiação (Isolamento de Erros)
                     leitura.Tipo = TipoLeitura.Irradiacao;
-
                 }
             }
-
-
         }
     }
 }

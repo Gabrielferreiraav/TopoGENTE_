@@ -1,5 +1,6 @@
 ﻿using MahApps.Metro.Controls;
 using Microsoft.Win32;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -53,6 +54,8 @@ namespace TopoGente.UI
             _projetoService = projetoService;
             _classificadorGrafo = classificadorGrafo;
             _uiEventHub = uiEventHub;
+
+            AtualizarListaEstacoes();
         }
 
         private static FormatoArquivoEntrada ObterFormatoEntrada(ComboBox cmbFormatoArquivo)
@@ -83,6 +86,7 @@ namespace TopoGente.UI
 
                     var estacoesBrutas = _leitorService.ProcessarArquivo(formato, linhas);
                     _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
+                    AtualizarListaEstacoes();
 
                     if (_estacoesEmMemoria.Count > 0)
                     {
@@ -260,7 +264,8 @@ namespace TopoGente.UI
                 ReY = usarRe ? LerDoubleUi(txtReY.Text, "Y (Ré)") : 0,
                 ReZ = usarRe ? LerDoubleUi(txtReZ.Text, "Z (Ré)") : 0,
                 AzimuteChegada = null,
-                NomeRe = txtNomeRe.Text.Trim()
+                NomeRe = txtNomeRe.Text.Trim(),
+                SequenciaEstacoesSelecionadas = ColetarSequenciaSelecionada()
             };
 
             if (cenario == TipoCenarioPoligonal.Enquadrada)
@@ -275,6 +280,15 @@ namespace TopoGente.UI
             return meta;
         }
 
+        private List<string> ColetarSequenciaSelecionada()
+        {
+            return lstSequenciaPoligonal.Items
+                .OfType<string>()
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .ToList();
+        }
+
         private void btnProcessar_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -286,6 +300,12 @@ namespace TopoGente.UI
                 }
 
                 _metadadosAtuais = ColetarMetadadosDaUI();
+
+                if (_metadadosAtuais.SequenciaEstacoesSelecionadas.Count == 0)
+                {
+                    MessageBox.Show("Selecione a sequência de estações da poligonal antes de calcular.", "Pré-condição Falhou", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
 
                 var pontosConhecidos = _estacoesEmMemoria
                     .Where(e => e.CoordenadaConhecida != null)
@@ -308,20 +328,6 @@ namespace TopoGente.UI
                 _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, _metadadosAtuais);
 
                 var leiturasClassificadas = _estacoesEmMemoria.SelectMany(e => e.Leituras).ToList();
-
-                if (!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Re))
-                {
-                    MessageBox.Show("Bloqueio Topológico: O motor não detectou nenhuma visada de Ré. Verifique se o 'Nome da Ré' digitado na interface corresponde ao ponto visado na primeira estação da caderneta.",
-                    "Pré-condição Falhou", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                if (!leiturasClassificadas.Any(l => l.Tipo == TipoLeitura.Poligonal))
-                {
-                    MessageBox.Show("Bloqueio Topológico: Nenhuma aresta de Vante (Poligonal) foi identificada para dar seguimento ao caminhamento.",
-                    "Pré-condição Falhou", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
 
                 foreach (var leitura in leiturasClassificadas.Where(l => l.Tipo == TipoLeitura.Poligonal || l.Tipo == TipoLeitura.Re))
                 {
@@ -457,6 +463,15 @@ namespace TopoGente.UI
                 MessageBoxImage.Warning);
         }
 
+        private void AtualizarListaEstacoes()
+        {
+            lstEstacoesDisponiveis.ItemsSource = _estacoesEmMemoria
+                .Select(e => e.Nome)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(nome => nome)
+                .ToList();
+        }
+
         private void RestaurarMetadadosNaUI(MetadadosCenario? meta)
         {
             if (meta == null) return;
@@ -492,6 +507,74 @@ namespace TopoGente.UI
                 txtChegadaY.Text = meta.ChegadaY?.ToString("F3") ?? "0.0";
                 txtChegadaZ.Text = meta.ChegadaZ?.ToString("F3") ?? "0.0";
             }
+        }
+
+        private void btnExibirCaderneta_Click(object sender, RoutedEventArgs e)
+        {
+            var window = Application.Current.Windows.OfType<CadernetaWindow>().FirstOrDefault();
+            if (window != null)
+            {
+                window.Show();
+                window.Activate();
+            }
+        }
+
+        private void btnExibirGrafico_Click(object sender, RoutedEventArgs e)
+        {
+            var window = Application.Current.Windows.OfType<VisualizacaoWindow>().FirstOrDefault();
+            if (window != null)
+            {
+                window.Show();
+                window.Activate();
+            }
+        }
+
+        private void btnAdicionarSequencia_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstEstacoesDisponiveis.SelectedItem is not string selecionada)
+            {
+                return;
+            }
+
+            lstSequenciaPoligonal.Items.Add(selecionada);
+        }
+
+        private void btnRemoverSequencia_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstSequenciaPoligonal.SelectedItem is not string selecionada)
+            {
+                return;
+            }
+
+            lstSequenciaPoligonal.Items.Remove(selecionada);
+        }
+
+        private void btnSubirSequencia_Click(object sender, RoutedEventArgs e)
+        {
+            var indice = lstSequenciaPoligonal.SelectedIndex;
+            if (indice <= 0)
+            {
+                return;
+            }
+
+            var item = lstSequenciaPoligonal.Items[indice];
+            lstSequenciaPoligonal.Items.RemoveAt(indice);
+            lstSequenciaPoligonal.Items.Insert(indice - 1, item);
+            lstSequenciaPoligonal.SelectedIndex = indice - 1;
+        }
+
+        private void btnDescerSequencia_Click(object sender, RoutedEventArgs e)
+        {
+            var indice = lstSequenciaPoligonal.SelectedIndex;
+            if (indice < 0 || indice >= lstSequenciaPoligonal.Items.Count - 1)
+            {
+                return;
+            }
+
+            var item = lstSequenciaPoligonal.Items[indice];
+            lstSequenciaPoligonal.Items.RemoveAt(indice);
+            lstSequenciaPoligonal.Items.Insert(indice + 1, item);
+            lstSequenciaPoligonal.SelectedIndex = indice + 1;
         }
     }
 }
