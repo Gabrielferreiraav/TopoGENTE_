@@ -1,0 +1,29 @@
+E1,1.500,E2,Vante,108°00'00",90°00'00",100.000,1.500,2
+E2,1.500,E3,Vante,108°00'00",90°00'00",100.000,1.500,2
+E3,1.500,E4,Vante,108°00'00",90°00'00",100.000,1.500,2
+E4,1.500,E5,Vante,108°00'00",90°00'00",100.000,1.500,2
+E5,1.500,E1,Vante,108°00'00",90°00'00",100.000,1.500,2
+
+Cenário: Fechada
+Partida (X, Y, Z): 1000.000, 1000.000, 100.000
+Orientação (Azimute): 90.000
+Sequência Injetada na Lista: E2 → E3 → E4 → E5 → E1 → E2
+
+Cenário: Fechada
+Partida (X, Y, Z): 5000.000, 5000.000, 200.000
+Orientação (Azimute): 180.000
+Sequência Injetada na Lista: E4 → E5 → E1 → E2 → E3 → E4
+
+Cenário: Enquadrada (Apoiada)
+Partida (X, Y, Z): 1000,000, 1000.000, 100.000 | Azimute Inicial: 90.000
+Chegada (X, Y, Z): 1130,902, 904,894, 100.000
+Nome Chegada: E5
+Azimute Chegada: 234.000 
+Sequência Injetada na Lista: E2 → E3 → E4 → E5
+
+Cenário: Enquadrada (Apoiada)
+Partida (X, Y, Z): 3000.000, 3000.000, 150.000 | Azimute Inicial: 270.000
+Chegada (X, Y, Z): 2869,098, 3095,106, 150.000
+Nome Chegada: E1
+Azimute Chegada: 54.000 
+Sequência Injetada na Lista: E3 → E4 → E5 → E1
