@@ -465,11 +465,23 @@ namespace TopoGente.UI
 
         private void AtualizarListaEstacoes()
         {
-            lstEstacoesDisponiveis.ItemsSource = _estacoesEmMemoria
-                .Select(e => e.Nome)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(nome => nome)
+            // extrai os nomes das Estações Ocupadas 
+            var nomesOcupados = _estacoesEmMemoria.Select(e => e.Nome);
+
+            // extrai os nomes de todos os Pontos Visados na caderneta
+            var nomesVisados = _estacoesEmMemoria
+                .SelectMany(e => e.Leituras)
+                .Select(l => l.PontoVisado);
+
+            //  Realiza a união topológica 
+            var todosOsNosDoGrafo = nomesOcupados
+                .Union(nomesVisados)
+                .Where(nome => !string.IsNullOrWhiteSpace(nome))
+                .Distinct()
                 .ToList();
+
+            //ATRIBUIÇÃO NA UI
+            lstEstacoesDisponiveis.ItemsSource = todosOsNosDoGrafo;
         }
 
         private void RestaurarMetadadosNaUI(MetadadosCenario? meta)

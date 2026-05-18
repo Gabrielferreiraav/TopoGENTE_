@@ -9,7 +9,26 @@ namespace TopoGente.Core.Entities
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Nome { get; set; } = string.Empty;
-        public double AlturaInstrumento { get; set; }
+
+        private double _alturaInstrumento;
+
+        public double AlturaInstrumento
+        {
+            get => _alturaInstrumento;
+            set
+            {
+                _alturaInstrumento = value;
+
+                // Propagação do estado: A estação governa as leituras
+                if (Leituras != null)
+                {
+                    foreach (var leitura in Leituras)
+                    {
+                        leitura.AlturaInstrumento = value;
+                    }
+                }
+            }
+        }
 
         // O compilador sabe em tempo de execução que 'this' é uma Estação.
         // Ele despacha para o método VisitEstacao do Visitor.

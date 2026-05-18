@@ -24,7 +24,10 @@
                                   DisplayMemberPath="Nome"
                                   SelectionChanged="cmbEstacoes_SelectionChanged"/>
 
-                        <TextBlock x:Name="txtInfoEstacao" Text="Hi: -" VerticalAlignment="Center" Margin="15,0" Foreground="Gray"/>
+                        <TextBlock Text="HI (m):" VerticalAlignment="Center" FontWeight="Bold" Margin="15,0,5,0" Foreground="Gray"/>
+                        <TextBox x:Name="txtInfoEstacao"
+                                 Text="{Binding AlturaInstrumento, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}"
+                                 Width="80" Padding="2" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <DataGrid x:Name="gridCaderneta" Grid.Row="1" AutoGenerateColumns="False"

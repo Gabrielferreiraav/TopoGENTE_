@@ -52,8 +52,21 @@ namespace TopoGente.Core.Strategies
             int nEstacoes = entrada.Leituras.Count;
 
             double azimuteCalculadoFinal = poligonalBruta[^1].AzimuteChegada;
-            double azimuteReRetorno = GeometriaTopograficaHelper.Normalizar360(azimuteCalculadoFinal + 180);
-            double azimuteCalculadoChegada = GeometriaTopograficaHelper.Normalizar360(azimuteReRetorno + entrada.AnguloFechamento);
+            double azimuteCalculadoChegada;
+
+            // O Padrão Strategy avalia a topologia: Ocupação Física vs. Vante Cega
+            if (Math.Abs(entrada.AnguloFechamento) > 0.0001)
+            {
+                // Cenário de Ocupação: inverte a vante da aresta anterior para ré e soma o ângulo horário lido
+                double azimuteReRetorno = GeometriaTopograficaHelper.Normalizar360(azimuteCalculadoFinal + 180);
+                azimuteCalculadoChegada = GeometriaTopograficaHelper.Normalizar360(azimuteReRetorno + entrada.AnguloFechamento);
+            }
+            else
+            {
+                // Cenário Vante Cega O último vértice não foi ocupado. O azimute calculado de chegada é o próprio azimute da aresta final.
+                azimuteCalculadoChegada = azimuteCalculadoFinal;
+            }
+
             double erroAngular = GeometriaTopograficaHelper.NormalizarErroAngular(
                 azimuteCalculadoChegada - entrada.AzimuteChegada.GetValueOrDefault());
 

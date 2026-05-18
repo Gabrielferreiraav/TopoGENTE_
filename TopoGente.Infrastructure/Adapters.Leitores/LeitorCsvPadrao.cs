@@ -69,15 +69,40 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 }
             }
 
-            var estacoes = leiturasBrutas
-                .GroupBy(l => l.EstacaoOcupada)
-                .Select(grupo => new Estacao
+            var estacoes = new List<Estacao>();
+
+            Estacao? estacaoAtual = null;
+            string? nomeEstacaoAtual = null;
+            double? hiAtual = null;
+
+            foreach (var leitura in leiturasBrutas.OrderBy(l => l.OrdemArquivo))
+            {
+                var nomeOcupada = leitura.EstacaoOcupada?.Trim() ?? string.Empty;
+                var hiLeitura = leitura.AlturaInstrumento;
+
+                var quebraSessao =
+                    estacaoAtual == null ||
+                    !string.Equals(nomeOcupada, nomeEstacaoAtual, StringComparison.InvariantCultureIgnoreCase) ||
+                    hiAtual != hiLeitura;
+
+                if (quebraSessao)
                 {
-                    Nome = grupo.Key,
-                    AlturaInstrumento = grupo.First().AlturaInstrumento,
-                    Leituras = grupo.ToList()
-                })
-                .ToList();
+                    estacaoAtual = new Estacao
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Nome = nomeOcupada,
+                        AlturaInstrumento = hiLeitura,
+                        Leituras = new List<LeituraEstacaoTotal>()
+                    };
+
+                    estacoes.Add(estacaoAtual);
+                    nomeEstacaoAtual = nomeOcupada;
+                    hiAtual = hiLeitura;
+                }
+
+                leitura.SetupId = estacaoAtual!.Id;
+                estacaoAtual.Leituras.Add(leitura);
+            }
 
             return estacoes;
         }

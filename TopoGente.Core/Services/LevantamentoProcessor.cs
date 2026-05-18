@@ -54,9 +54,14 @@ namespace TopoGente.Core.Services
             }
 
             var mapaEstacoes = new HashSet<string>(todasEstacoes.Select(e => e.Nome), StringComparer.OrdinalIgnoreCase);
-            if (sequencia.Any(nome => !mapaEstacoes.Contains(nome)))
+
+            // A física geodésica exige tripé apenas nas origens das visadas
+            // O último nó da sequência é o alvo final e não exige classe Estacao instanciada
+            var estacoesDeOrigem = sequencia.Take(sequencia.Count - 1);
+
+            if (estacoesDeOrigem.Any(nome => !mapaEstacoes.Contains(nome)))
             {
-                throw new DadosInsuficientesException("A sequência informada contém estações não carregadas.");
+                throw new DadosInsuficientesException("A sequência informada contém estações de origem não carregadas na caderneta física.");
             }
 
             var validadores = new Dictionary<TipoCenarioPoligonal, Action>

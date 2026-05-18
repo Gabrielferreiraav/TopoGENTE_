@@ -15,12 +15,17 @@ namespace TopoGente.Core.Services
         /// </summary>
         public List<Estacao> UnificarEstacoes(List<Estacao> todasEstacoes)
         {
-            return todasEstacoes.GroupBy(e => e.Nome.ToUpper()).Select(g => new Estacao{
-                                                  Nome = g.First().Nome,
-                                                  AlturaInstrumento = g.First().AlturaInstrumento,
-                                                  CoordenadaConhecida = g.First().CoordenadaConhecida,
-                                                  Leituras = g.SelectMany(e => e.Leituras).ToList()
-                                              }).ToList();
+            return todasEstacoes
+                .GroupBy(e => new { Nome = e.Nome.ToUpper(), e.AlturaInstrumento })
+                .Select(g => new Estacao
+                {
+                    Id = g.First().Id,
+                    Nome = g.First().Nome,
+                    AlturaInstrumento = g.Key.AlturaInstrumento,
+                    CoordenadaConhecida = g.First().CoordenadaConhecida,
+                    Leituras = g.SelectMany(e => e.Leituras).ToList()
+                })
+                .ToList();
         }
 
         /// <summary>
@@ -32,7 +37,7 @@ namespace TopoGente.Core.Services
         public List<LeituraEstacaoTotal> OrganizarPorVante(List<Estacao> todasEstacoes, string nomeEstacaoPartida)
         {
             var leituraOrdenada = new List<LeituraEstacaoTotal>();
-            
+
             var estacoesUnicas = UnificarEstacoes(todasEstacoes);
 
             var estacaoAtual = estacoesUnicas.FirstOrDefault(e => e.Nome.Equals(nomeEstacaoPartida, StringComparison.InvariantCultureIgnoreCase));
@@ -48,12 +53,12 @@ namespace TopoGente.Core.Services
                     throw new ArgumentException($"A estação de partida '{nomeEstacaoPartida}' não foi encontrada na lista de estações.");
                 }
             }
-                
+
 
             var mapaEstacoes = estacoesUnicas.ToDictionary(e => e.Nome.ToUpper(), e => e);
             var estacoesVisitadas = new HashSet<string>();
 
-            while ( estacaoAtual != null)
+            while (estacaoAtual != null)
             {
                 if (estacoesVisitadas.Contains(estacaoAtual.Nome.ToUpper()))
                 {
@@ -67,8 +72,8 @@ namespace TopoGente.Core.Services
 
                 if (leituraVante != null && mapaEstacoes.ContainsKey(leituraVante.PontoVisado.ToUpper()))
                 {
-                    
-                        estacaoAtual = mapaEstacoes[leituraVante.PontoVisado.ToUpper()];
+
+                    estacaoAtual = mapaEstacoes[leituraVante.PontoVisado.ToUpper()];
                 }
                 else
                 {
@@ -112,14 +117,14 @@ namespace TopoGente.Core.Services
             _estacaoAtual = ObterEstacaoAtual();
         }
 
-        public bool IsDone()=> _estacaoAtual == null;
+        public bool IsDone() => _estacaoAtual == null;
 
         public Estacao CurrentItem()
         {
             if (IsDone())
             {
                 throw new InvalidOperationException("Iterador fora dos limites.");
-                
+
             }
             return _estacaoAtual;
         }

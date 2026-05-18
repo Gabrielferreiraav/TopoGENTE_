@@ -65,12 +65,13 @@ namespace TopoGente.UI
             if (cmbEstacoes.SelectedItem is Estacao estacaoSelecionada)
             {
                 gridCaderneta.ItemsSource = estacaoSelecionada.Leituras;
-                txtInfoEstacao.Text = $"Altura do Instrumento: {estacaoSelecionada.AlturaInstrumento:F3} m";
+                // Injeção do objeto passivo no campo de cabeçalho
+                txtInfoEstacao.DataContext = estacaoSelecionada;
             }
             else
             {
                 gridCaderneta.ItemsSource = null;
-                txtInfoEstacao.Text = "Hi: -";
+                txtInfoEstacao.DataContext = null;
             }
         }
 
