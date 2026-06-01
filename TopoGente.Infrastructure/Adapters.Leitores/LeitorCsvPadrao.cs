@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -28,8 +28,9 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 char separador = linha.Contains(";") ? ';' : ',';
                 var colunas = linha.Split(separador);
 
-                // Formato mínimo utilizado aqui:
-                // 0 EstacaoOcupada, 1 Hi, 2 PontoVisado, 3 Observacao, 4 AngH, 5 AngV(Zenite), 6 DI, 7 Hp
+                // Formato mínimo: 8 colunas obrigatórias. A coluna 8 (Tipo) é OPCIONAL.
+                // [0] EstacaoOcupada  [1] Hi  [2] PontoVisado  [3] Observacao
+                // [4] AngH           [5] AngV(Zenite)          [6] DI   [7] Hp   [8?] TipoExplicito
                 if (colunas.Length < 8) continue;
 
                 try
@@ -43,6 +44,37 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                     string observacao = colunas[3].Trim();
 
+                    // --- HEURÍSTICA LÉXICA -------------------------------------------
+                    // O ClassificadorGrafo (Core) é a autoridade topológica final.
+                    // Aqui apenas fornecemos um hint inicial lendo o campo Observacao,
+                    // da mesma forma que o LeitorFbk já faz no bloco AD VA.
+                    // Fallback seguro = Irradiacao; o Core promove para Poligonal/Re
+                    // quando necessário, via análise de arestas.
+                    var tipoInferido = TipoLeitura.Irradiacao;
+                    string obsUpper = observacao.ToUpperInvariant();
+
+                    if (obsUpper == "RE" || obsUpper == "RÉ" || obsUpper == "R" || obsUpper == "BACK")
+                        tipoInferido = TipoLeitura.Re;
+                    else if (obsUpper == "VANTE" || obsUpper == "VT" || obsUpper == "V" || obsUpper == "FORE")
+                        tipoInferido = TipoLeitura.Poligonal;
+                    // Nota: StartsWith("E") foi conscientemente omitido — falso positivo
+                    // para "Estaca", "Esquina", "Edifício", etc.
+
+                    // --- COLUNA 8 OPCIONAL (tipo explícito numérico legado) -----------
+                    // Aceita cadernetas antigas que exportavam 1=Re, 2=Poligonal, 3=Irradiacao.
+                    // Quando presente, sobrepõe a heurística léxica.
+                    if (colunas.Length >= 9 && int.TryParse(colunas[8].Trim(), out int tipoExplicito))
+                    {
+                        tipoInferido = tipoExplicito switch
+                        {
+                            1 => TipoLeitura.Re,
+                            2 => TipoLeitura.Poligonal,
+                            3 => TipoLeitura.Irradiacao,
+                            _ => tipoInferido  // valor não reconhecido: mantém o hint léxico
+                        };
+                    }
+                    // -----------------------------------------------------------------
+
                     var leitura = new LeituraEstacaoTotal
                     {
                         EstacaoOcupada = colunas[0].Trim(),
@@ -53,7 +85,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         AnguloVertical = avDecimal,
                         DistanciaInclinada = diLida,
                         AlturaPrisma = double.Parse(colunas[7], cultura),
-                        Tipo = TipoLeitura.Irradiacao,
+                        Tipo = tipoInferido,
                         OrdemArquivo = numeroLinha
                     };
 
