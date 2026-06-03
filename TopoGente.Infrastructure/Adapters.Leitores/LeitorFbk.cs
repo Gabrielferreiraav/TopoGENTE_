@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
 
@@ -9,16 +10,28 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
     {
         public string NomeFormato => "FBK";
 
-        public List<Estacao> Ler(string[] linhas)
+        /// <summary>
+        /// Avisos não-fatais gerados durante a última importação.
+        /// Disponível para consulta pela Factory após a chamada de Ler().
+        /// </summary>
+        public IReadOnlyList<string> UltimosAvisos => _ultimosAvisos;
+        private readonly List<string> _ultimosAvisos = new();
+
+        public List<Estacao> Ler(IEnumerable<string> linhas)
         {
+            _ultimosAvisos.Clear();
+
             var estacoes = new List<Estacao>();
-            Estacao estacoAtual = null;
+            Estacao estacaoAtual = null;
             double alturaPrisma = 0.0;
             var coordenadasConhecidas = new Dictionary<string, PontoCoordenada>();
             var cultura = System.Globalization.CultureInfo.InvariantCulture;
+            var falhas = new List<string>();
+            int numeroLinha = 0;
 
             foreach (var linhaRaw in linhas)
             {
+                numeroLinha++;
                 string linha = linhaRaw.Trim();
                 if (string.IsNullOrWhiteSpace(linha) || linha.StartsWith("!"))
                     continue;
@@ -30,12 +43,39 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                 try
                 {
-                    if (comando == "NEZ" || comando == "NE")
+                    // ── UNIT — Validação de unidades geodésicas (Fail-Fast) ──
+                    if (comando == "UNIT")
+                    {
+                        string unidadeDistancia = partes.Length > 1 ? partes[1].ToUpper() : "";
+                        string unidadeAngular = partes.Length > 2 ? partes[2].ToUpper() : "";
+
+                        if (unidadeDistancia != "METER" && unidadeDistancia != "METRE"
+                            && unidadeDistancia != "")
+                        {
+                            throw new NotSupportedException(
+                                $"Unidade de distância '{unidadeDistancia}' não suportada (linha {numeroLinha}). " +
+                                "Converta o arquivo para METER antes de importar.");
+                        }
+
+                        if (unidadeAngular != "DECDEG" && unidadeAngular != "")
+                        {
+                            throw new NotSupportedException(
+                                $"Unidade angular '{unidadeAngular}' não suportada (linha {numeroLinha}). " +
+                                "Converta o arquivo para DECDEG antes de importar.");
+                        }
+
+                        continue;
+                    }
+
+                    // ── NEZ / NE — Coordenadas de controle ──
+                    if ((comando == "NEZ" && partes.Length >= 4) || (comando == "NE" && partes.Length >= 3))
                     {
                         string nomePonto = partes[1].Replace("\"", "");
                         double y = double.Parse(partes[2], cultura);
                         double x = double.Parse(partes[3], cultura);
-                        double z = partes.Length > 4 ? double.Parse(partes[4], cultura) : 0.0;
+                        double z = (comando == "NEZ" && partes.Length > 4)
+                            ? double.Parse(partes[4], cultura)
+                            : 0.0;
 
                         if (!coordenadasConhecidas.ContainsKey(nomePonto))
                         {
@@ -47,13 +87,32 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                                 Z = z,
                             });
                         }
+                        else
+                        {
+                            // Detecção de conflito geodésico (tolerância 1mm)
+                            var existente = coordenadasConhecidas[nomePonto];
+                            double deltaX = Math.Abs(existente.X - x);
+                            double deltaY = Math.Abs(existente.Y - y);
+                            double deltaZ = Math.Abs(existente.Z - z);
+
+                            if (deltaX > 0.001 || deltaY > 0.001 || deltaZ > 0.001)
+                            {
+                                _ultimosAvisos.Add(
+                                    $"CONFLITO NEZ (linha {numeroLinha}): Ponto '{nomePonto}' declarado com " +
+                                    $"coordenadas divergentes. Original: ({existente.X:F4}, {existente.Y:F4}, " +
+                                    $"{existente.Z:F4}) | Rejeitado: ({x:F4}, {y:F4}, {z:F4}). " +
+                                    "A primeira declaração foi mantida.");
+                            }
+                        }
                     }
-                    else if (comando == "STN")
+
+                    // ── STN — Ocupação de estação ──
+                    else if (comando == "STN" && partes.Length >= 3)
                     {
                         string nome = partes[1].Replace("\"", "");
                         double hi = double.Parse(partes[2], cultura);
 
-                        estacoAtual = new Estacao
+                        estacaoAtual = new Estacao
                         {
                             Nome = nome,
                             AlturaInstrumento = hi
@@ -61,38 +120,52 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                         if (coordenadasConhecidas.ContainsKey(nome))
                         {
-                            estacoAtual.CoordenadaConhecida = coordenadasConhecidas[nome];
+                            estacaoAtual.CoordenadaConhecida = coordenadasConhecidas[nome];
                         }
 
-                        estacoes.Add(estacoAtual);
+                        estacoes.Add(estacaoAtual);
                     }
-                    else if (comando == "PRISMA")
+
+                    // ── PRISM / PRISMA — Altura do sinal ──
+                    else if ((comando == "PRISM" || comando == "PRISMA") && partes.Length >= 2)
                     {
                         alturaPrisma = double.Parse(partes[1], cultura);
                     }
-                    else if (comando == "BS")
+
+                    // ── BS — Visada de Ré (Backsight) ──
+                    else if (comando == "BS" && partes.Length >= 3)
                     {
-                        if (estacoAtual == null)
+                        if (estacaoAtual == null)
+                        {
+                            _ultimosAvisos.Add(
+                                $"Linha {numeroLinha} ignorada: comando BS sem estação ativa (STN ausente).");
                             continue;
+                        }
 
                         string alvoNome = partes[1].Replace("\"", "");
                         double angulo = double.Parse(partes[2], cultura);
 
-                        estacoAtual.Leituras.Add(new LeituraEstacaoTotal
+                        estacaoAtual.Leituras.Add(new LeituraEstacaoTotal
                         {
-                            EstacaoOcupada = estacoAtual.Nome,
+                            EstacaoOcupada = estacaoAtual.Nome,
                             PontoVisado = alvoNome,
-                            AlturaInstrumento = estacoAtual.AlturaInstrumento,
+                            AlturaInstrumento = estacaoAtual.AlturaInstrumento,
                             AlturaPrisma = alturaPrisma,
                             AnguloHorizontal = angulo,
                             Tipo = TipoLeitura.Re,
                             Observacao = "RE (BS)"
                         });
                     }
-                    else if (comando == "AD" && partes.Length > 2 && partes[1] == "VA")
+
+                    // ── AD VA — Observação polar (ângulo + distância + zenital) ──
+                    else if (comando == "AD" && partes.Length >= 6 && partes[1] == "VA")
                     {
-                        if (estacoAtual == null)
+                        if (estacaoAtual == null)
+                        {
+                            _ultimosAvisos.Add(
+                                $"Linha {numeroLinha} ignorada: comando AD VA sem estação ativa (STN ausente).");
                             continue;
+                        }
 
                         string alvoNome = partes[2].Replace("\"", "");
                         double angH = double.Parse(partes[3], cultura);
@@ -105,22 +178,21 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             descricao = partes[6].Replace("\"", "");
                         }
 
-                        var tipoLeitura = TipoLeitura.Irradiacao;
-                        if (descricao.ToUpper().Contains("V") || descricao.ToUpper().Contains("VANTE") || descricao.StartsWith("E"))
+                        // Pré-classificação por igualdade estrita.
+                        // A classificação topológica definitiva é feita pelo ClassificadorGrafo (Core).
+                        string descLimpa = descricao.Trim().ToUpperInvariant();
+                        var tipoLeitura = descLimpa switch
                         {
-                            tipoLeitura = TipoLeitura.Poligonal;
-                        }
+                            "V" or "VANTE" => TipoLeitura.Poligonal,
+                            "R" or "RE" or "RÉ" => TipoLeitura.Re,
+                            _ => TipoLeitura.Irradiacao
+                        };
 
-                        if (descricao.ToUpper().Contains("RE") || descricao.ToUpper().Contains("R"))
+                        estacaoAtual.Leituras.Add(new LeituraEstacaoTotal
                         {
-                            tipoLeitura = TipoLeitura.Re;
-                        }
-
-                        estacoAtual.Leituras.Add(new LeituraEstacaoTotal
-                        {
-                            EstacaoOcupada = estacoAtual.Nome,
+                            EstacaoOcupada = estacaoAtual.Nome,
                             PontoVisado = alvoNome,
-                            AlturaInstrumento = estacoAtual.AlturaInstrumento,
+                            AlturaInstrumento = estacaoAtual.AlturaInstrumento,
                             AlturaPrisma = alturaPrisma,
                             AnguloHorizontal = angH,
                             AnguloVertical = angV,
@@ -130,9 +202,34 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         });
                     }
                 }
-                catch
+                catch (NotSupportedException)
                 {
+                    // Exceções de validação de unidades devem propagar imediatamente (Fail-Fast)
+                    throw;
                 }
+                catch (Exception ex)
+                {
+                    falhas.Add($"Linha {numeroLinha}: '{linha}' → {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
+            // Diagnóstico pós-parsing: se nenhuma estação foi extraída e houve falhas, algo está errado
+            if (estacoes.Count == 0 && falhas.Count > 0)
+            {
+                throw new FormatException(
+                    $"Nenhuma estação foi extraída do arquivo FBK. " +
+                    $"{falhas.Count} linha(s) falharam no parsing. " +
+                    $"Verifique se o separador decimal é ponto (.) e não vírgula (,).\n" +
+                    $"Primeiras falhas:\n" +
+                    string.Join("\n", falhas.Take(5)));
+            }
+
+            // Registrar falhas parciais como avisos (dados foram extraídos, mas com perdas)
+            if (falhas.Count > 0)
+            {
+                _ultimosAvisos.Add(
+                    $"{falhas.Count} linha(s) ignorada(s) durante a importação FBK:\n" +
+                    string.Join("\n", falhas.Take(10)));
             }
 
             return estacoes;

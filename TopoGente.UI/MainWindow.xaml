@@ -1,4 +1,4 @@
-﻿<Controls:MetroWindow x:Class="TopoGente.UI.MainWindow"
+<Controls:MetroWindow x:Class="TopoGente.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -9,210 +9,218 @@
         Title="TopoGente - Processamento Topográfico" Height="450" Width="850"
         WindowStartupLocation="CenterScreen">
 
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <GroupBox Header="Metadados de Partida" Grid.Row="0" Padding="10" Margin="0,0,0,10">
-            <StackPanel>
-                <!-- Selecao de cenario-->
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="Cenário:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0"/>
-                    <ComboBox x:Name="cmbCenario" Width="280" Height="25"
-                              SelectionChanged="cmbCenario_SelectionChanged" SelectedIndex="1">
-                        <ComboBoxItem Content="Enquadrada (Apoiada)" Tag="Enquadrada"/>
-                        <ComboBoxItem Content="Fechada" Tag="Fechada"/>
-                        <ComboBoxItem Content="Aberta Orientada" Tag="AbertaOrientada"/>
-                    </ComboBox>
-                </StackPanel>
-
-                <!-- Coordenada de partida (para todos) -->
-                <Grid Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Text="Partida:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
-
-                    <StackPanel Grid.Column="1" Margin="5,0">
-                        <TextBlock Text="E (X):" FontSize="11"/>
-                        <TextBox x:Name="txtX" Text="1000,000" Padding="3"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" Margin="5,0">
-                        <TextBlock Text="N (Y):" FontSize="11"/>
-                        <TextBox x:Name="txtY" Text="1000,000" Padding="3"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="3" Margin="5,0">
-                        <TextBlock Text="Cota (Z):" FontSize="11"/>
-                        <TextBox x:Name="txtZ" Text="100,000" Padding="3"/>
-                    </StackPanel>
-                </Grid>
-
-                <!--Orientacao de Partida-->
-                <Grid Margin="0,0,0,6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Row="0" Grid.Column="0"
-                               Text="Orientação:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
-
-                    <RadioButton x:Name="rbAzimute" Grid.Row="0" Grid.Column="1"
-                                 Content="Azimute"
-                                 VerticalAlignment="Center" Margin="0,0,12,0" IsChecked="True"
-                                 Checked="rbOrientacao_Changed"/>
-                    <RadioButton x:Name="rbCoordenadaRe" Grid.Row="0" Grid.Column="2"
-                                 Content="Coord. de Ré"
-                                 VerticalAlignment="Center" Margin="0,0,12,0"
-                                 Checked="rbOrientacao_Changed"/>
-
-                    <!-- Azimute direto -->
-                    <StackPanel x:Name="pnlAzimute" Grid.Row="0" Grid.Column="3"
-                                Orientation="Horizontal" Visibility="Visible">
-                        <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
-                        <TextBox x:Name="txtAzimute" Text="0" Width="100" Padding="3"
-                                 ToolTip="Informe em Graus.Minutos.Segundos"/>
-                    </StackPanel>
-
-                    <!-- Coordenada de Ré -->
-                    <StackPanel x:Name="pnlCoordenadaRe" Grid.Row="0" Grid.Column="3"
-                                Orientation="Horizontal" Visibility="Collapsed">
-                        <TextBlock Text="Ré E:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                        <TextBox x:Name="txtReX" Text="0" Width="80" Padding="3" Margin="0,0,8,0"/>
-                        <TextBlock Text="Ré N:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                        <TextBox x:Name="txtReY" Text="0" Width="80" Padding="3" Margin="0,0,8,0"/>
-                        <TextBlock Text="Ré Z:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                        <TextBox x:Name="txtReZ" Text="0" Width="80" Padding="3"/>
-                    </StackPanel>
-
-                    <!-- Nome Re partida (linha separada para não sobrepor) -->
-                    <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
-                                Orientation="Horizontal" Margin="0,6,0,0">
-                        <TextBlock Text="Nome da Ré:" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
-                        <TextBox x:Name="txtNomeRe" Text="REF" Width="80" Padding="3"
-                                 ToolTip="Nome do alvo de orientação."/>
-                    </StackPanel>
-                </Grid>
-
-                <!--Coordenada de CHegada para Enquadrada-->
-                <Grid x:Name="pnlChegada" Margin="0,4,0,0" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Linha 0: coordenadas de chegada -->
-                    <TextBlock Grid.Row="0" Grid.Column="0"
-                               Text="Chegada:" VerticalAlignment="Center"
-                               FontWeight="SemiBold" Margin="0,0,8,0" Foreground="DarkRed"/>
-
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0">
-                        <TextBlock Text="E (X):" FontSize="11"/>
-                        <TextBox x:Name="txtChegadaX" Text="0" Padding="3"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="5,0">
-                        <TextBlock Text="N (Y):" FontSize="11"/>
-                        <TextBox x:Name="txtChegadaY" Text="0" Padding="3"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="0" Grid.Column="3" Margin="5,0">
-                        <TextBlock Text="Cota (Z):" FontSize="11"/>
-                        <TextBox x:Name="txtChegadaZ" Text="0" Padding="3"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="0" Grid.Column="4" Margin="5,0">
-                        <TextBlock Text="Nome Chegada:" FontSize="11"/>
-                        <TextBox x:Name="txtNomeChegada" Text="M99" Padding="3" Width="80"/>
-                    </StackPanel>
-
-                    <!-- Linha 1: azimute de verificação -->
-                    <TextBlock Grid.Row="1" Grid.Column="0"
-                               Text="Az. Chegada:" VerticalAlignment="Center"
-                               FontWeight="SemiBold" Margin="0,6,8,0" Foreground="DarkRed"/>
-
-                    <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4"
-                                Orientation="Horizontal" Margin="5,6,0,0">
-                        <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,6,0"/>
-                        <TextBox x:Name="txtAzimuteChegada"
-                                 Text="0" Width="110" Padding="3"
-                                 ToolTip="Azimute conhecido na estação final para uma referência final (aceita 1351245, 135,1245 ou graus decimais)."/>
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
-        </GroupBox>
-
-        <Grid Grid.Row="1" Margin="0,0,0,10" Background="#F7F9FC">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <GroupBox Header="Estações Carregadas" Margin="5" Padding="6">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <ListBox x:Name="lstEstacoesDisponiveis" Grid.Row="0" MinHeight="120"/>
-                    <Button x:Name="btnAdicionarSequencia" Grid.Row="1" Content="Adicionar →" Margin="0,6,0,0" Width="120" HorizontalAlignment="Left" Click="btnAdicionarSequencia_Click"/>
-                </Grid>
-            </GroupBox>
-
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6">
-                <Button x:Name="btnSubirSequencia" Content="▲" Width="36" Height="30" Margin="0,0,0,8" Click="btnSubirSequencia_Click"/>
-                <Button x:Name="btnDescerSequencia" Content="▼" Width="36" Height="30" Margin="0,0,0,8" Click="btnDescerSequencia_Click"/>
-                <Button x:Name="btnRemoverSequencia" Content="×" Width="36" Height="30" Click="btnRemoverSequencia_Click"/>
-            </StackPanel>
-
-            <GroupBox Header="Sequência (O 1º Item é a Partida)" Grid.Column="2" Margin="5" Padding="6">
+            <GroupBox Header="Metadados de Partida" Grid.Row="0" Padding="10" Margin="0,0,0,10">
                 <StackPanel>
-                    <ListBox x:Name="lstSequenciaPoligonal" MinHeight="120"/>
-                    <TextBlock Text="Atenção: Em poligonais fechadas, repita a estação de partida no final da lista."
-                               FontStyle="Italic" FontSize="11" Margin="0,6,0,0"/>
+                    <!-- Selecao de cenario-->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Cenário:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="cmbCenario" Width="280" Height="25"
+                                  SelectionChanged="cmbCenario_SelectionChanged" SelectedIndex="1">
+                            <ComboBoxItem Content="Enquadrada (Apoiada)" Tag="Enquadrada"/>
+                            <ComboBoxItem Content="Fechada" Tag="Fechada"/>
+                            <ComboBoxItem Content="Aberta Orientada" Tag="AbertaOrientada"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Coordenada de partida (para todos) -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Partida:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+
+                        <StackPanel Grid.Column="1" Margin="5,0">
+                            <TextBlock Text="E (X):" FontSize="11"/>
+                            <TextBox x:Name="txtX" Text="1000,000" Padding="3"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="5,0">
+                            <TextBlock Text="N (Y):" FontSize="11"/>
+                            <TextBox x:Name="txtY" Text="1000,000" Padding="3"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Margin="5,0">
+                            <TextBlock Text="Cota (Z):" FontSize="11"/>
+                            <TextBox x:Name="txtZ" Text="100,000" Padding="3"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!--Orientacao de Partida-->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Orientação:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+
+                        <RadioButton x:Name="rbAzimute" Grid.Row="0" Grid.Column="1"
+                                     Content="Azimute"
+                                     VerticalAlignment="Center" Margin="0,0,12,0" IsChecked="True"
+                                     Checked="rbOrientacao_Changed"/>
+                        <RadioButton x:Name="rbCoordenadaRe" Grid.Row="0" Grid.Column="2"
+                                     Content="Coord. de Ré"
+                                     VerticalAlignment="Center" Margin="0,0,12,0"
+                                     Checked="rbOrientacao_Changed"/>
+
+                        <!-- Azimute direto -->
+                        <StackPanel x:Name="pnlAzimute" Grid.Row="0" Grid.Column="3"
+                                    Orientation="Horizontal" Visibility="Visible">
+                            <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
+                            <TextBox x:Name="txtAzimute" Text="0" Width="100" Padding="3"
+                                     ToolTip="Informe em Graus.Minutos.Segundos"/>
+                        </StackPanel>
+
+                        <!-- Coordenada de Ré -->
+                        <StackPanel x:Name="pnlCoordenadaRe" Grid.Row="0" Grid.Column="3"
+                                    Orientation="Horizontal" Visibility="Collapsed">
+                            <TextBlock Text="Ré E:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                            <TextBox x:Name="txtReX" Text="0" Width="80" Padding="3" Margin="0,0,8,0"/>
+                            <TextBlock Text="Ré N:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                            <TextBox x:Name="txtReY" Text="0" Width="80" Padding="3" Margin="0,0,8,0"/>
+                            <TextBlock Text="Ré Z:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                            <TextBox x:Name="txtReZ" Text="0" Width="80" Padding="3"/>
+                        </StackPanel>
+
+                        <!-- Nome Re partida (linha separada para não sobrepor) -->
+                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
+                                    Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="Nome da Ré:" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
+                            <TextBox x:Name="txtNomeRe" Text="REF" Width="80" Padding="3"
+                                     ToolTip="Nome do alvo de orientação."/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!--Coordenada de CHegada para Enquadrada-->
+                    <Grid x:Name="pnlChegada" Margin="0,4,0,0" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Linha 0: coordenadas de chegada -->
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Chegada:" VerticalAlignment="Center"
+                                   FontWeight="SemiBold" Margin="0,0,8,0" Foreground="DarkRed"/>
+
+                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0">
+                            <TextBlock Text="E (X):" FontSize="11"/>
+                            <TextBox x:Name="txtChegadaX" Text="0" Padding="3"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="5,0">
+                            <TextBlock Text="N (Y):" FontSize="11"/>
+                            <TextBox x:Name="txtChegadaY" Text="0" Padding="3"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="3" Margin="5,0">
+                            <TextBlock Text="Cota (Z):" FontSize="11"/>
+                            <TextBox x:Name="txtChegadaZ" Text="0" Padding="3"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="5,0">
+                            <TextBlock Text="Nome Chegada:" FontSize="11"/>
+                            <TextBox x:Name="txtNomeChegada" Text="M99" Padding="3" Width="80"/>
+                        </StackPanel>
+
+                        <!-- Linha 1: azimute de verificação -->
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="Az. Chegada:" VerticalAlignment="Center"
+                                   FontWeight="SemiBold" Margin="0,6,8,0" Foreground="DarkRed"/>
+
+                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4"
+                                    Orientation="Horizontal" Margin="5,6,0,0">
+                            <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,6,0"/>
+                            <TextBox x:Name="txtAzimuteChegada"
+                                     Text="0" Width="110" Padding="3"
+                                     ToolTip="Azimute conhecido na estação final para uma referência final (aceita 1351245, 135,1245 ou graus decimais)."/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </GroupBox>
-        </Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
-            <TextBlock Text="Formato : " VerticalAlignment="Center" Margin="5,0"/>
-            <ComboBox x:Name="cmbFormatoArquivo" Width="160" Height="25" Margin="5,0" SelectedIndex="0">
-                <ComboBoxItem Content=" Csv/txt"/>
-            </ComboBox>
-            <Button x:Name="btnCarregarArquivo" Content="📄 Importar Caderneta" 
-                    Width="130" Height="25" Click="btnCarregarArquivo_Click" FontWeight="SemiBold" Margin="5,0"/>
-            <Button x:Name="btnProcessar" Content="⚙️ CALCULAR" 
-                    Width="120" Height="25" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold" Background="#DDFFDD"/>
-            <Button x:Name="btnExibirCaderneta" Content="Ver Caderneta"
-                    Width="120" Height="25" Margin="5,0" FontWeight="SemiBold" Click="btnExibirCaderneta_Click"/>
-            <Button x:Name="btnExibirGrafico" Content="Ver Gráfico"
-                    Width="110" Height="25" Margin="5,0" FontWeight="SemiBold" Click="btnExibirGrafico_Click"/>
-            <Button x:Name="bntExportarTxt" Content="Exportar Relatorio e Coord (TXT)" Width="220" Height="25"
-                    Margin="5,0" FontWeight="SemiBold" Click="bntExportarTxt_Click"/>
-        </StackPanel>
-    </Grid>
+            <Grid Grid.Row="1" Margin="0,0,0,10" Background="#F7F9FC">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <GroupBox Header="Estações Carregadas" Margin="5" Padding="6">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ListBox x:Name="lstEstacoesDisponiveis" Grid.Row="0" MinHeight="120" MaxHeight="250" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                        <Button x:Name="btnAdicionarSequencia" Grid.Row="1" Content="Adicionar →" Margin="0,6,0,0" Width="120" HorizontalAlignment="Left" Click="btnAdicionarSequencia_Click"/>
+                    </Grid>
+                </GroupBox>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6">
+                    <Button x:Name="btnSubirSequencia" Content="▲" Width="36" Height="30" Margin="0,0,0,8" Click="btnSubirSequencia_Click"/>
+                    <Button x:Name="btnDescerSequencia" Content="▼" Width="36" Height="30" Margin="0,0,0,8" Click="btnDescerSequencia_Click"/>
+                    <Button x:Name="btnRemoverSequencia" Content="×" Width="36" Height="30" Click="btnRemoverSequencia_Click"/>
+                </StackPanel>
+
+                <GroupBox Header="Sequência (O 1º Item é a Partida)" Grid.Column="2" Margin="5" Padding="6">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <ListBox x:Name="lstSequenciaPoligonal" Grid.Row="0" MinHeight="120" MaxHeight="250" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                        <TextBlock Grid.Row="1" Text="Atenção: Em poligonais fechadas, repita a estação de partida no final da lista."
+                                   FontStyle="Italic" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                    </Grid>
+                </GroupBox>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
+                <TextBlock Text="Formato : " VerticalAlignment="Center" Margin="5,0"/>
+                <ComboBox x:Name="cmbFormatoArquivo" Width="160" Height="25" Margin="5,0" SelectedIndex="1">
+                    <ComboBoxItem Content="CSV / TXT" />
+                    <ComboBoxItem Content="FBK (Field Book)" />
+                    <ComboBoxItem Content="LandXML v1.2" />
+                </ComboBox>
+                <Button x:Name="btnCarregarArquivo" Content="📄 Importar Caderneta" 
+                        Width="130" Height="25" Click="btnCarregarArquivo_Click" FontWeight="SemiBold" Margin="5,0"/>
+                <Button x:Name="btnProcessar" Content="⚙️ CALCULAR" 
+                        Width="120" Height="25" Click="btnProcessar_Click" IsEnabled="False" FontWeight="Bold" Background="#DDFFDD"/>
+                <Button x:Name="btnExibirCaderneta" Content="Ver Caderneta"
+                        Width="120" Height="25" Margin="5,0" FontWeight="SemiBold" Click="btnExibirCaderneta_Click"/>
+                <Button x:Name="btnExibirGrafico" Content="Ver Gráfico"
+                        Width="110" Height="25" Margin="5,0" FontWeight="SemiBold" Click="btnExibirGrafico_Click"/>
+                <Button x:Name="bntExportarTxt" Content="Exportar Relatorio e Coord (TXT)" Width="220" Height="25"
+                        Margin="5,0" FontWeight="SemiBold" Click="bntExportarTxt_Click"/>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </Controls:MetroWindow>

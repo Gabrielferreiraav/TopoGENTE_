@@ -9,7 +9,7 @@ namespace TopoGente.Core.Interfaces
     {
         string NomeFormato { get; }
 
-        List<Estacao> Ler(string[] linhas);
+        List<Estacao> Ler(IEnumerable<string> linhas);
 
     }
 

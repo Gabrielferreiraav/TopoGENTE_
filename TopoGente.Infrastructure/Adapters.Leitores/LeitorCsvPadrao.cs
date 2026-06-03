@@ -12,7 +12,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
     {
         public string NomeFormato => "Texto/CSV Padrão";
 
-        public List<Estacao> Ler(string[] linhas)
+        public List<Estacao> Ler(IEnumerable<string> linhas)
         {
             var leiturasBrutas = new List<LeituraEstacaoTotal>();
             var avisoImportacao = new List<string>();

@@ -1,4 +1,4 @@
-﻿using MahApps.Metro.Controls;
+using MahApps.Metro.Controls;
 using Microsoft.Win32;
 using System.Collections.Generic;
 using System.Globalization;
@@ -90,12 +90,49 @@ namespace TopoGente.UI
 
                     if (_estacoesEmMemoria.Count > 0)
                     {
-                        var estacaoInicial = _estacoesEmMemoria[0];
-                        if (estacaoInicial.CoordenadaConhecida != null)
+                        var primeiraEstacao = _estacoesEmMemoria[0];
+
+                        // 1 e 2. Extração do Ponto de Partida e Fallback Seguro
+                        if (primeiraEstacao.CoordenadaConhecida != null)
                         {
-                            txtX.Text = estacaoInicial.CoordenadaConhecida.X.ToString("F3");
-                            txtY.Text = estacaoInicial.CoordenadaConhecida.Y.ToString("F3");
-                            txtZ.Text = estacaoInicial.CoordenadaConhecida.Z.ToString("F3");
+                            txtX.Text = primeiraEstacao.CoordenadaConhecida.X.ToString("F3");
+                            txtY.Text = primeiraEstacao.CoordenadaConhecida.Y.ToString("F3");
+                            txtZ.Text = primeiraEstacao.CoordenadaConhecida.Z.ToString("F3");
+                        }
+                        else
+                        {
+                            txtX.Text = "0.000";
+                            txtY.Text = "0.000";
+                            txtZ.Text = "0.000";
+                        }
+
+                        // 3. Extração do Ponto de Referência (Ré)
+                        var leituraRe = primeiraEstacao.Leituras?.FirstOrDefault(l => l.Tipo == TipoLeitura.Re);
+                        
+                        if (leituraRe != null)
+                        {
+                            txtNomeRe.Text = leituraRe.PontoVisado ?? string.Empty;
+
+                            var pontosConhecidos = _estacoesEmMemoria
+                                .Where(e => e.CoordenadaConhecida != null)
+                                .Select(e => e.CoordenadaConhecida!)
+                                .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                            // 4. O Gatilho de Automação do Azimute
+                            if (!string.IsNullOrEmpty(leituraRe.PontoVisado) && 
+                                pontosConhecidos.TryGetValue(leituraRe.PontoVisado, out var coordenadaRe))
+                            {
+                                txtReX.Text = coordenadaRe.X.ToString("F3");
+                                txtReY.Text = coordenadaRe.Y.ToString("F3");
+                                txtReZ.Text = coordenadaRe.Z.ToString("F3");
+                                rbCoordenadaRe.IsChecked = true;
+                            }
+                            else
+                            {
+                                rbAzimute.IsChecked = true;
+                                txtAzimute.Text = leituraRe.AnguloHorizontal.ToString("F4");
+                            }
                         }
                     }
 
@@ -465,23 +502,15 @@ namespace TopoGente.UI
 
         private void AtualizarListaEstacoes()
         {
-            // extrai os nomes das Estações Ocupadas 
-            var nomesOcupados = _estacoesEmMemoria.Select(e => e.Nome);
-
-            // extrai os nomes de todos os Pontos Visados na caderneta
-            var nomesVisados = _estacoesEmMemoria
-                .SelectMany(e => e.Leituras)
-                .Select(l => l.PontoVisado);
-
-            //  Realiza a união topológica 
-            var todosOsNosDoGrafo = nomesOcupados
-                .Union(nomesVisados)
+            // Extrai estritamente os nomes das estações ocupadas (vértices da poligonal)
+            var estacoesOcupadas = _estacoesEmMemoria
+                .Select(e => e.Nome)
                 .Where(nome => !string.IsNullOrWhiteSpace(nome))
                 .Distinct()
                 .ToList();
 
-            //ATRIBUIÇÃO NA UI
-            lstEstacoesDisponiveis.ItemsSource = todosOsNosDoGrafo;
+            // ATRIBUIÇÃO NA UI
+            lstEstacoesDisponiveis.ItemsSource = estacoesOcupadas;
         }
 
         private void RestaurarMetadadosNaUI(MetadadosCenario? meta)

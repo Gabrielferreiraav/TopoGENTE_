@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -22,7 +22,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             public double Angular { get; set; } = 1.0; // graus dec
         }
 
-        public List<Estacao> Ler(string[] linhas)
+        public List<Estacao> Ler(IEnumerable<string> linhas)
         {
             var estacoes = new List<Estacao>();
 

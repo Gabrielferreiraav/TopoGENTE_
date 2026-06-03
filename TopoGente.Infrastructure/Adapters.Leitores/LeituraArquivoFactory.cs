@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
@@ -44,6 +44,10 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             if (leitor is LeitorLandXml landXml)
             {
                 avisos.AddRange(landXml.UltimosAvisos);
+            }
+            if (leitor is LeitorFbk fbk)
+            {
+                avisos.AddRange(fbk.UltimosAvisos);
             }
 
             return new TopoGente.Core.Entities.ResultadoLeituraArquivo
