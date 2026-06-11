@@ -78,5 +78,30 @@ namespace TopoGente.UI
         private void gridCaderneta_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
         }
+
+        private void MenuItem_RemoverLeitura_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            // Verifica se há uma leitura selecionada no grid e uma estação ativa no ComboBox
+            if (gridCaderneta.SelectedItem is LeituraEstacaoTotal leituraSelecionada &&
+                cmbEstacoes.SelectedItem is Estacao estacaoAtual)
+            {
+                var confirmacao = System.Windows.MessageBox.Show(
+                    $"ATENÇÃO: Confirma a exclusão da visada para o alvo '{leituraSelecionada.PontoVisado}'?\n\n" +
+                    "Se esta leitura fizer parte do caminhamento principal da poligonal, o cálculo estrutural poderá falhar.",
+                    "Auditoria Topológica", 
+                    System.Windows.MessageBoxButton.YesNo, 
+                    System.Windows.MessageBoxImage.Warning);
+
+                if (confirmacao == System.Windows.MessageBoxResult.Yes)
+                {
+                    // Mutação direta na raiz de agregação (Domínio)
+                    estacaoAtual.Leituras.Remove(leituraSelecionada);
+
+                    // Restabelecimento da sincronia de renderização
+                    // Como estamos usando List<T> no domínio e não ObservableCollection, o Refresh é obrigatório.
+                    gridCaderneta.Items.Refresh();
+                }
+            }
+        }
     }
 }

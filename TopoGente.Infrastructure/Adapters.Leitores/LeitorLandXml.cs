@@ -16,6 +16,9 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
         public IReadOnlyList<string> UltimosAvisos => _ultimosAvisos;
         private readonly List<string> _ultimosAvisos = new();
 
+        public IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos => _ultimosPontosConhecidos;
+        private readonly Dictionary<string, PontoCoordenada> _ultimosPontosConhecidos = new(StringComparer.OrdinalIgnoreCase);
+
         private class FatoresConversao
         {
             public double Linear { get; set; } = 1.0;  // metros
@@ -24,6 +27,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
         public List<Estacao> Ler(IEnumerable<string> linhas)
         {
+            _ultimosAvisos.Clear();
+            _ultimosPontosConhecidos.Clear();
             var estacoes = new List<Estacao>();
 
             string conteudoXXML = string.Join(Environment.NewLine, linhas);
@@ -53,6 +58,11 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                 var fatores = LerUnidadesProjeto(doc);
                 var dicionarioCoordenadas = MapearCgPoints(survey, fatores);
+                
+                foreach (var kvp in dicionarioCoordenadas)
+                {
+                    _ultimosPontosConhecidos[kvp.Key] = kvp.Value;
+                }
 
                 var setups = survey.Elements(_ns + "InstrumentSetup");
                 foreach (var setup in setups)

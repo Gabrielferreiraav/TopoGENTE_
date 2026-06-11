@@ -8,9 +8,8 @@ namespace TopoGente.Core.Interfaces
     public interface ILeitorArquivo
     {
         string NomeFormato { get; }
-
         List<Estacao> Ler(IEnumerable<string> linhas);
-
+        IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos { get; }
     }
 
     public interface ILeituraArquivoFactory

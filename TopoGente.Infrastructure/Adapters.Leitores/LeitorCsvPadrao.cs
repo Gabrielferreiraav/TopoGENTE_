@@ -12,6 +12,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
     {
         public string NomeFormato => "Texto/CSV Padrão";
 
+        public IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos { get; } = new Dictionary<string, PontoCoordenada>();
+
         public List<Estacao> Ler(IEnumerable<string> linhas)
         {
             var leiturasBrutas = new List<LeituraEstacaoTotal>();

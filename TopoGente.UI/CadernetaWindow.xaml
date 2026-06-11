@@ -33,6 +33,15 @@
                     <DataGrid x:Name="gridCaderneta" Grid.Row="1" AutoGenerateColumns="False"
                               CanUserAddRows="False" Margin="5" BorderThickness="1" BorderBrush="#DDD"
                               SelectionChanged="gridCaderneta_SelectionChanged">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Remover Visada Selecionada" Click="MenuItem_RemoverLeitura_Click">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="❌" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Ponto Visado" Binding="{Binding PontoVisado}" Width="100" FontWeight="Bold"/>
                             <DataGridTextColumn Header="Ang. Horiz." Binding="{Binding AnguloHorizontal, StringFormat=F4}" Width="90"/>

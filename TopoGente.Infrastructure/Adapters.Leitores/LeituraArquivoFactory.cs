@@ -53,7 +53,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             return new TopoGente.Core.Entities.ResultadoLeituraArquivo
             {
                 Estacoes = estacoes,
-                Avisos = avisos
+                Avisos = avisos,
+                PontosConhecidosGlobais = leitor.UltimosPontosConhecidos
             };
         }
 

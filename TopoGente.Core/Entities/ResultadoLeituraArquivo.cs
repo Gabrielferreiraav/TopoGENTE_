@@ -6,5 +6,6 @@ namespace TopoGente.Core.Entities
     {
         public required List<Estacao> Estacoes { get; init; }
         public required List<string> Avisos { get; init; }
+        public required IReadOnlyDictionary<string, PontoCoordenada> PontosConhecidosGlobais { get; init; }
     }
 }

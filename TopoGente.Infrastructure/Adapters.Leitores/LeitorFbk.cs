@@ -17,14 +17,17 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
         public IReadOnlyList<string> UltimosAvisos => _ultimosAvisos;
         private readonly List<string> _ultimosAvisos = new();
 
+        public IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos => _ultimosPontosConhecidos;
+        private readonly Dictionary<string, PontoCoordenada> _ultimosPontosConhecidos = new(StringComparer.OrdinalIgnoreCase);
+
         public List<Estacao> Ler(IEnumerable<string> linhas)
         {
             _ultimosAvisos.Clear();
+            _ultimosPontosConhecidos.Clear();
 
             var estacoes = new List<Estacao>();
             Estacao estacaoAtual = null;
             double alturaPrisma = 0.0;
-            var coordenadasConhecidas = new Dictionary<string, PontoCoordenada>();
             var cultura = System.Globalization.CultureInfo.InvariantCulture;
             var falhas = new List<string>();
             int numeroLinha = 0;
@@ -77,9 +80,9 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             ? double.Parse(partes[4], cultura)
                             : 0.0;
 
-                        if (!coordenadasConhecidas.ContainsKey(nomePonto))
+                        if (!_ultimosPontosConhecidos.ContainsKey(nomePonto))
                         {
-                            coordenadasConhecidas.Add(nomePonto, new PontoCoordenada
+                            _ultimosPontosConhecidos.Add(nomePonto, new PontoCoordenada
                             {
                                 Nome = nomePonto,
                                 X = x,
@@ -90,7 +93,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         else
                         {
                             // Detecção de conflito geodésico (tolerância 1mm)
-                            var existente = coordenadasConhecidas[nomePonto];
+                            var existente = _ultimosPontosConhecidos[nomePonto];
                             double deltaX = Math.Abs(existente.X - x);
                             double deltaY = Math.Abs(existente.Y - y);
                             double deltaZ = Math.Abs(existente.Z - z);
@@ -118,9 +121,9 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             AlturaInstrumento = hi
                         };
 
-                        if (coordenadasConhecidas.ContainsKey(nome))
+                        if (_ultimosPontosConhecidos.ContainsKey(nome))
                         {
-                            estacaoAtual.CoordenadaConhecida = coordenadasConhecidas[nome];
+                            estacaoAtual.CoordenadaConhecida = _ultimosPontosConhecidos[nome];
                         }
 
                         estacoes.Add(estacaoAtual);

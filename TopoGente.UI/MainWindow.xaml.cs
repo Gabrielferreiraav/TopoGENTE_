@@ -84,7 +84,8 @@ namespace TopoGente.UI
                     var formato = ObterFormatoEntrada(cmbFormatoArquivo);
                     var linhas = File.ReadAllLines(openFileDialog.FileName);
 
-                    var estacoesBrutas = _leitorService.ProcessarArquivo(formato, linhas);
+                    var resultadoLeitura = _leitorService.ProcessarArquivoComResultado(formato, linhas);
+                    var estacoesBrutas = resultadoLeitura.Estacoes;
                     _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
                     AtualizarListaEstacoes();
 
@@ -113,11 +114,7 @@ namespace TopoGente.UI
                         {
                             txtNomeRe.Text = leituraRe.PontoVisado ?? string.Empty;
 
-                            var pontosConhecidos = _estacoesEmMemoria
-                                .Where(e => e.CoordenadaConhecida != null)
-                                .Select(e => e.CoordenadaConhecida!)
-                                .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
-                                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                            var pontosConhecidos = resultadoLeitura.PontosConhecidosGlobais;
 
                             // 4. O Gatilho de Automação do Azimute
                             if (!string.IsNullOrEmpty(leituraRe.PontoVisado) && 
