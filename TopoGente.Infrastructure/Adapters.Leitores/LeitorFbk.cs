@@ -26,7 +26,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             _ultimosPontosConhecidos.Clear();
 
             var estacoes = new List<Estacao>();
-            Estacao estacaoAtual = null;
+            Estacao? estacaoAtual = null;
             double alturaPrisma = 0.0;
             var cultura = System.Globalization.CultureInfo.InvariantCulture;
             var falhas = new List<string>();
@@ -71,13 +71,26 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     }
 
                     // ── NEZ / NE — Coordenadas de controle ──
-                    if ((comando == "NEZ" && partes.Length >= 4) || (comando == "NE" && partes.Length >= 3))
+                    if (comando == "NEZ" || comando == "NE")
                     {
+                        int tamanhoMinimo = comando == "NEZ" ? 5 : 4;
+                        if (partes.Length < tamanhoMinimo)
+                        {
+                            throw new FormatException(
+                                $"{comando} exige nome do ponto e coordenadas completas (linha {numeroLinha}).");
+                        }
+
                         string nomePonto = partes[1].Replace("\"", "");
-                        double y = double.Parse(partes[2], cultura);
-                        double x = double.Parse(partes[3], cultura);
+                        if (!NomePontoValido(nomePonto, cultura))
+                        {
+                            throw new FormatException(
+                                $"{comando} exige nome de ponto não numérico antes das coordenadas (linha {numeroLinha}).");
+                        }
+
+                        double y = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
+                        double x = ParseNumeroDecimal(partes[3], cultura, numeroLinha);
                         double z = (comando == "NEZ" && partes.Length > 4)
-                            ? double.Parse(partes[4], cultura)
+                            ? ParseNumeroDecimal(partes[4], cultura, numeroLinha)
                             : 0.0;
 
                         if (!_ultimosPontosConhecidos.ContainsKey(nomePonto))
@@ -106,6 +119,12 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                                     $"{existente.Z:F4}) | Rejeitado: ({x:F4}, {y:F4}, {z:F4}). " +
                                     "A primeira declaração foi mantida.");
                             }
+                            else
+                            {
+                                _ultimosAvisos.Add(
+                                    $"NEZ DUPLICADO (linha {numeroLinha}): Ponto '{nomePonto}' repetido com coordenadas equivalentes. " +
+                                    "A primeira declaração foi mantida.");
+                            }
                         }
                     }
 
@@ -113,7 +132,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     else if (comando == "STN" && partes.Length >= 3)
                     {
                         string nome = partes[1].Replace("\"", "");
-                        double hi = double.Parse(partes[2], cultura);
+                        double hi = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
 
                         estacaoAtual = new Estacao
                         {
@@ -132,7 +151,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     // ── PRISM / PRISMA — Altura do sinal ──
                     else if ((comando == "PRISM" || comando == "PRISMA") && partes.Length >= 2)
                     {
-                        alturaPrisma = double.Parse(partes[1], cultura);
+                        alturaPrisma = ParseNumeroDecimal(partes[1], cultura, numeroLinha);
                     }
 
                     // ── BS — Visada de Ré (Backsight) ──
@@ -146,7 +165,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         }
 
                         string alvoNome = partes[1].Replace("\"", "");
-                        double angulo = double.Parse(partes[2], cultura);
+                        double angulo = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
 
                         estacaoAtual.Leituras.Add(new LeituraEstacaoTotal
                         {
@@ -155,7 +174,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             AlturaInstrumento = estacaoAtual.AlturaInstrumento,
                             AlturaPrisma = alturaPrisma,
                             AnguloHorizontal = angulo,
-                            Tipo = TipoLeitura.Re,
+                            Tipo = TipoLeitura.Irradiacao,
+                            Purpose = "re",
                             Observacao = "RE (BS)"
                         });
                     }
@@ -171,25 +191,15 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         }
 
                         string alvoNome = partes[2].Replace("\"", "");
-                        double angH = double.Parse(partes[3], cultura);
-                        double dist = double.Parse(partes[4], cultura);
-                        double angV = double.Parse(partes[5], cultura);
+                        double angH = ParseNumeroDecimal(partes[3], cultura, numeroLinha);
+                        double dist = ParseNumeroDecimal(partes[4], cultura, numeroLinha);
+                        double angV = ParseNumeroDecimal(partes[5], cultura, numeroLinha);
 
                         string descricao = "";
                         if (partes.Length > 6)
                         {
                             descricao = partes[6].Replace("\"", "");
                         }
-
-                        // Pré-classificação por igualdade estrita.
-                        // A classificação topológica definitiva é feita pelo ClassificadorGrafo (Core).
-                        string descLimpa = descricao.Trim().ToUpperInvariant();
-                        var tipoLeitura = descLimpa switch
-                        {
-                            "V" or "VANTE" => TipoLeitura.Poligonal,
-                            "R" or "RE" or "RÉ" => TipoLeitura.Re,
-                            _ => TipoLeitura.Irradiacao
-                        };
 
                         estacaoAtual.Leituras.Add(new LeituraEstacaoTotal
                         {
@@ -201,7 +211,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             AnguloVertical = angV,
                             DistanciaInclinada = dist,
                             Observacao = descricao,
-                            Tipo = tipoLeitura
+                            Tipo = TipoLeitura.Irradiacao,
+                            Purpose = MapearPurposeSugerido(descricao)
                         });
                     }
                 }
@@ -216,26 +227,51 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 }
             }
 
-            // Diagnóstico pós-parsing: se nenhuma estação foi extraída e houve falhas, algo está errado
-            if (estacoes.Count == 0 && falhas.Count > 0)
+            if (falhas.Count > 0)
             {
                 throw new FormatException(
-                    $"Nenhuma estação foi extraída do arquivo FBK. " +
-                    $"{falhas.Count} linha(s) falharam no parsing. " +
+                    $"{falhas.Count} linha(s) falharam no parsing do arquivo FBK. " +
                     $"Verifique se o separador decimal é ponto (.) e não vírgula (,).\n" +
                     $"Primeiras falhas:\n" +
                     string.Join("\n", falhas.Take(5)));
             }
 
-            // Registrar falhas parciais como avisos (dados foram extraídos, mas com perdas)
-            if (falhas.Count > 0)
+            return estacoes;
+        }
+
+        private static bool NomePontoValido(string nomePonto, System.Globalization.CultureInfo cultura)
+        {
+            if (string.IsNullOrWhiteSpace(nomePonto))
             {
-                _ultimosAvisos.Add(
-                    $"{falhas.Count} linha(s) ignorada(s) durante a importação FBK:\n" +
-                    string.Join("\n", falhas.Take(10)));
+                return false;
             }
 
-            return estacoes;
+            string normalizado = nomePonto.Replace(',', '.');
+            return !double.TryParse(normalizado, System.Globalization.NumberStyles.Float, cultura, out _);
+        }
+
+        private static double ParseNumeroDecimal(string valor, System.Globalization.CultureInfo cultura, int numeroLinha)
+        {
+            if (valor.Contains(','))
+            {
+                throw new FormatException(
+                    $"Valor numérico '{valor}' usa vírgula decimal ou separador de milhar não suportado (linha {numeroLinha}).");
+            }
+
+            return double.Parse(valor, System.Globalization.NumberStyles.Float, cultura);
+        }
+
+        private static string? MapearPurposeSugerido(string descricao)
+        {
+            string descLimpa = descricao.Trim().ToUpperInvariant();
+
+            return descLimpa switch
+            {
+                "V" or "VT" or "VANTE" or "FORE" => "vante",
+                "R" or "RE" or "RÉ" or "BACK" => "re",
+                "CHECK" => "check",
+                _ => null
+            };
         }
     }
 }

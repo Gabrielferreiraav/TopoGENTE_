@@ -88,11 +88,11 @@ namespace TopoGente.UI
                     var estacoesBrutas = resultadoLeitura.Estacoes;
                     _estacoesEmMemoria = _organizador.UnificarEstacoes(estacoesBrutas);
                     AtualizarListaEstacoes();
+                    SugerirSequenciaPoligonalPorPurpose();
 
                     if (_estacoesEmMemoria.Count > 0)
                     {
                         var primeiraEstacao = _estacoesEmMemoria[0];
-
                         // 1 e 2. Extração do Ponto de Partida e Fallback Seguro
                         if (primeiraEstacao.CoordenadaConhecida != null)
                         {
@@ -108,8 +108,8 @@ namespace TopoGente.UI
                         }
 
                         // 3. Extração do Ponto de Referência (Ré)
-                        var leituraRe = primeiraEstacao.Leituras?.FirstOrDefault(l => l.Tipo == TipoLeitura.Re);
-                        
+                        var leituraRe = primeiraEstacao.Leituras?.FirstOrDefault(l => PurposeEh(l, "re"));
+
                         if (leituraRe != null)
                         {
                             txtNomeRe.Text = leituraRe.PontoVisado ?? string.Empty;
@@ -117,7 +117,7 @@ namespace TopoGente.UI
                             var pontosConhecidos = resultadoLeitura.PontosConhecidosGlobais;
 
                             // 4. O Gatilho de Automação do Azimute
-                            if (!string.IsNullOrEmpty(leituraRe.PontoVisado) && 
+                            if (!string.IsNullOrEmpty(leituraRe.PontoVisado) &&
                                 pontosConhecidos.TryGetValue(leituraRe.PontoVisado, out var coordenadaRe))
                             {
                                 txtReX.Text = coordenadaRe.X.ToString("F3");
@@ -131,10 +131,11 @@ namespace TopoGente.UI
                                 txtAzimute.Text = leituraRe.AnguloHorizontal.ToString("F4");
                             }
                         }
-                    }
 
-                    _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
-                    AplicarGateUIAposCarregarouAbrir(formato, Path.GetFileName(openFileDialog.FileName));
+                        _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
+                        AplicarGateUIAposCarregarouAbrir(formato, Path.GetFileName(openFileDialog.FileName));
+                        PublicarEsbocoGeodesicoSobDemanda();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -270,6 +271,71 @@ namespace TopoGente.UI
             }
 
             throw new FormatException($"Valor inválido no campo '{nomeCampo}': '{texto}'.");
+        }
+
+        private static bool PurposeEh(LeituraEstacaoTotal leitura, string purpose)
+        {
+            return string.Equals(
+                (leitura.Purpose ?? string.Empty).Trim(),
+                purpose,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void SugerirSequenciaPoligonalPorPurpose()
+        {
+            var nomesOcupados = _estacoesEmMemoria
+                .Select(e => e.Nome)
+                .Where(nome => !string.IsNullOrWhiteSpace(nome))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (_estacoesEmMemoria.Count == 0 || nomesOcupados.Count == 0)
+            {
+                return;
+            }
+
+            var sequenciaSugerida = new List<string>();
+            var visitadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string? nomeAtual = _estacoesEmMemoria[0].Nome;
+
+            while (!string.IsNullOrWhiteSpace(nomeAtual) && visitadas.Add(nomeAtual))
+            {
+                sequenciaSugerida.Add(nomeAtual);
+
+                var estacaoAtual = _estacoesEmMemoria
+                    .FirstOrDefault(e => string.Equals(e.Nome, nomeAtual, StringComparison.OrdinalIgnoreCase));
+
+                var leituraVante = estacaoAtual?.Leituras.FirstOrDefault(l => PurposeEh(l, "vante"));
+                if (leituraVante == null || string.IsNullOrWhiteSpace(leituraVante.PontoVisado))
+                {
+                    break;
+                }
+
+                var proximoNome = leituraVante.PontoVisado.Trim();
+                if (visitadas.Contains(proximoNome))
+                {
+                    sequenciaSugerida.Add(proximoNome);
+                    break;
+                }
+
+                if (!nomesOcupados.Contains(proximoNome))
+                {
+                    sequenciaSugerida.Add(proximoNome);
+                    break;
+                }
+
+                nomeAtual = proximoNome;
+            }
+
+            if (sequenciaSugerida.Count <= 1)
+            {
+                return;
+            }
+
+            lstSequenciaPoligonal.Items.Clear();
+            foreach (var nome in sequenciaSugerida)
+            {
+                lstSequenciaPoligonal.Items.Add(nome);
+            }
         }
 
         private MetadadosCenario ColetarMetadadosDaUI()
@@ -409,7 +475,7 @@ namespace TopoGente.UI
             }
         }
 
-        private void bntExportarTxt_Click(object sender, EventArgs e)
+        private void bntExportarTxt_Click(object sender, System.EventArgs e)
         {
             if (_resultadoAtual == null || _resultadoAtual.TodosOsPontos.Count == 0)
             {
@@ -575,6 +641,7 @@ namespace TopoGente.UI
             }
 
             lstSequenciaPoligonal.Items.Add(selecionada);
+            PublicarEsbocoGeodesicoSobDemanda();
         }
 
         private void btnRemoverSequencia_Click(object sender, RoutedEventArgs e)
@@ -585,6 +652,7 @@ namespace TopoGente.UI
             }
 
             lstSequenciaPoligonal.Items.Remove(selecionada);
+            PublicarEsbocoGeodesicoSobDemanda();
         }
 
         private void btnSubirSequencia_Click(object sender, RoutedEventArgs e)
@@ -599,6 +667,7 @@ namespace TopoGente.UI
             lstSequenciaPoligonal.Items.RemoveAt(indice);
             lstSequenciaPoligonal.Items.Insert(indice - 1, item);
             lstSequenciaPoligonal.SelectedIndex = indice - 1;
+            PublicarEsbocoGeodesicoSobDemanda();
         }
 
         private void btnDescerSequencia_Click(object sender, RoutedEventArgs e)
@@ -613,6 +682,22 @@ namespace TopoGente.UI
             lstSequenciaPoligonal.Items.RemoveAt(indice);
             lstSequenciaPoligonal.Items.Insert(indice + 1, item);
             lstSequenciaPoligonal.SelectedIndex = indice + 1;
+            PublicarEsbocoGeodesicoSobDemanda();
+        }
+
+        private void PublicarEsbocoGeodesicoSobDemanda()
+        {
+            if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0) return;
+            try
+            {
+                var metadados = ColetarMetadadosDaUI();
+                var dtoPreliminar = _processadorService.GerarEsbocoBruto(metadados, _estacoesEmMemoria);
+                _uiEventHub.PublicarResultado(dtoPreliminar);
+            }
+            catch
+            {
+                // Ignora falhas para manter a fluidez da UI ao ajustar a sequência
+            }
         }
     }
 }

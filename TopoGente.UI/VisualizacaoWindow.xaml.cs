@@ -29,10 +29,10 @@ namespace TopoGente.UI
             Closing += VisualizacaoWindow_Closing;
         }
 
-        public void AtualizarDesenho(List<PontoCoordenada> pontos)
+        public void AtualizarDesenho(ResultadoLevantamento resultado)
         {
             canvasDesenho.UpdateLayout();
-            DesenharLevantamento(pontos);
+            DesenharLevantamento(resultado);
         }
 
         private void OnResultadoAtualizado(object? sender, ResultadoEventArgs e)
@@ -42,7 +42,7 @@ namespace TopoGente.UI
                 Show();
             }
 
-            AtualizarDesenho(e.Resultado.TodosOsPontos);
+            AtualizarDesenho(e.Resultado);
         }
 
         private void VisualizacaoWindow_Closing(object? sender, CancelEventArgs e)
@@ -134,17 +134,30 @@ namespace TopoGente.UI
             }
         }
 
-        private void DesenharLevantamento(List<PontoCoordenada> pontos)
+        private void DesenharLevantamento(ResultadoLevantamento resultado)
         {
             transformacaoCanvas.Matrix = Matrix.Identity;
             canvasDesenho.Children.Clear();
 
-            if (pontos == null || pontos.Count == 0) return;
+            if (resultado == null || (resultado.TodosOsPontos.Count == 0 && (resultado.PoligonalBruta == null || resultado.PoligonalBruta.Count == 0))) return;
 
-            double minX = pontos.Min(p => p.X);
-            double maxX = pontos.Max(p => p.X);
-            double minY = pontos.Min(p => p.Y);
-            double maxY = pontos.Max(p => p.Y);
+            // 1. Extrai os pontos definitivos do Domínio (Limpos)
+            var pontos = resultado.TodosOsPontos;
+
+            // 2. Clona a lista estritamente para o cálculo da Câmera (Bounding Box)
+            var pontosParaExtensao = new List<PontoCoordenada>(pontos);
+
+            // 3. Injeta o Esboço Geodésico na Câmera (Se houver malha bruta)
+            if (resultado.PoligonalBruta != null && resultado.PoligonalBruta.Count > 0)
+            {
+                pontosParaExtensao.AddRange(resultado.PoligonalBruta);
+            }
+
+            // 4. Calcula os limites espaciais extremos (agora imunes ao Ponto Cego)
+            double minX = pontosParaExtensao.Min(p => p.X);
+            double maxX = pontosParaExtensao.Max(p => p.X);
+            double minY = pontosParaExtensao.Min(p => p.Y);
+            double maxY = pontosParaExtensao.Max(p => p.Y);
 
             double larguraReal = maxX - minX;
             double alturaReal = maxY - minY;
@@ -187,6 +200,30 @@ namespace TopoGente.UI
             }
 
             Visibility visibilidadeTexto = (chkMostrarNomes.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
+
+            // Renderização do Esboço Geodésico (Poligonal Bruta Tracejada)
+            // Inserir antes da renderização da "poligonal" compensada atual
+            if (resultado.PoligonalBruta != null && resultado.PoligonalBruta.Count > 1)
+            {
+                for (int i = 0; i < resultado.PoligonalBruta.Count - 1; i++)
+                {
+                    Point p1Bruto = ParaTela(resultado.PoligonalBruta[i].X, resultado.PoligonalBruta[i].Y);
+                    Point p2Bruto = ParaTela(resultado.PoligonalBruta[i + 1].X, resultado.PoligonalBruta[i + 1].Y);
+
+                    Line linhaBruta = new Line
+                    {
+                        X1 = p1Bruto.X,
+                        Y1 = p1Bruto.Y,
+                        X2 = p2Bruto.X,
+                        Y2 = p2Bruto.Y,
+                        Stroke = Brushes.Red,           // Contraste para o dado não-compensado
+                        StrokeThickness = 1.5,
+                        StrokeDashArray = new DoubleCollection { 4, 2 }, // Linha tracejada (Esboço)
+                        ToolTip = "Poligonal Bruta (Sem Ajustamento Linear)"
+                    };
+                    canvasDesenho.Children.Add(linhaBruta);
+                }
+            }
 
             var poligonal = pontos.Where(p => p.EhPontoPoligonal).ToList();
 

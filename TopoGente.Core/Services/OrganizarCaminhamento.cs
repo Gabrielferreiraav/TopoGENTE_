@@ -55,25 +55,24 @@ namespace TopoGente.Core.Services
             }
 
 
-            var mapaEstacoes = estacoesUnicas.ToDictionary(e => e.Nome.ToUpper(), e => e);
-            var estacoesVisitadas = new HashSet<string>();
+            var mapaEstacoes = estacoesUnicas.ToDictionary(e => e.Nome, e => e, StringComparer.OrdinalIgnoreCase);
+            var estacoesVisitadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             while (estacaoAtual != null)
             {
-                if (estacoesVisitadas.Contains(estacaoAtual.Nome.ToUpper()))
+                if (!estacoesVisitadas.Add(estacaoAtual.Nome))
                 {
                     break;
                 }
-                estacoesVisitadas.Add(estacaoAtual.Nome.ToUpper());
+
                 leituraOrdenada.AddRange(estacaoAtual.Leituras);
 
                 var leituraVante = estacaoAtual.Leituras
                     .FirstOrDefault(l => l.Tipo == TipoLeitura.Poligonal);
 
-                if (leituraVante != null && mapaEstacoes.ContainsKey(leituraVante.PontoVisado.ToUpper()))
+                if (leituraVante != null && mapaEstacoes.TryGetValue(leituraVante.PontoVisado, out var proximaEstacao))
                 {
-
-                    estacaoAtual = mapaEstacoes[leituraVante.PontoVisado.ToUpper()];
+                    estacaoAtual = proximaEstacao;
                 }
                 else
                 {
@@ -121,12 +120,13 @@ namespace TopoGente.Core.Services
 
         public Estacao CurrentItem()
         {
-            if (IsDone())
+            var estacaoAtual = _estacaoAtual;
+            if (estacaoAtual == null)
             {
                 throw new InvalidOperationException("Iterador fora dos limites.");
-
             }
-            return _estacaoAtual;
+
+            return estacaoAtual;
         }
 
         private Estacao? ObterEstacaoAtual()

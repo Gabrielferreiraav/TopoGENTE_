@@ -130,6 +130,12 @@ namespace TopoGente.Tests.CaixaBranca
 
             Assert.True(resultado.AprovadoNorma);
             Assert.Empty(resultado.AlertaReprovacao);
+            Assert.Equal(100.000, resultado.PoligonalCompensada[1].X, precision: 3);
+            Assert.Equal(0.000, resultado.PoligonalCompensada[1].Y, precision: 3);
+            Assert.Equal(0.000, resultado.PoligonalCompensada[1].Z, precision: 3);
+            Assert.Equal(400.000, resultado.PoligonalCompensada[4].X, precision: 3);
+            Assert.Equal(0.000, resultado.PoligonalCompensada[4].Y, precision: 3);
+            Assert.Equal(0.000, resultado.PoligonalCompensada[4].Z, precision: 3);
         }
     }
 }

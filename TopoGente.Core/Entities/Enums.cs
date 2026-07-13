@@ -14,7 +14,8 @@ namespace TopoGente.Core.Entities
     {
         Re = 0,        
         Irradiacao = 1, 
-        Poligonal = 2   
+        Poligonal = 2,
+        ReLocal = 3
     }
 
     public enum FormatoArquivoEntrada

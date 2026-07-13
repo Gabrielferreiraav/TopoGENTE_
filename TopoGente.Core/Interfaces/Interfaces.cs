@@ -22,6 +22,7 @@ namespace TopoGente.Core.Interfaces
     public interface ILevantamentoProcessor
     {
         ResultadoLevantamento Processar(MetadadosCenario metadados, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada> pontosConhecidos);
+        ResultadoLevantamento GerarEsbocoBruto(MetadadosCenario metadados, List<Estacao> todasEstacoes);
     }
 
     public interface IArquivoProjetoService
