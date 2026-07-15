@@ -1,4 +1,4 @@
-﻿namespace TopoGente.Core.Entities
+namespace TopoGente.Core.Entities
 {
     public class PontoCoordenada
     {
@@ -11,6 +11,9 @@
 
         // Útil para saber se é um ponto de poligonal (fixo) ou irradiado
         public bool EhPontoPoligonal { get; set; }
+
+        // Propriedade para reter a semântica da caderneta de campo
+        public string Descricao { get; set; } = string.Empty;
 
         public double AzimuteChegada { get; set; }
 

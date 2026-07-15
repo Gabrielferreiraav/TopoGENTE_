@@ -29,7 +29,7 @@ namespace TopoGente.UI
             cmbEstacoes.SelectedIndex = estacoes.Count > 0 ? 0 : -1;
         }
 
-        public void AtualizarResultados(IReadOnlyList<PontoCoordenada> pontos)
+        public void AtualizarResultados(IEnumerable<PontoCoordenada> pontos)
         {
             gridResultados.ItemsSource = pontos;
         }
@@ -94,12 +94,7 @@ namespace TopoGente.UI
 
                 if (confirmacao == System.Windows.MessageBoxResult.Yes)
                 {
-                    // Mutação direta na raiz de agregação (Domínio)
-                    estacaoAtual.Leituras.Remove(leituraSelecionada);
-
-                    // Restabelecimento da sincronia de renderização
-                    // Como estamos usando List<T> no domínio e não ObservableCollection, o Refresh é obrigatório.
-                    gridCaderneta.Items.Refresh();
+                    _uiEventHub.SolicitarRemocaoLeitura(estacaoAtual, leituraSelecionada);
                 }
             }
         }

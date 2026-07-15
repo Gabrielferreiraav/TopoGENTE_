@@ -294,9 +294,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             {
                 Nome = nomeEstacao,
                 AlturaInstrumento = hi,
-                Id = idSetup,
-                Leituras = new List<LeituraEstacaoTotal>(),
-                PontosCalculados = new List<PontoCoordenada>()
+                Id = idSetup
             };
 
             var instrumentPoint = setup.Elements(_ns + "InstrumentPoint").FirstOrDefault();
@@ -333,7 +331,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                 if (!string.IsNullOrEmpty(alvoBs))
                 {
-                    novaEstacao.Leituras.Add(new LeituraEstacaoTotal
+                    novaEstacao.AdicionarVisada(new LeituraEstacaoTotal
                     {
                         EstacaoOcupada = nomeEstacao,
                         PontoVisado = alvoBs,
@@ -379,7 +377,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                 var timeStamp = ObterTimeStampRawObservation(raw);
 
-                novaEstacao.Leituras.Add(new LeituraEstacaoTotal
+                novaEstacao.AdicionarVisada(new LeituraEstacaoTotal
                 {
                     SetupId = idSetup,
                     TimeStamp = timeStamp,

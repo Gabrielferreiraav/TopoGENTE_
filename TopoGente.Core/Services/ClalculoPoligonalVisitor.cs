@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Utilities;
@@ -8,6 +8,7 @@ namespace TopoGente.Core.Services
     public class CalculoPoligonalVisitor : ITopografiaVisitor
     {
         private PontoCoordenada _estacaoAtual;
+        private Estacao? _estacaoVisitada;
         private double _azimuteAtual;
 
         public List<PontoCoordenada> PontosCalculados { get; private set; } = new();
@@ -23,6 +24,7 @@ namespace TopoGente.Core.Services
 
         public void VisitarEstacao(Estacao estacao)
         {
+            _estacaoVisitada = estacao;
         }
 
         public void VisitarLeitura(LeituraEstacaoTotal leitura)
@@ -47,6 +49,7 @@ namespace TopoGente.Core.Services
                 };
 
                 PontosCalculados.Add(novoPonto);
+                _estacaoVisitada?.AdicionarPontoCalculado(novoPonto);
 
                 _estacaoAtual = novoPonto;
                 _azimuteAtual = GeometriaTopograficaHelper.Normalizar360(_azimuteAtual + 180.0);

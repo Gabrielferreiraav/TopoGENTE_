@@ -109,8 +109,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     {
                         Id = Guid.NewGuid().ToString(),
                         Nome = nomeOcupada,
-                        AlturaInstrumento = hiLeitura,
-                        Leituras = new List<LeituraEstacaoTotal>()
+                        AlturaInstrumento = hiLeitura
                     };
 
                     estacoes.Add(estacaoAtual);
@@ -119,7 +118,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 }
 
                 leitura.SetupId = estacaoAtual!.Id;
-                estacaoAtual.Leituras.Add(leitura);
+                estacaoAtual.AdicionarVisada(leitura);
             }
 
             return estacoes;

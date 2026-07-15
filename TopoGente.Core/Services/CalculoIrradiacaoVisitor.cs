@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
@@ -11,6 +11,7 @@ namespace TopoGente.Core.Services
     {
         // Estado local acumulado durante o percurso da estrutura 
         private PontoCoordenada? _estacaoAtual;
+        private Estacao? _estacaoBase;
         private double? _azimuteReVigente;
         private readonly double _azimuteInicial;
 
@@ -32,6 +33,8 @@ namespace TopoGente.Core.Services
 
         public void VisitarEstacao(Estacao estacao)
         {
+            _estacaoBase = estacao;
+
             // O visitante acessa no Nó. Atualiza o contexto espacial buscando a coordenada compensada.
             if (_pontosCompensados.TryGetValue(estacao.Nome, out var pontoCalculado))
                 _estacaoAtual = pontoCalculado;
@@ -96,7 +99,9 @@ namespace TopoGente.Core.Services
             }
 
             var pontoIrradiado = GeometriaTopograficaHelper.CalcularPontoIrradiado(_estacaoAtual!, leitura, azReUsado);
+            pontoIrradiado.Descricao = leitura.Observacao ?? string.Empty; // <-- O transporte semântico vital
             IrradiacoesCalculadas.Add(pontoIrradiado);
+            _estacaoBase?.AdicionarPontoCalculado(pontoIrradiado);
         }
     }
 }

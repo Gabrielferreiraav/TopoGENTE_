@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,12 +6,13 @@ namespace TopoGente.Core.Validators
 {
     public class ValidationResult
     {
-        public bool IsValid => Errors.Count == 0;
-        public List<string> Errors { get; } = new List<string>();
+        private readonly List<string> _errors = new();
+        public IReadOnlyList<string> Errors => _errors.AsReadOnly();
+        public bool IsValid => _errors.Count == 0;
 
         public void AddError(string error)
         {
-            Errors.Add(error);
+            if (!string.IsNullOrWhiteSpace(error)) _errors.Add(error);
         }
     }
 }

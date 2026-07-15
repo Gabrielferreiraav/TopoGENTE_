@@ -167,7 +167,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         string alvoNome = partes[1].Replace("\"", "");
                         double angulo = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
 
-                        estacaoAtual.Leituras.Add(new LeituraEstacaoTotal
+                        estacaoAtual.AdicionarVisada(new LeituraEstacaoTotal
                         {
                             EstacaoOcupada = estacaoAtual.Nome,
                             PontoVisado = alvoNome,
@@ -201,7 +201,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             descricao = partes[6].Replace("\"", "");
                         }
 
-                        estacaoAtual.Leituras.Add(new LeituraEstacaoTotal
+                        estacaoAtual.AdicionarVisada(new LeituraEstacaoTotal
                         {
                             EstacaoOcupada = estacaoAtual.Nome,
                             PontoVisado = alvoNome,

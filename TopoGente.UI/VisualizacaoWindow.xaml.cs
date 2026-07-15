@@ -139,7 +139,7 @@ namespace TopoGente.UI
             transformacaoCanvas.Matrix = Matrix.Identity;
             canvasDesenho.Children.Clear();
 
-            if (resultado == null || (resultado.TodosOsPontos.Count == 0 && (resultado.PoligonalBruta == null || resultado.PoligonalBruta.Count == 0))) return;
+            if (resultado == null || (!resultado.TodosOsPontos.Any() && (resultado.PoligonalBruta == null || resultado.PoligonalBruta.Count == 0))) return;
 
             // 1. Extrai os pontos definitivos do Domínio (Limpos)
             var pontos = resultado.TodosOsPontos;
@@ -190,7 +190,7 @@ namespace TopoGente.UI
                 return new Point(xTela, yTela);
             }
 
-            if (pontos.Count > 50)
+            if (pontos.Skip(50).Any())
             {
                 chkMostrarNomes.IsChecked = false;
             }

@@ -47,19 +47,12 @@ namespace TopoGente.Test
         [Fact]
         public void Classificador_Deve_Promover_Re_Apenas_Quando_PontoVisado_For_NomeRe()
         {
-            var estacoes = new List<Estacao>
-            {
-                new Estacao
-                {
-                    Nome = "E1",
-                    Leituras = new List<LeituraEstacaoTotal>
-                    {
-                        new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "REF", Purpose = "re" },
-                        new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E2", Purpose = "vante" },
-                        new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "P100" }
-                    }
-                }
-            };
+            var e1 = new Estacao { Nome = "E1" };
+            e1.AdicionarVisada(new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "REF", Purpose = "re" });
+            e1.AdicionarVisada(new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E2", Purpose = "vante" });
+            e1.AdicionarVisada(new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "P100" });
+
+            var estacoes = new List<Estacao> { e1 };
 
             var metadados = new MetadadosCenario
             {
@@ -69,19 +62,18 @@ namespace TopoGente.Test
 
             new ClassificadorGrafo().ClassificarArestasGrafo(estacoes, metadados);
 
-            Assert.Equal(TipoLeitura.Re, estacoes[0].Leituras[0].Tipo);
-            Assert.Equal(TipoLeitura.Poligonal, estacoes[0].Leituras[1].Tipo);
-            Assert.Equal(TipoLeitura.Irradiacao, estacoes[0].Leituras[2].Tipo);
+            Assert.Equal(TipoLeitura.Re, estacoes[0].Leituras.ElementAt(0).Tipo);
+            Assert.Equal(TipoLeitura.Poligonal, estacoes[0].Leituras.ElementAt(1).Tipo);
+            Assert.Equal(TipoLeitura.Irradiacao, estacoes[0].Leituras.ElementAt(2).Tipo);
         }
 
         [Fact]
         public void Classificador_Deve_Classificar_Aresta_Reversa_Topologica_Como_ReLocal()
         {
             var leituraReversa = new LeituraEstacaoTotal { EstacaoOcupada = "E2", PontoVisado = "E1" };
-            var estacoes = new List<Estacao>
-            {
-                new Estacao { Nome = "E2", Leituras = new List<LeituraEstacaoTotal> { leituraReversa } }
-            };
+            var e2 = new Estacao { Nome = "E2" };
+            e2.AdicionarVisada(leituraReversa);
+            var estacoes = new List<Estacao> { e2 };
 
             var metadados = new MetadadosCenario
             {
@@ -98,10 +90,9 @@ namespace TopoGente.Test
         public void Classificador_Nao_Deve_Falhar_Quando_Re_Local_Nao_For_NomeRe_Normativo()
         {
             var reLocal = new LeituraEstacaoTotal { EstacaoOcupada = "P1", PontoVisado = "E1", Purpose = "re" };
-            var estacoes = new List<Estacao>
-            {
-                new Estacao { Nome = "P1", Leituras = new List<LeituraEstacaoTotal> { reLocal } }
-            };
+            var p1_estacao = new Estacao { Nome = "P1" };
+            p1_estacao.AdicionarVisada(reLocal);
+            var estacoes = new List<Estacao> { p1_estacao };
 
             var metadados = new MetadadosCenario
             {
@@ -125,10 +116,20 @@ namespace TopoGente.Test
             var segundaE1ParaP2 = new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "P2", Purpose = "re" };
             var segundaE1ParaE4 = new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E4", Purpose = "vante" };
 
-            var primeiraE1 = new Estacao { Nome = "E1", AlturaInstrumento = 1.410, Leituras = new List<LeituraEstacaoTotal> { primeiraE1ParaP1 } };
-            var p1 = new Estacao { Nome = "P1", AlturaInstrumento = 1.510, Leituras = new List<LeituraEstacaoTotal> { p1ParaE1, p1ParaP2 } };
-            var p2 = new Estacao { Nome = "P2", AlturaInstrumento = 1.529, Leituras = new List<LeituraEstacaoTotal> { p2ParaP1, p2ParaE1 } };
-            var segundaE1 = new Estacao { Nome = "E1", AlturaInstrumento = 1.483, Leituras = new List<LeituraEstacaoTotal> { segundaE1ParaP2, segundaE1ParaE4 } };
+            var primeiraE1 = new Estacao { Nome = "E1", AlturaInstrumento = 1.410 };
+            primeiraE1.AdicionarVisada(primeiraE1ParaP1);
+            
+            var p1 = new Estacao { Nome = "P1", AlturaInstrumento = 1.510 };
+            p1.AdicionarVisada(p1ParaE1);
+            p1.AdicionarVisada(p1ParaP2);
+            
+            var p2 = new Estacao { Nome = "P2", AlturaInstrumento = 1.529 };
+            p2.AdicionarVisada(p2ParaP1);
+            p2.AdicionarVisada(p2ParaE1);
+            
+            var segundaE1 = new Estacao { Nome = "E1", AlturaInstrumento = 1.483 };
+            segundaE1.AdicionarVisada(segundaE1ParaP2);
+            segundaE1.AdicionarVisada(segundaE1ParaE4);
 
             var estacoes = new List<Estacao> { primeiraE1, p1, p2, segundaE1 };
             var metadados = new MetadadosCenario
@@ -151,17 +152,9 @@ namespace TopoGente.Test
         [Fact]
         public void Classificador_Deve_Falhar_Quando_Purpose_Vante_Nao_Bater_Com_Sequencia()
         {
-            var estacoes = new List<Estacao>
-            {
-                new Estacao
-                {
-                    Nome = "E1",
-                    Leituras = new List<LeituraEstacaoTotal>
-                    {
-                        new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E3", Purpose = "vante" }
-                    }
-                }
-            };
+            var e1 = new Estacao { Nome = "E1" };
+            e1.AdicionarVisada(new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E3", Purpose = "vante" });
+            var estacoes = new List<Estacao> { e1 };
 
             var metadados = new MetadadosCenario
             {
@@ -181,10 +174,9 @@ namespace TopoGente.Test
                 PontoVisado = "M_FINAL"
             };
 
-            var estacoes = new List<Estacao>
-            {
-                new Estacao { Nome = "E1", Leituras = new List<LeituraEstacaoTotal> { leituraChegadaAntecipada } }
-            };
+            var e1 = new Estacao { Nome = "E1" };
+            e1.AdicionarVisada(leituraChegadaAntecipada);
+            var estacoes = new List<Estacao> { e1 };
 
             var metadados = new MetadadosCenario
             {

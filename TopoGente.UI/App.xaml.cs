@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
@@ -6,6 +6,7 @@ using TopoGente.Infrastructure.Adapters.Exportadores;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using TopoGente.Infrastructure.Adapters.Storage;
 using TopoGente.UI.Eventing;
+using TopoGente.UI.Services;
 
 namespace TopoGente.UI
 {
@@ -28,7 +29,7 @@ namespace TopoGente.UI
 
             IUiEventHub uiEventHub = new UiEventHub();
 
-            MainWindow janelaPrincipal = new MainWindow(
+            var mainViewModel = new TopoGente.UI.ViewModels.MainViewModel(
                 leitorFactory,
                 processador,
                 projetoService,
@@ -37,7 +38,12 @@ namespace TopoGente.UI
                 exportarTxtService,
                 qaCheck,
                 classificador,
-                uiEventHub);
+                uiEventHub,
+                new WindowsDialogService(),
+                new WindowsMessageService(),
+                new LocalFileService());
+
+            MainWindow janelaPrincipal = new MainWindow(mainViewModel);
 
             CadernetaWindow cadernetaWindow = new CadernetaWindow(uiEventHub);
             VisualizacaoWindow visualizacaoWindow = new VisualizacaoWindow(uiEventHub);

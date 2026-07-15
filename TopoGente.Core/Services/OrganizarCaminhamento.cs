@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
@@ -17,13 +17,22 @@ namespace TopoGente.Core.Services
         {
             return todasEstacoes
                 .GroupBy(e => new { Nome = e.Nome.ToUpper(), e.AlturaInstrumento })
-                .Select(g => new Estacao
+                .Select(g => 
                 {
-                    Id = g.First().Id,
-                    Nome = g.First().Nome,
-                    AlturaInstrumento = g.Key.AlturaInstrumento,
-                    CoordenadaConhecida = g.First().CoordenadaConhecida,
-                    Leituras = g.SelectMany(e => e.Leituras).ToList()
+                    var estacao = new Estacao
+                    {
+                        Id = g.First().Id,
+                        Nome = g.First().Nome,
+                        AlturaInstrumento = g.Key.AlturaInstrumento,
+                        CoordenadaConhecida = g.First().CoordenadaConhecida
+                    };
+                    
+                    foreach (var leitura in g.SelectMany(e => e.Leituras))
+                    {
+                        estacao.AdicionarVisada(leitura);
+                    }
+                    
+                    return estacao;
                 })
                 .ToList();
         }

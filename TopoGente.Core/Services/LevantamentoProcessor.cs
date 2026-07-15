@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
@@ -31,7 +31,7 @@ namespace TopoGente.Core.Services
             if (pontoPartida == null)
             {
                 throw new DadosInsuficientesException(
-                    "Levantamentos fechados exigem coordenadas de partida e chegada reais para cÃ¡lculo de fechamento.");
+                    "Levantamentos fechados exigem coordenadas de partida e chegada reais para calculo de fechamento.");
             }
         }
 
@@ -40,7 +40,7 @@ namespace TopoGente.Core.Services
         {
             if (metadadosAtuais.SequenciaEstacoesSelecionadas == null)
             {
-                throw new DadosInsuficientesException("SequÃªncia de estaÃ§Ãµes nÃ£o foi informada.");
+                throw new DadosInsuficientesException("Sequencia de estacoes nao foi informada.");
             }
 
             var sequencia = metadadosAtuais.SequenciaEstacoesSelecionadas
@@ -50,7 +50,7 @@ namespace TopoGente.Core.Services
 
             if (sequencia.Count == 0)
             {
-                throw new DadosInsuficientesException("SequÃªncia de estaÃ§Ãµes nÃ£o foi informada.");
+                throw new DadosInsuficientesException("Sequencia de estacoes nao foi informada.");
             }
 
             var mapaEstacoes = new HashSet<string>(todasEstacoes.Select(e => e.Nome), StringComparer.OrdinalIgnoreCase);
@@ -61,7 +61,7 @@ namespace TopoGente.Core.Services
 
             if (estacoesDeOrigem.Any(nome => !mapaEstacoes.Contains(nome)))
             {
-                throw new DadosInsuficientesException("A sequencia informada contÃ©m estaÃ§Ãµes de origem nÃ£o carregadas na caderneta fÃ­sica.");
+                throw new DadosInsuficientesException("A sequencia informada contém estacoes de origem nao carregadas na caderneta fisica.");
             }
 
             var validadores = new Dictionary<TipoCenarioPoligonal, Action>
@@ -82,7 +82,7 @@ namespace TopoGente.Core.Services
         {
             if (!string.Equals(primeira, ultima, StringComparison.OrdinalIgnoreCase))
             {
-                throw new DadosInsuficientesException("Poligonal Fechada exige que a estaÃ§Ã£o de partida seja a mesma de fechamento");
+                throw new DadosInsuficientesException("Poligonal Fechada exige que a estacao de partida seja a mesma de fechamento");
             }
         }
 
@@ -90,7 +90,7 @@ namespace TopoGente.Core.Services
         {
             if (string.Equals(primeira, ultima, StringComparison.OrdinalIgnoreCase))
             {
-                throw new DadosInsuficientesException("Poligonal Enquadrada exige que a estaÃ§Ã£o de partida seja diferente da estaÃ§Ã£o de chegada.");
+                throw new DadosInsuficientesException("Poligonal Enquadrada exige que a estacao de partida seja diferente da estacao de chegada.");
             }
 
             if (metadadosAtuais.ChegadaX is null || metadadosAtuais.ChegadaY is null || metadadosAtuais.ChegadaZ is null)
@@ -100,7 +100,7 @@ namespace TopoGente.Core.Services
 
             if (string.IsNullOrWhiteSpace(metadadosAtuais.NomeChegada) || !string.Equals(metadadosAtuais.NomeChegada, ultima, StringComparison.OrdinalIgnoreCase))
             {
-                throw new DadosInsuficientesException("Poligonal enquadrada exige que a estaÃ§Ã£o final corresponda ao nome de chegada informado.");
+                throw new DadosInsuficientesException("Poligonal enquadrada exige que a estacao final corresponda ao nome de chegada informado.");
             }
         }
 
@@ -112,12 +112,26 @@ namespace TopoGente.Core.Services
                 throw new DadosInsuficientesException("Dados Inciais nÃ£o foram preenchidos.");
             }
 
+            if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada)
+            {
+                pontosConhecidos ??= new Dictionary<string, PontoCoordenada>();
+                if (metadadosAtuais.ChegadaX.HasValue && metadadosAtuais.ChegadaY.HasValue && metadadosAtuais.ChegadaZ.HasValue)
+                {
+                    pontosConhecidos["CHEGADA"] = new PontoCoordenada
+                    {
+                        Nome = metadadosAtuais.NomeChegada ?? "CHEGADA",
+                        X = metadadosAtuais.ChegadaX.Value,
+                        Y = metadadosAtuais.ChegadaY.Value,
+                        Z = metadadosAtuais.ChegadaZ.Value
+                    };
+                }
+            }
+
             if (todasEstacoes == null)
             {
                 throw new DadosInsuficientesException("Caderneta de estaÃ§Ãµes nÃ£o foi informada.");
             }
 
-            var resultado = new ResultadoLevantamento();
 
             var sequenciaEstacoes = ValidarSequenciaEstacoes(metadadosAtuais, todasEstacoes);
 
@@ -167,13 +181,12 @@ namespace TopoGente.Core.Services
                 }
             }
 
-            var poligonalBruta = CalcularMalhaBruta(pontoPartida, leiturasPoligonal);
-            resultado.PoligonalBruta = poligonalBruta;
+            var poligonalBrutaLocal = CalcularMalhaBruta(pontoPartida, leiturasPoligonal);
 
-            double minX = poligonalBruta.Min(p => p.X);
-            double maxX = poligonalBruta.Max(p => p.X);
-            double minY = poligonalBruta.Min(p => p.Y);
-            double maxY = poligonalBruta.Max(p => p.Y);
+            double minX = poligonalBrutaLocal.Min(p => p.X);
+            double maxX = poligonalBrutaLocal.Max(p => p.X);
+            double minY = poligonalBrutaLocal.Min(p => p.Y);
+            double maxY = poligonalBrutaLocal.Max(p => p.Y);
 
             // eixos de Bounding Box
             double dimensaoX = maxX - minX;
@@ -195,24 +208,35 @@ namespace TopoGente.Core.Services
             }
 
             double perimetro = 0;
-            if (poligonalBruta.Count > 1)
+            if (poligonalBrutaLocal.Count > 1)
             {
                 foreach (var leitura in leiturasPoligonal)
                 {
                     perimetro += GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
                 }
             }
-            resultado.Perimetro = perimetro;
 
             // CenÃ¡rio ABERTO: sem compensaÃ§Ã£o (se quiser eliminar este `if`, crie uma Strategy para Aberta e dÃª suporte na Factory)
             if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
             {
-                resultado.TipoCenario = TipoCenarioPoligonal.AbertaOrientada;
-                resultado.PoligonalFechada = false;
-                ProcessarAberta(resultado, poligonalBruta);
+                var irradiacoesAberta = OrquestrarCalculoIrradiacoes(poligonalBrutaLocal, todasEstacoes, pontosConhecidos, azimuteInicial);
 
-                OrquestrarCalculoIrradiacoes(resultado, todasEstacoes, pontosConhecidos, azimuteInicial);
-                return resultado;
+                return new ResultadoLevantamento
+                {
+                    PoligonalBruta = poligonalBrutaLocal,
+                    Poligonal = poligonalBrutaLocal,
+                    Irradiacoes = irradiacoesAberta,
+                    TipoCenario = TipoCenarioPoligonal.AbertaOrientada,
+                    PoligonalFechada = false,
+                    Perimetro = perimetro,
+                    ErroFechamentoX = 0,
+                    ErroFechamentoY = 0,
+                    ErroFechamentoZ = 0,
+                    ErroFechamentoLinearXY = 0,
+                    PrecisaoBruta = 0,
+                    ErroLinear = 0,
+                    Precisao = 0
+                };
             }
 
             double anguloFechamento = 0;
@@ -247,26 +271,34 @@ namespace TopoGente.Core.Services
                 AzimuteChegada = metadadosAtuais.AzimuteChegada,
                 AnguloFechamento = anguloFechamento,
                 Leituras = leiturasPoligonal,
-                PoligonalBruta = poligonalBruta
+                PoligonalBruta = poligonalBrutaLocal
             };
 
             var estrategia = _compensacaoStrategyFactory.Criar(metadadosAtuais.TipoCenario);
             var compensacao = estrategia.Compensar(entrada);
 
-            resultado.Poligonal = compensacao.PoligonalCompensada ?? new List<PontoCoordenada>();
-            resultado.AprovadoNorma = compensacao.AprovadoNorma;
-            if (!compensacao.AprovadoNorma) resultado.Alertas.Add(compensacao.AlertaReprovacao);
+            var poligonalCompensadaLocal = compensacao.PoligonalCompensada != null ? compensacao.PoligonalCompensada.ToList() : new List<PontoCoordenada>();
+            var alertasLocal = new List<string>();
+            if (!compensacao.AprovadoNorma) alertasLocal.Add(compensacao.AlertaReprovacao);
 
-            resultado.ErroAngular = compensacao.ErroAngular;
-            resultado.ErroLinear = compensacao.ErroLinearTotal;
-            resultado.Precisao = compensacao.PrecisaoRelativa;
-            resultado.ErroFechamentoX = compensacao.ErroX;
-            resultado.ErroFechamentoY = compensacao.ErroY;
-            resultado.ErroFechamentoZ = compensacao.ErroAltimetrico;
+            var irradiacoesLocal = OrquestrarCalculoIrradiacoes(poligonalCompensadaLocal, todasEstacoes, pontosConhecidos, azimuteInicial);
 
-            OrquestrarCalculoIrradiacoes(resultado, todasEstacoes, pontosConhecidos, azimuteInicial);
-
-            return resultado;
+            return new ResultadoLevantamento
+            {
+                PoligonalBruta = poligonalBrutaLocal,
+                Poligonal = poligonalCompensadaLocal,
+                Irradiacoes = irradiacoesLocal,
+                Alertas = alertasLocal,
+                AprovadoNorma = compensacao.AprovadoNorma,
+                ErroAngular = compensacao.ErroAngular,
+                ErroLinear = compensacao.ErroLinearTotal,
+                Precisao = compensacao.PrecisaoRelativa,
+                ErroFechamentoX = compensacao.ErroX,
+                ErroFechamentoY = compensacao.ErroY,
+                ErroFechamentoZ = compensacao.ErroAltimetrico,
+                Perimetro = perimetro,
+                TipoCenario = metadadosAtuais.TipoCenario
+            };
         }
 
         private bool ProcessarFechada(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta, PontoCoordenada pontoPartida, double perimetro)
@@ -293,28 +325,16 @@ namespace TopoGente.Core.Services
             return fechou;
         }
 
-        private void ProcessarAberta(ResultadoLevantamento resultado, List<PontoCoordenada> poligonalBruta)
+        private IReadOnlyList<PontoCoordenada> OrquestrarCalculoIrradiacoes(IReadOnlyList<PontoCoordenada> poligonal, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos, double azimuteInicial)
         {
-            resultado.Poligonal = poligonalBruta;
-            resultado.ErroFechamentoX = 0;
-            resultado.ErroFechamentoY = 0;
-            resultado.ErroFechamentoZ = 0;
-            resultado.ErroFechamentoLinearXY = 0;
-            resultado.PrecisaoBruta = 0;
-            resultado.ErroLinear = 0;
-            resultado.Precisao = 0;
-        }
-
-        private void OrquestrarCalculoIrradiacoes(ResultadoLevantamento resultado, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos, double azimuteInicial)
-        {
-            var visitante = new CalculoIrradiacaoVisitor(resultado.Poligonal, pontosConhecidos, azimuteInicial);
+            var visitante = new CalculoIrradiacaoVisitor(poligonal.ToList(), pontosConhecidos, azimuteInicial);
 
             foreach (var estacao in todasEstacoes)
             {
                 estacao.Accept(visitante);
             }
 
-            resultado.Irradiacoes = visitante.IrradiacoesCalculadas;
+            return visitante.IrradiacoesCalculadas;
         }
 
         private static List<Estacao?> VincularEstacoesDeOrigem(List<Estacao> todasEstacoes, IReadOnlyList<string> sequencia)
@@ -341,19 +361,13 @@ namespace TopoGente.Core.Services
 
         public ResultadoLevantamento GerarEsbocoBruto(MetadadosCenario metadadosAtuais, List<Estacao> todasEstacoes)
         {
-            var resultado = new ResultadoLevantamento
-            {
-                AprovadoNorma = false,
-                Poligonal = new List<PontoCoordenada>(),
-                Irradiacoes = new List<PontoCoordenada>(),
-                PoligonalBruta = new List<PontoCoordenada>()
-            };
-
             if (metadadosAtuais == null || todasEstacoes == null || todasEstacoes.Count == 0)
-                return resultado;
+                return new ResultadoLevantamento { AprovadoNorma = false };
 
             if (metadadosAtuais.SequenciaEstacoesSelecionadas == null || metadadosAtuais.SequenciaEstacoesSelecionadas.Count < 2)
-                return resultado;
+                return new ResultadoLevantamento { AprovadoNorma = false };
+
+            var poligonalBrutaLocal = new List<PontoCoordenada>();
 
             try
             {
@@ -362,7 +376,7 @@ namespace TopoGente.Core.Services
                     .Select(nome => nome.Trim())
                     .ToList();
 
-                if (sequenciaEstacoes.Count < 2) return resultado;
+                if (sequenciaEstacoes.Count < 2) return new ResultadoLevantamento { AprovadoNorma = false };
 
                 double azimuteInicial = metadadosAtuais.UsarCoordenadaRe
                     ? GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(metadadosAtuais.PartidaX, metadadosAtuais.PartidaY, metadadosAtuais.ReX, metadadosAtuais.ReY)
@@ -393,17 +407,21 @@ namespace TopoGente.Core.Services
                     if (leituraAlvo != null)
                         leiturasPoligonal.Add(leituraAlvo);
                     else
-                        break; // Interrompe silenciosamente para desenhar atÃ© o ponto onde hÃ¡ ruptura
+                        break; // Interrompe silenciosamente para desenhar até o ponto onde há ruptura
                 }
 
-                resultado.PoligonalBruta = CalcularMalhaBruta(pontoPartida, leiturasPoligonal);
+                poligonalBrutaLocal = CalcularMalhaBruta(pontoPartida, leiturasPoligonal);
             }
             catch
             {
                 // Falha silenciosa para manter a tela limpa ou parcial
             }
 
-            return resultado;
+            return new ResultadoLevantamento
+            {
+                PoligonalBruta = poligonalBrutaLocal,
+                AprovadoNorma = false
+            };
         }
 
         private static List<PontoCoordenada> CalcularMalhaBruta(PontoCoordenada pontoPartida, List<LeituraEstacaoTotal> leiturasPoligonal)
