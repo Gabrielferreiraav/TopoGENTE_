@@ -169,6 +169,7 @@ namespace TopoGente.UI.ViewModels
             _classificadorGrafo = classificadorGrafo;
             _uiEventHub = uiEventHub;
             _uiEventHub.LeituraRemovida += OnLeituraRemovida;
+            _uiEventHub.LeituraEditada += OnLeituraEditada;
             _dialogService = dialogService;
             _messageService = messageService;
             _fileService = fileService;
@@ -202,15 +203,42 @@ namespace TopoGente.UI.ViewModels
                 // 4. Repreencha a interface gráfica
                 _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
 
-                // 5. Aciona o recálculo apenas se a topologia continuar inteira, MAS SEM EXIBIR MESSAGEBOX
-                if (PodeCalcularCompensacao(null))
+                // 5. O dado mudou, a compensação anterior morreu. Força o modo esboço.
+                PublicarEsbocoGeodesicoSobDemanda();
+            }
+        }
+
+        private void OnLeituraEditada(object? sender, LeituraEditadaEventArgs e)
+        {
+            if (e.Estacao != null && e.LeituraIdAntiga != null && e.NovosDados != null)
+            {
+                try
                 {
-                    ProcessamentoSilencioso(); 
-                }
-                else
-                {
-                    // Se quebrou a poligonal, emite o Esboço Bruto para mostrar a ruptura na tela
+                    e.Estacao.SubstituirLeitura(
+                        e.LeituraIdAntiga,
+                        e.NovosDados.PontoVisado,
+                        e.NovosDados.AnguloHorizontal,
+                        e.NovosDados.AnguloVertical,
+                        e.NovosDados.DistanciaInclinada,
+                        e.NovosDados.AlturaPrisma,
+                        e.NovosDados.Observacao
+                    );
+
+                    // 1. Destruição Prévia do Resultado (Prevenção de Estado Zumbi conforme salvaguarda)
+                    _resultadoAtual = null;
+                    
+                    // Bloqueia a exportação DXF/TXT de dados fantasmas
+                    (ExportarTxtCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+                    // 2. Repreencha a interface gráfica para manter a consistência da view
+                    _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
+
+                    // 3. O dado mudou, a compensação anterior morreu. Força o modo esboço.
                     PublicarEsbocoGeodesicoSobDemanda();
+                }
+                catch (Exception ex)
+                {
+                    _messageService.MostrarErro($"Erro ao substituir leitura: {ex.Message}", "Erro");
                 }
             }
         }
@@ -354,22 +382,48 @@ namespace TopoGente.UI.ViewModels
 
         private void OnProcessar(object? parameter)
         {
-            ProcessamentoSilencioso();
-
-            if (_resultadoAtual == null) return;
-
-            if (_resultadoAtual.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
+            if (!PodeCalcularCompensacao(null))
             {
-                _messageService.MostrarAviso("Este levantamento é do tipo ABERTO. As coordenadas finais não foram auditadas contra erros de fechamento.\n\nQualquer erro angular na primeira estação deslocará linearmente todas as estações subsequentes (efeito alavanca).", "Aviso — Poligonal Aberta");
+                _messageService.MostrarAviso("Não é possível calcular. Verifique se as coordenadas de controle e a sequência do caminhamento estão preenchidas.", "Dados Insuficientes");
+                return;
             }
-            else if (!_resultadoAtual.AprovadoNorma)
+
+            try
             {
-                string erros = string.Join("\n", _resultadoAtual.Alertas);
-                _messageService.MostrarErro($"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{erros}\n\nA compensação foi abortada. As coordenadas exibidas são puramente BRUTAS e impróprias para uso final.", "Falha de Tolerância");
+                ProcessamentoSilencioso();
+
+                if (_resultadoAtual == null)
+                {
+                    _messageService.MostrarErro("O motor de cálculo falhou sem gerar resultados. Verifique a integridade da caderneta.", "Falha Interna");
+                    return;
+                }
+
+                // Auditoria Normativa Rigorosa
+                if (_resultadoAtual.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
+                {
+                    _messageService.MostrarAviso("Este levantamento é do tipo ABERTO. As coordenadas finais não foram auditadas contra erros de fechamento.\n\nQualquer erro angular na primeira estação deslocará linearmente todas as estações subsequentes (efeito alavanca).", "Aviso — Poligonal Aberta");
+                }
+                else if (!_resultadoAtual.AprovadoNorma)
+                {
+                    string erros = string.Join("\n", _resultadoAtual.Alertas);
+                    _messageService.MostrarErro($"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{erros}\n\nA compensação foi abortada. As coordenadas exibidas são puramente BRUTAS e impróprias para uso final.", "Falha de Tolerância");
+                }
+                else
+                {
+                    _messageService.MostrarSucesso("Cálculo realizado e compensado com sucesso!", "Norma Atendida");
+                }
             }
-            else
+            catch (TopoGente.Core.Entities.DadosInsuficientesException ex)
             {
-                _messageService.MostrarSucesso("Cálculo realizado com sucesso!", "Sucesso");
+                _resultadoAtual = null;
+                PublicarEsbocoGeodesicoSobDemanda();
+                _messageService.MostrarErro(ex.Message, "Ruptura Topológica");
+            }
+            catch (Exception ex)
+            {
+                _resultadoAtual = null;
+                PublicarEsbocoGeodesicoSobDemanda();
+                _messageService.MostrarErro($"Erro crítico durante o processamento trigonométrico: {ex.Message}", "Erro Fatal");
             }
         }
 

@@ -39,6 +39,36 @@ namespace TopoGente.Core.Entities
             _leituras.Remove(leitura);
         }
 
+        public void SubstituirLeitura(string leituraIdAntiga, string novoPontoVisado, double novoAngH, double novoAngV, double novaDistI, double novaAltPrisma, string novaObservacao)
+        {
+            var leituraExistente = _leituras.FirstOrDefault(l => l.Id == leituraIdAntiga);
+            if (leituraExistente == null) return; // Retorno silencioso: bloqueia o "Double-Fire" fantasma do WPF.
+
+            _leituras.Remove(leituraExistente);
+
+            var novaLeitura = new LeituraEstacaoTotal
+            {
+                Id = Guid.NewGuid().ToString(), // Garantia de novo Fato Físico
+                SetupId = leituraExistente.SetupId,
+                TimeStamp = leituraExistente.TimeStamp,
+                EstacaoOcupada = leituraExistente.EstacaoOcupada,
+                AlturaInstrumento = leituraExistente.AlturaInstrumento,
+                OrdemArquivo = leituraExistente.OrdemArquivo,
+                Tipo = leituraExistente.Tipo,
+                Purpose = leituraExistente.Purpose,
+                
+                // Novos valores alterados na UI
+                PontoVisado = novoPontoVisado,
+                AnguloHorizontal = novoAngH,
+                AnguloVertical = novoAngV,
+                DistanciaInclinada = novaDistI,
+                AlturaPrisma = novaAltPrisma,
+                Observacao = novaObservacao ?? string.Empty
+            };
+
+            _leituras.Add(novaLeitura);
+        }
+
         private readonly List<PontoCoordenada> _pontosCalculados = new();
         public IReadOnlyCollection<PontoCoordenada> PontosCalculados => _pontosCalculados.AsReadOnly();
 

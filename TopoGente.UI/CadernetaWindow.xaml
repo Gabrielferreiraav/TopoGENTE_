@@ -32,7 +32,8 @@
 
                     <DataGrid x:Name="gridCaderneta" Grid.Row="1" AutoGenerateColumns="False"
                               CanUserAddRows="False" Margin="5" BorderThickness="1" BorderBrush="#DDD"
-                              SelectionChanged="gridCaderneta_SelectionChanged">
+                              SelectionChanged="gridCaderneta_SelectionChanged"
+                              RowEditEnding="gridCaderneta_RowEditEnding">
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Remover Visada Selecionada" Click="MenuItem_RemoverLeitura_Click">
@@ -49,7 +50,7 @@
                             <DataGridTextColumn Header="Dist. Inc." Binding="{Binding DistanciaInclinada, StringFormat=F3}" Width="80"/>
                             <DataGridTextColumn Header="HS (Prisma)" Binding="{Binding AlturaPrisma, StringFormat=F3}" Width="80"/>
                             <DataGridTextColumn Header="Descrição" Binding="{Binding Observacao}" Width="150"/>
-                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="120"/>
+                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo, Mode=OneWay}" Width="120" IsReadOnly="True" Foreground="Gray"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
