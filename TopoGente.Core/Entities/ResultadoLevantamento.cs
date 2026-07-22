@@ -29,28 +29,5 @@ namespace TopoGente.Core.Entities
         public bool AprovadoNorma { get; set; } = true;
 
         public IReadOnlyList<string> Alertas { get; init; } = System.Array.Empty<string>();
-
-        public ResultadoLevantamento ClonarComFiltro(IEnumerable<PontoCoordenada> irradiacoesFiltradas)
-        {
-            return new ResultadoLevantamento
-            {
-                PoligonalBruta = this.PoligonalBruta,
-                Poligonal = this.Poligonal,
-                Irradiacoes = irradiacoesFiltradas.ToList(),
-                PoligonalFechada = this.PoligonalFechada,
-                Perimetro = this.Perimetro,
-                ErroLinear = this.ErroLinear,
-                Precisao = this.Precisao,
-                ErroFechamentoX = this.ErroFechamentoX,
-                ErroFechamentoY = this.ErroFechamentoY,
-                ErroFechamentoZ = this.ErroFechamentoZ,
-                ErroFechamentoLinearXY = this.ErroFechamentoLinearXY,
-                PrecisaoBruta = this.PrecisaoBruta,
-                ErroAngular = this.ErroAngular,
-                TipoCenario = this.TipoCenario,
-                AprovadoNorma = this.AprovadoNorma,
-                Alertas = this.Alertas
-            };
-        }
     }
 }

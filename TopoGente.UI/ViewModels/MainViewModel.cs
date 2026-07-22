@@ -118,7 +118,6 @@ namespace TopoGente.UI.ViewModels
 
         public ObservableCollection<string> EstacoesDisponiveis { get; } = new();
         public ObservableCollection<string> SequenciaPoligonal { get; } = new();
-        public ObservableCollection<FiltroCamada> CamadasDisponiveis { get; } = new();
 
         private string? _estacaoDisponivelSelecionada;
         public string? EstacaoDisponivelSelecionada
@@ -377,7 +376,6 @@ namespace TopoGente.UI.ViewModels
 
             _uiEventHub.PublicarResultado(_resultadoAtual);
             (ExportarTxtCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            ExtrairCamadasSemanticas(_resultadoAtual);
         }
 
         private void OnProcessar(object? parameter)
@@ -652,46 +650,5 @@ namespace TopoGente.UI.ViewModels
             throw new FormatException($"Azimute inválido: '{entrada}'.");
         }
 
-        private void ExtrairCamadasSemanticas(ResultadoLevantamento resultado)
-        {
-            // Elimina duplicações e ignora espaços em branco/case sensível
-            var descricoesUnicas = resultado.Irradiacoes
-                .Select(p => string.IsNullOrWhiteSpace(p.Descricao) ? "SEM DESCRIÇÃO" : p.Descricao.Trim().ToUpper())
-                .Distinct()
-                .OrderBy(d => d);
-
-            CamadasDisponiveis.Clear();
-            
-            foreach (var desc in descricoesUnicas)
-            {
-                var filtro = new FiltroCamada { Nome = desc, IsVisivel = true };
-                // Liga o evento de mudança do CheckBox à rotina de atualização do Canvas
-                filtro.VisibilidadeAlterada += (s, e) => PublicarMalhaFiltrada(); 
-                CamadasDisponiveis.Add(filtro);
-            }
-        }
-
-        private void PublicarMalhaFiltrada()
-        {
-            if (_resultadoAtual == null) return;
-
-            // Uso de HashSet para performance O(1) na busca das camadas ativas
-            var camadasVisiveis = new HashSet<string>(
-                CamadasDisponiveis.Where(c => c.IsVisivel).Select(c => c.Nome)
-            );
-
-            // Filtra as irradiações (Teoria dos Conjuntos via LINQ)
-            var irradiacoesVisiveis = _resultadoAtual.Irradiacoes.Where(p =>
-            {
-                string chave = string.IsNullOrWhiteSpace(p.Descricao) ? "SEM DESCRIÇÃO" : p.Descricao.Trim().ToUpper();
-                return camadasVisiveis.Contains(chave);
-            }).ToList();
-
-            // A SANTIDADE DA MALHA: Poligonal é imutável e concatenada de volta às irradiações filtradas
-            var malhaRenderizavel = _resultadoAtual.ClonarComFiltro(irradiacoesVisiveis);
-
-            // Publica o novo DTO enxuto para o Canvas desenhar
-            _uiEventHub.PublicarResultado(malhaRenderizavel);
-        }
     }
 }

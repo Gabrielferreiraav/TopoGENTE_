@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
@@ -10,6 +11,7 @@ using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 using TopoGente.Core.Entities;
 using TopoGente.UI.Eventing;
+using TopoGente.UI.ViewModels;
 
 namespace TopoGente.UI
 {
@@ -18,10 +20,14 @@ namespace TopoGente.UI
         private readonly IUiEventHub _uiEventHub;
         private Point _origemMouse;
         private bool _estaArrastando;
+        private ResultadoLevantamento? _ultimoResultado; // Cache local
+
+        public ObservableCollection<FiltroCamada> CamadasDisponiveis { get; } = new();
 
         public VisualizacaoWindow(IUiEventHub uiEventHub)
         {
             InitializeComponent();
+            DataContext = this; // Vincula a UI nela mesma para expor as CamadasDisponiveis
 
             _uiEventHub = uiEventHub;
             _uiEventHub.ResultadoAtualizado += OnResultadoAtualizado;
@@ -37,12 +43,36 @@ namespace TopoGente.UI
 
         private void OnResultadoAtualizado(object? sender, ResultadoEventArgs e)
         {
-            if (!IsVisible)
-            {
-                Show();
-            }
+            if (!IsVisible) Show();
 
-            AtualizarDesenho(e.Resultado);
+            _ultimoResultado = e.Resultado;
+            ExtrairCamadasSemanticas(_ultimoResultado);
+            AtualizarDesenho(_ultimoResultado);
+        }
+
+        private void ExtrairCamadasSemanticas(ResultadoLevantamento resultado)
+        {
+            if (resultado == null || !resultado.Irradiacoes.Any()) return;
+
+            var descricoesUnicas = resultado.Irradiacoes
+                .Select(p => string.IsNullOrWhiteSpace(p.Descricao) ? "SEM DESCRIÇÃO" : p.Descricao.Trim().ToUpper())
+                .Distinct()
+                .OrderBy(d => d).ToList();
+
+            var ativasAnteriormente = new HashSet<string>(CamadasDisponiveis.Where(c => c.IsVisivel).Select(c => c.Nome));
+            bool isPrimeiraVez = CamadasDisponiveis.Count == 0;
+
+            CamadasDisponiveis.Clear();
+
+            foreach (var desc in descricoesUnicas)
+            {
+                bool visivel = isPrimeiraVez || ativasAnteriormente.Contains(desc);
+                var filtro = new FiltroCamada { Nome = desc, IsVisivel = visivel };
+                
+                // Quando a check for clicada, redesenha sem passar pelo Core
+                filtro.VisibilidadeAlterada += (s, ev) => AtualizarDesenho(_ultimoResultado!);
+                CamadasDisponiveis.Add(filtro);
+            }
         }
 
         private void VisualizacaoWindow_Closing(object? sender, CancelEventArgs e)
@@ -244,8 +274,19 @@ namespace TopoGente.UI
                 canvasDesenho.Children.Add(linha);
             }
 
+            // CARREGA QUAIS LAYERS ESTÃO ATIVOS (O(1) HashSet)
+            var camadasVisiveis = new HashSet<string>(CamadasDisponiveis.Where(c => c.IsVisivel).Select(c => c.Nome));
+
             foreach (var p in pontos)
             {
+                // O BLOQUEIO DE CAMADA VAI AQUI:
+                if (!p.EhPontoPoligonal) // Os pontos da poligonal (verdes/azuis) nunca somem
+                {
+                    string chave = string.IsNullOrWhiteSpace(p.Descricao) ? "SEM DESCRIÇÃO" : p.Descricao.Trim().ToUpper();
+                    if (!camadasVisiveis.Contains(chave))
+                        continue; // Pula o cálculo deste ponto, não desenha no Canvas
+                }
+
                 Point pos = ParaTela(p.X, p.Y);
 
                 Ellipse pontoGeo = new Ellipse

@@ -22,7 +22,6 @@
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="220"/>
             </Grid.ColumnDefinitions>
 
             <GroupBox Header="Metadados de Partida" Grid.Row="0" Grid.Column="0" Padding="10" Margin="0,0,10,10">
@@ -174,21 +173,7 @@
                 </StackPanel>
             </GroupBox>
 
-            <!-- GESTOR DE CAMADAS INJETADO -->
-            <GroupBox Header="Gestor de Camadas" Grid.Row="0" Grid.Column="1" Padding="10" Margin="0,0,0,10">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding CamadasDisponiveis}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding IsVisivel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                                          Content="{Binding Nome}" Margin="0,4"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </GroupBox>
-
-            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10" Background="#F7F9FC">
+            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="1" Margin="0,0,0,10" Background="#F7F9FC">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -231,7 +216,7 @@
                 </GroupBox>
             </Grid>
 
-            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
+            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="1" Orientation="Horizontal" Margin="0,0,0,10" Background="#F0F0F0">
                 <TextBlock Text="Formato : " VerticalAlignment="Center" Margin="5,0"/>
                 <ComboBox Width="160" Height="25" Margin="5,0" SelectedIndex="{Binding FormatoArquivoIndex}">
                     <ComboBoxItem Content="CSV / TXT" />

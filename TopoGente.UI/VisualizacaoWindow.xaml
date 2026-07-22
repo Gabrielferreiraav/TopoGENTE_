@@ -14,24 +14,22 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="250"/> <!-- Nova coluna para as Camadas -->
+        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#EEE" Margin="0,0,0,5">
-            <TextBlock Text="Controles: Roda do Mouse (Zoom) | Clique e Arraste (Mover)"
-                       VerticalAlignment="Center" Foreground="Gray" Margin="10,5,20,5" FontSize="11"/>
-
+        <!-- O Cabeçalho com CheckBox "Mostrar Nomes" passa a ocupar as duas colunas -->
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Background="#EEE" Margin="0,0,0,5">
+            <!-- Controles mantidos -->
+            <TextBlock Text="Controles: Roda do Mouse (Zoom) | Clique e Arraste (Mover)" VerticalAlignment="Center" Foreground="Gray" Margin="10,5,20,5" FontSize="11"/>
             <Button Content="Recentralizar Poligonal" Click="bntResetZoom_Click" Padding="5,2" Margin="0,2,10,2"/>
-
-            <CheckBox x:Name="chkMostrarNomes" Content="Mostrar Nomes"
-                      VerticalAlignment="Center" IsChecked="True"
-                      Checked="chkMostrarNomes_Changed" Unchecked="chkMostrarNomes_Changed"/>
+            <CheckBox x:Name="chkMostrarNomes" Content="Mostrar Nomes" VerticalAlignment="Center" IsChecked="True" Checked="chkMostrarNomes_Changed" Unchecked="chkMostrarNomes_Changed"/>
         </StackPanel>
 
-        <Border Grid.Row="1" BorderBrush="#CCC" BorderThickness="1" Margin="5" Background="#FAFAFA" ClipToBounds="True"
-                MouseWheel="Canvas_MouseWheel"
-                MouseDown="Canvas_MouseDown"
-                MouseUp="Canvas_MouseUp"
-                MouseMove="Canvas_MouseMove">
-
+        <!-- O Canvas continua na linha 1, mas restrito à Coluna 0 -->
+        <Border Grid.Row="1" Grid.Column="0" BorderBrush="#CCC" BorderThickness="1" Margin="5" Background="#FAFAFA" ClipToBounds="True"
+                MouseWheel="Canvas_MouseWheel" MouseDown="Canvas_MouseDown" MouseUp="Canvas_MouseUp" MouseMove="Canvas_MouseMove">
             <Canvas x:Name="canvasDesenho" Background="Transparent">
                 <Canvas.RenderTransform>
                     <MatrixTransform x:Name="transformacaoCanvas"/>
@@ -39,7 +37,22 @@
             </Canvas>
         </Border>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+        <!-- INSERÇÃO DO GESTOR DE CAMADAS NA COLUNA 1 -->
+        <GroupBox Header="Camadas (Layers)" Grid.Row="1" Grid.Column="1" Margin="5" Padding="5">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding CamadasDisponiveis}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsVisivel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Content="{Binding Nome}" Margin="0,4"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </GroupBox>
+
+        <!-- Rodapé também ocupando as duas colunas -->
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
             <Rectangle Width="15" Height="15" Fill="Blue" Margin="0,0,5,0"/>
             <TextBlock Text="Estações (Poligonal)" VerticalAlignment="Center" Margin="0,0,15,0"/>
             <Rectangle Width="15" Height="15" Fill="Green" Margin="0,0,5,0"/>
