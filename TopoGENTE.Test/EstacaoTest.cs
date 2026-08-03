@@ -44,15 +44,16 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void SubstituirLeitura_IdInexistente_DeveLancarExcecao()
+        public void SubstituirLeitura_IdInexistente_NaoDeveFalhar_EvitaDoubleFireDoWpf()
         {
             // Arrange
             var estacao = new Estacao { Nome = "E1" };
             
-            // Act & Assert
-            Assert.Throws<InvalidOperationException>(() => 
-                estacao.SubstituirLeitura(Guid.NewGuid().ToString(), "V2", 150, 95, 60, 1.6, "Nova observacao")
-            );
+            // Act - O retorno deve ser silencioso conforme a regra de evitar double-fire da UI
+            estacao.SubstituirLeitura(Guid.NewGuid().ToString(), "V2", 150, 95, 60, 1.6, "Nova observacao");
+            
+            // Assert
+            Assert.Empty(estacao.Leituras);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -15,7 +15,9 @@ namespace TopoGente.Core.Entities
         Re = 0,        
         Irradiacao = 1, 
         Poligonal = 2,
-        ReLocal = 3
+        ReLocal = 3,
+        Auxiliar = 4,      // Visada para estação auxiliar fora do caminhamento principal
+        Interseccao = 5    // Visada de intersecção óptica
     }
 
     public enum FormatoArquivoEntrada

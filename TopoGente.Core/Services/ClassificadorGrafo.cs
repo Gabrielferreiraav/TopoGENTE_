@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
@@ -8,116 +8,96 @@ namespace TopoGente.Core.Services
 {
     public class ClassificadorGrafo : IClassificadorGrafo
     {
-        public void ClassificarArestasGrafo(List<Estacao> todasEstacoes, MetadadosCenario metadados)
+        public void ClassificarArestasGrafo(List<Estacao> estacoes, MetadadosCenario metadados)
         {
-            if (todasEstacoes == null || !todasEstacoes.Any() || metadados.SequenciaEstacoesSelecionadas == null) return;
+            if (estacoes == null || estacoes.Count == 0) return;
 
-            // O Caminho principal é EXATAMENTE a sequência ditada pelo engenheiro via UI.
-            var sequencia = metadados.SequenciaEstacoesSelecionadas.Select(s => s.ToUpperInvariant()).ToList();
-            if (sequencia.Count == 0) return;
+            var nomesEstacoesOcupadas = new HashSet<string>(
+                estacoes.Select(e => e.Nome),
+                StringComparer.OrdinalIgnoreCase
+            );
 
-            var arestasVante = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var arestasReLocal = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var idsEstacoesOrigem = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Mapeia a sequência de estações caso fornecida nos metadados
+            var sequencia = metadados?.SequenciaEstacoesSelecionadas ?? new List<string>();
+            bool temSequencia = sequencia.Count >= 2;
 
-            // NÓ PREDICADO: Construção do direcionamento topológico
-            var estacoesSequencia = VincularEstacoesDaSequencia(todasEstacoes, sequencia);
-            for (int i = 0; i < sequencia.Count - 1; i++)
+            int lastSeqIndex = 0;
+            for (int i = 0; i < estacoes.Count; i++)
             {
-                string para = sequencia[i + 1];
-                var estacaoOrigem = estacoesSequencia[i];
-
-                if (estacaoOrigem == null)
+                var estacaoAtual = estacoes[i];
+                
+                // Determina a próxima estação lógica (prioriza a sequência do caminhamento se existir)
+                string? nomeProximaEstacao = null;
+                if (temSequencia)
                 {
-                    continue;
-                }
-
-                idsEstacoesOrigem.Add(estacaoOrigem.Id);
-                arestasVante.Add($"{estacaoOrigem.Id}->{para}");
-            }
-
-            for (int i = 1; i < sequencia.Count; i++)
-            {
-                var estacaoAtual = estacoesSequencia[i];
-                if (estacaoAtual == null)
-                {
-                    continue;
-                }
-
-                string anterior = sequencia[i - 1];
-                arestasReLocal.Add($"{estacaoAtual.Id}->{anterior}");
-            }
-
-            string? nomeReReferencia = NormalizarNome(metadados.NomeRe);
-
-            foreach (var estacao in todasEstacoes)
-            {
-                foreach (var leitura in estacao.Leituras)
-                {
-                    string pontoVisado = NormalizarNome(leitura.PontoVisado);
-                    string chaveAresta = $"{estacao.Id}->{pontoVisado}";
-                    bool sugeriuVante = EhPurpose(leitura.Purpose, "vante");
-                    bool ehReNormativa = !string.IsNullOrWhiteSpace(nomeReReferencia)
-                        && string.Equals(pontoVisado, nomeReReferencia, StringComparison.OrdinalIgnoreCase);
-                    bool ehVanteTopologica = arestasVante.Contains(chaveAresta);
-                    bool ehReLocalTopologica = arestasReLocal.Contains(chaveAresta);
-
-                    if (ehReNormativa)
+                    int idxNaSequencia = sequencia.FindIndex(lastSeqIndex, s => string.Equals(s, estacaoAtual.Nome, StringComparison.OrdinalIgnoreCase));
+                    if (idxNaSequencia >= 0)
                     {
-                        leitura.Tipo = TipoLeitura.Re;
-                        continue;
+                        lastSeqIndex = idxNaSequencia;
+                        if (idxNaSequencia + 1 < sequencia.Count)
+                        {
+                            nomeProximaEstacao = sequencia[idxNaSequencia + 1];
+                        }
                     }
+                }
+                else if (i + 1 < estacoes.Count)
+                {
+                    nomeProximaEstacao = estacoes[i + 1].Nome;
+                }
 
-                    if (ehVanteTopologica)
+                foreach (var leitura in estacaoAtual.Leituras)
+                {
+                    string intencao = (leitura.Purpose ?? string.Empty).Trim().ToLowerInvariant();
+
+                    if (intencao == "vante")
                     {
+                        // AUDITORIA PUNITIVA: Se declarou Vante, deve obrigatoriamente bater com a próxima estação
+                        if (nomeProximaEstacao != null && !string.Equals(leitura.PontoVisado, nomeProximaEstacao, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new DadosInsuficientesException(
+                                $"Ruptura Topológica: O operador declarou a visada '{leitura.PontoVisado}' como VANTE na estação '{estacaoAtual.Nome}', " +
+                                $"mas a próxima estação no caminhamento é '{nomeProximaEstacao}'. Se este ponto for um apoio secundário, classifique-o como AUXILIAR.");
+                        }
+
                         leitura.Tipo = TipoLeitura.Poligonal;
-                        continue;
                     }
-
-                    if (ehReLocalTopologica)
+                    else if (intencao == "re" || intencao == "ré")
                     {
-                        leitura.Tipo = TipoLeitura.ReLocal;
-                        continue;
-                    }
+                        // Regra de Ré Normativa de Partida vs. Ré Local
+                        bool ehNomeReOficial = metadados != null && (
+                            string.Equals(leitura.PontoVisado, metadados.NomeRe, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(leitura.PontoVisado, metadados.NomeReReferencia, StringComparison.OrdinalIgnoreCase)
+                        );
 
-                    if (sugeriuVante && idsEstacoesOrigem.Contains(estacao.Id))
+                        if (ehNomeReOficial || string.IsNullOrEmpty(metadados?.NomeRe))
+                        {
+                            leitura.Tipo = TipoLeitura.Re;
+                        }
+                        else
+                        {
+                            // Se foi marcado como Ré mas não é a Ré de partida oficial, trata-se de amarração de Ré Local
+                            leitura.Tipo = TipoLeitura.ReLocal;
+                        }
+                    }
+                    else if (intencao == "auxiliar" || intencao == "aux" || intencao == "p_aux")
                     {
-                        throw new DadosInsuficientesException(
-                            $"Conflito topológico: leitura '{estacao.Nome}' -> '{leitura.PontoVisado}' foi sugerida como Vante, " +
-                            "mas não corresponde à próxima estação da sequência poligonal informada para esta ocupação.");
+                        leitura.Tipo = TipoLeitura.Auxiliar;
                     }
-
-                    leitura.Tipo = TipoLeitura.Irradiacao;
+                    else
+                    {
+                        // Checagem implícita de Ré Local por topologia reversa quando o purpose está em branco
+                        bool ehVisadaReversa = nomesEstacoesOcupadas.Contains(leitura.PontoVisado);
+                        if (ehVisadaReversa && i > 0 && string.Equals(leitura.PontoVisado, estacoes[i - 1].Nome, StringComparison.OrdinalIgnoreCase))
+                        {
+                            leitura.Tipo = TipoLeitura.ReLocal;
+                        }
+                        else
+                        {
+                            leitura.Tipo = TipoLeitura.Irradiacao;
+                        }
+                    }
                 }
             }
-        }
-
-        private static string NormalizarNome(string? nome)
-            => (nome ?? string.Empty).Trim().ToUpperInvariant();
-
-        private static bool EhPurpose(string? purpose, string esperado)
-            => string.Equals((purpose ?? string.Empty).Trim(), esperado, StringComparison.OrdinalIgnoreCase);
-
-        private static List<Estacao?> VincularEstacoesDaSequencia(List<Estacao> todasEstacoes, List<string> sequencia)
-        {
-            var usadasPorNome = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var estacaoPorNo = new List<Estacao?>();
-
-            for (int i = 0; i < sequencia.Count; i++)
-            {
-                string nomeEstacao = sequencia[i];
-                usadasPorNome.TryGetValue(nomeEstacao, out int usadas);
-
-                var estacao = todasEstacoes
-                    .Where(e => string.Equals(NormalizarNome(e.Nome), nomeEstacao, StringComparison.OrdinalIgnoreCase))
-                    .Skip(usadas)
-                    .FirstOrDefault();
-
-                estacaoPorNo.Add(estacao);
-                usadasPorNome[nomeEstacao] = usadas + 1;
-            }
-
-            return estacaoPorNo;
         }
     }
 }

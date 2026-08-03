@@ -30,48 +30,36 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 char separador = linha.Contains(";") ? ';' : ',';
                 var colunas = linha.Split(separador);
 
-                // Formato mínimo: 8 colunas obrigatórias. A coluna 8 (Tipo) é OPCIONAL.
-                // [0] EstacaoOcupada  [1] Hi  [2] PontoVisado  [3] Observacao
-                // [4] AngH           [5] AngV(Zenite)          [6] DI   [7] Hp   [8?] TipoExplicito
+                // Formato exato: 8 colunas (índices 0 a 7). Nenhuma coluna adicional é aceita.
+                // [0] EstacaoOcupada  [1] AngH  [2] Observacao  [3] AngV(Zenite)
+                // [4] DI              [5] AlturaInstrumento      [6] PontoVisado  [7] AlturaPrisma
                 if (colunas.Length < 8) continue;
 
                 try
                 {
-                    double ahCompacto = double.Parse(colunas[4], cultura);
-                    double avCompacto = double.Parse(colunas[5], cultura);
-                    double diLida = double.Parse(colunas[6], cultura);
+                    double ahCompacto = double.Parse(colunas[1], cultura);
+                    double avCompacto = double.Parse(colunas[3], cultura);
+                    double diLida = double.Parse(colunas[4], cultura);
 
                     double ahDecimal = ConversorAngulos.DeFormatoCompacto(ahCompacto);
                     double avDecimal = ConversorAngulos.DeFormatoCompacto(avCompacto);
 
-                    string observacao = colunas[3].Trim();
-
+                    string observacao = colunas[2].Trim();
                     string? purposeSugerido = MapearPurposeSugerido(observacao);
-
-                    // Coluna 8 opcional: preserva a intenção textual legada sem autoridade topológica.
-                    if (colunas.Length >= 9 && int.TryParse(colunas[8].Trim(), out int tipoExplicito))
-                    {
-                        purposeSugerido = tipoExplicito switch
-                        {
-                            1 => "re",
-                            2 => "vante",
-                            3 => "irradiacao",
-                            _ => purposeSugerido
-                        };
-                    }
 
                     var leitura = new LeituraEstacaoTotal
                     {
                         EstacaoOcupada = colunas[0].Trim(),
-                        AlturaInstrumento = double.Parse(colunas[1], cultura),
-                        PontoVisado = colunas[2].Trim(),
+                        AlturaInstrumento = double.Parse(colunas[5], cultura),
+                        PontoVisado = colunas[6].Trim(),
                         Observacao = observacao,
                         AnguloHorizontal = ahDecimal,
                         AnguloVertical = avDecimal,
                         DistanciaInclinada = diLida,
                         AlturaPrisma = double.Parse(colunas[7], cultura),
-                        Tipo = TipoLeitura.Irradiacao,
-                        Purpose = purposeSugerido,
+
+                        Tipo = TipoLeitura.Irradiacao, // Nasce neutro. O Domínio auditará e mudará.
+                        Purpose = purposeSugerido,     // Apenas repassa a intenção do usuário
                         OrdemArquivo = numeroLinha
                     };
 
@@ -133,6 +121,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 "RE" or "RÉ" or "R" or "BACK" => "re",
                 "VANTE" or "VT" or "V" or "FORE" => "vante",
                 "CHECK" => "check",
+                "AUXILIAR" or "AUX" or "P_AUX" => "auxiliar",
                 _ => null
             };
         }

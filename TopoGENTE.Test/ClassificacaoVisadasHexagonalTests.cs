@@ -33,8 +33,8 @@ namespace TopoGente.Test
             var leitor = new LeitorCsvPadrao();
             var linhas = new[]
             {
-                "E1,1.500,REF,RE,0.0000,90.0000,100.000,1.500,1",
-                "E1,1.500,E2,VANTE,10.0000,90.0000,100.000,1.500,2"
+                "E1;0.0000;RE;90.0000;100.000;1.500;REF;1.500",
+                "E1;10.0000;VANTE;90.0000;100.000;1.500;E2;1.500"
             };
 
             var leituras = leitor.Ler(linhas).SelectMany(e => e.Leituras).ToList();
@@ -70,10 +70,11 @@ namespace TopoGente.Test
         [Fact]
         public void Classificador_Deve_Classificar_Aresta_Reversa_Topologica_Como_ReLocal()
         {
+            var e1 = new Estacao { Nome = "E1" };
             var leituraReversa = new LeituraEstacaoTotal { EstacaoOcupada = "E2", PontoVisado = "E1" };
             var e2 = new Estacao { Nome = "E2" };
             e2.AdicionarVisada(leituraReversa);
-            var estacoes = new List<Estacao> { e2 };
+            var estacoes = new List<Estacao> { e1, e2 };
 
             var metadados = new MetadadosCenario
             {
@@ -114,7 +115,7 @@ namespace TopoGente.Test
             var p2ParaP1 = new LeituraEstacaoTotal { EstacaoOcupada = "P2", PontoVisado = "P1", Purpose = "re" };
             var p2ParaE1 = new LeituraEstacaoTotal { EstacaoOcupada = "P2", PontoVisado = "E1", Purpose = "vante" };
             var segundaE1ParaP2 = new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "P2", Purpose = "re" };
-            var segundaE1ParaE4 = new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E4", Purpose = "vante" };
+            var segundaE1ParaE4 = new LeituraEstacaoTotal { EstacaoOcupada = "E1", PontoVisado = "E4", Purpose = "re" };
 
             var primeiraE1 = new Estacao { Nome = "E1", AlturaInstrumento = 1.410 };
             primeiraE1.AdicionarVisada(primeiraE1ParaP1);

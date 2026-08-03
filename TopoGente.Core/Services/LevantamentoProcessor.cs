@@ -249,7 +249,7 @@ namespace TopoGente.Core.Services
             if (reInicial != null)
             {
                 string nomePontoReInicial = reInicial.PontoVisado;
-                var leituraFechamento = leiturasRe
+                var leituraFechamento = todasLeituras
                     .Where(r => r.EstacaoOcupada == nomeEstacaoInicial && r.PontoVisado.Equals(nomePontoReInicial, StringComparison.OrdinalIgnoreCase))
                     .LastOrDefault();
 
