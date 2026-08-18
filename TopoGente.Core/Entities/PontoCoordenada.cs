@@ -9,6 +9,11 @@ namespace TopoGente.Core.Entities
         public double Y { get; set; } // Norte (N)
         public double Z { get; set; } // Cota/Elevação
 
+        // Coordenadas Brutas para Auditoria (Não sofrem compensação do Bowditch)
+        public double XBruto { get; set; }
+        public double YBruto { get; set; }
+        public double ZBruto { get; set; }
+
         // Útil para saber se é um ponto de poligonal (fixo) ou irradiado
         public bool EhPontoPoligonal { get; set; }
 

@@ -288,6 +288,8 @@ namespace TopoGente.Core.Strategies
             double erroAltimetrico,
             List<PontoCoordenada> poligonalBruta)
         {
+            double denominadorPrecisao = precisaoRelativa > 0 ? (1.0 / precisaoRelativa) : 0.0;
+            double denominadorArredondado = Math.Round(denominadorPrecisao, 0, MidpointRounding.AwayFromZero);
             return new ResultadoCompensacaoDTO
             {
                 ErroAngular = erroAngular,
@@ -297,7 +299,7 @@ namespace TopoGente.Core.Strategies
                 PrecisaoRelativa = precisaoRelativa,
                 ErroAltimetrico = erroAltimetrico,
                 AprovadoNorma = false,
-                AlertaReprovacao = $"Precisão Linear (1:{(precisaoRelativa > 0 ? (1 / precisaoRelativa) : 0):F0}) inferior ao exigido (1:12000).",
+                AlertaReprovacao = $"Precisão Linear (1:{denominadorArredondado}) inferior ao exigido (1:12000).",
                 PoligonalCompensada = poligonalBruta
             };
         }

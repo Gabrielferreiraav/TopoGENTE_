@@ -289,12 +289,18 @@ namespace TopoGente.UI
 
                 Point pos = ParaTela(p.X, p.Y);
 
+                string toolTipText = $"{p.Nome}\n\nCOMPENSADO\nE: {p.X:F3}\nN: {p.Y:F3}\nZ: {p.Z:F3}";
+                if (p.XBruto != 0 || p.YBruto != 0) // Assumindo que dados brutos foram populados
+                {
+                    toolTipText += $"\n\nBRUTO\nE: {p.XBruto:F3}\nN: {p.YBruto:F3}\nZ: {p.ZBruto:F3}";
+                }
+
                 Ellipse pontoGeo = new Ellipse
                 {
                     Width = 6,
                     Height = 6,
                     Fill = p.EhPontoPoligonal ? Brushes.Blue : Brushes.Green,
-                    ToolTip = $"{p.Nome}\nE: {p.X:F3}\nN: {p.Y:F3}\nZ: {p.Z:F3}"
+                    ToolTip = toolTipText
                 };
 
                 Canvas.SetLeft(pontoGeo, pos.X - 3);

@@ -1,0 +1,50 @@
+<Controls:MetroWindow x:Class="TopoGente.UI.DiagnosticoErrosWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+        mc:Ignorable="d"
+        Title="Diagnóstico de Erros (Brutos vs Compensados)" Height="450" Width="900"
+        WindowStartupLocation="CenterOwner">
+    
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Diagnóstico de Auditoria - NBR 13.133" FontWeight="Bold" FontSize="16" Margin="0,0,0,5"/>
+            <TextBlock x:Name="txtStatus" FontSize="14" Foreground="DarkBlue" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <DataGrid x:Name="dgDiagnostico" Grid.Row="1" AutoGenerateColumns="False" 
+                  CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True"
+                  HeadersVisibility="Column" SelectionMode="Single"
+                  AlternatingRowBackground="#F0F8FF" RowHeight="28" FontSize="12">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Estação" Binding="{Binding Nome}" Width="100"/>
+                <DataGridTextColumn Header="X (Compensado)" Binding="{Binding X, StringFormat=F4}" Width="110"/>
+                <DataGridTextColumn Header="X (Bruto)" Binding="{Binding XBruto, StringFormat=F4}" Width="110">
+                    <DataGridTextColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Foreground" Value="Red" />
+                        </Style>
+                    </DataGridTextColumn.CellStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="ΔX (Erro)" Binding="{Binding DeltaX, StringFormat=F4}" Width="90"/>
+
+                <DataGridTextColumn Header="Y (Compensado)" Binding="{Binding Y, StringFormat=F4}" Width="110"/>
+                <DataGridTextColumn Header="Y (Bruto)" Binding="{Binding YBruto, StringFormat=F4}" Width="110">
+                    <DataGridTextColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Foreground" Value="Red" />
+                        </Style>
+                    </DataGridTextColumn.CellStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="ΔY (Erro)" Binding="{Binding DeltaY, StringFormat=F4}" Width="90"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Controls:MetroWindow>

@@ -104,17 +104,81 @@ namespace TopoGente.Core.Services
             }
         }
 
-        public ResultadoLevantamento Processar(
-            MetadadosCenario metadadosAtuais, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos)
+        public ResultadoLevantamento Processar(List<SequenciaPoligonal> sequencias, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada>? pontosConhecidos)
         {
+            if (sequencias == null || !sequencias.Any())
+            {
+                throw new DadosInsuficientesException("Nenhuma sequência poligonal foi informada.");
+            }
+
+            var principal = sequencias.FirstOrDefault(s => s.EhPrincipal) ?? sequencias.First();
+
+            pontosConhecidos ??= new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
+
+            var resultadoPrincipal = ProcessarUnico(principal, todasEstacoes, pontosConhecidos);
+
+            var poligonaisCompensadas = new List<PontoCoordenada>(resultadoPrincipal.Poligonal);
+            var poligonaisBrutas = new List<PontoCoordenada>(resultadoPrincipal.PoligonalBruta);
+
+            foreach (var p in resultadoPrincipal.Poligonal)
+            {
+                pontosConhecidos[p.Nome] = p;
+            }
+
+            var secundarias = sequencias.Where(s => s != principal).ToList();
+            foreach (var sec in secundarias)
+            {
+                if (string.IsNullOrWhiteSpace(sec.EstacaoAncoragemNome) || !pontosConhecidos.ContainsKey(sec.EstacaoAncoragemNome))
+                {
+                    throw new DadosInsuficientesException($"Ruptura Topológica: A estação de ancoragem '{sec.EstacaoAncoragemNome}' para a poligonal secundária '{sec.Nome}' não existe ou não foi compensada na poligonal principal.");
+                }
+
+                var ancoragem = pontosConhecidos[sec.EstacaoAncoragemNome];
+                sec.Metadados.PartidaX = ancoragem.X;
+                sec.Metadados.PartidaY = ancoragem.Y;
+                sec.Metadados.PartidaZ = ancoragem.Z;
+
+                var resSec = ProcessarUnico(sec, todasEstacoes, pontosConhecidos);
+                poligonaisCompensadas.AddRange(resSec.Poligonal);
+                poligonaisBrutas.AddRange(resSec.PoligonalBruta);
+
+                foreach (var p in resSec.Poligonal)
+                {
+                    pontosConhecidos[p.Nome] = p;
+                }
+            }
+
+            var irradiacoes = OrquestrarCalculoIrradiacoes(poligonaisCompensadas, todasEstacoes, pontosConhecidos, principal.Metadados.AzimutePartida);
+
+            return new ResultadoLevantamento
+            {
+                PoligonalBruta = poligonaisBrutas,
+                Poligonal = poligonaisCompensadas,
+                Irradiacoes = irradiacoes,
+                Alertas = resultadoPrincipal.Alertas,
+                AprovadoNorma = resultadoPrincipal.AprovadoNorma,
+                ErroAngular = resultadoPrincipal.ErroAngular,
+                ErroLinear = resultadoPrincipal.ErroLinear,
+                Precisao = resultadoPrincipal.Precisao,
+                ErroFechamentoX = resultadoPrincipal.ErroFechamentoX,
+                ErroFechamentoY = resultadoPrincipal.ErroFechamentoY,
+                ErroFechamentoZ = resultadoPrincipal.ErroFechamentoZ,
+                Perimetro = resultadoPrincipal.Perimetro,
+                TipoCenario = resultadoPrincipal.TipoCenario
+            };
+        }
+
+        private ResultadoLevantamento ProcessarUnico(SequenciaPoligonal sequencia, List<Estacao> todasEstacoes, Dictionary<string, PontoCoordenada> pontosConhecidos)
+        {
+            var metadadosAtuais = sequencia.Metadados;
+            
             if (metadadosAtuais == null)
             {
-                throw new DadosInsuficientesException("Dados Inciais nÃ£o foram preenchidos.");
+                throw new DadosInsuficientesException("Dados Inciais não foram preenchidos.");
             }
 
             if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada)
             {
-                pontosConhecidos ??= new Dictionary<string, PontoCoordenada>();
                 if (metadadosAtuais.ChegadaX.HasValue && metadadosAtuais.ChegadaY.HasValue && metadadosAtuais.ChegadaZ.HasValue)
                 {
                     pontosConhecidos["CHEGADA"] = new PontoCoordenada
@@ -129,9 +193,8 @@ namespace TopoGente.Core.Services
 
             if (todasEstacoes == null)
             {
-                throw new DadosInsuficientesException("Caderneta de estaÃ§Ãµes nÃ£o foi informada.");
+                throw new DadosInsuficientesException("Caderneta de estações não foi informada.");
             }
-
 
             var sequenciaEstacoes = ValidarSequenciaEstacoes(metadadosAtuais, todasEstacoes);
 
@@ -158,7 +221,6 @@ namespace TopoGente.Core.Services
             var leiturasRe = todasLeituras.Where(l => l.Tipo == TipoLeitura.Re).ToList();
             var leiturasIrradiadas = todasLeituras.Where(l => l.Tipo == TipoLeitura.Irradiacao).ToList();
 
-            // NÃ“ PREDICADO: ExtraÃ§Ã£o ordenada restrita Ã  topologia do engenheiro (Garantia do Iterator GoF)
             var leiturasPoligonal = new List<LeituraEstacaoTotal>();
             var estacoesOrigem = VincularEstacoesDeOrigem(todasEstacoes, sequenciaEstacoes);
             for (int i = 0; i < sequenciaEstacoes.Count - 1; i++)
@@ -188,23 +250,20 @@ namespace TopoGente.Core.Services
             double minY = poligonalBrutaLocal.Min(p => p.Y);
             double maxY = poligonalBrutaLocal.Max(p => p.Y);
 
-            // eixos de Bounding Box
             double dimensaoX = maxX - minX;
             double dimensaoY = maxY - minY;
 
-            //Diagonal Euclidiana max da area levantada
             double diagonalPlanoMetros = Math.Sqrt((dimensaoX * dimensaoX) + (dimensaoY * dimensaoY));
             double diagonalPlanoKm = diagonalPlanoMetros / 1000.0;
 
-            //Trava de seguranca
             if (diagonalPlanoKm > 35.0)
             {
                 throw new NotSupportedException(
-                $"OPERAÃ‡ÃƒO ABORTADA: A dimensÃ£o mÃ¡xima deste levantamento ({diagonalPlanoKm:F2} km) " +
-                $"excede o limite fÃ­sico de 35 km do plano topogrÃ¡fico. " +
-                $"Para distÃ¢ncias maiores, a Topografia clÃ¡ssica nÃ£o garante a exatidÃ£o e " +
-                $"Ã© estritamente necessÃ¡rio utilizar cÃ¡lculos e reduÃ§Ãµes geodÃ©sicas."
-    );
+                $"OPERAÇÃO ABORTADA: A dimensão máxima deste levantamento ({diagonalPlanoKm:F2} km) " +
+                $"excede o limite físico de 35 km do plano topográfico. " +
+                $"Para distâncias maiores, a Topografia clássica não garante a exatidão e " +
+                $"é estritamente necessário utilizar cálculos e reduções geodésicas."
+                );
             }
 
             double perimetro = 0;
@@ -216,16 +275,12 @@ namespace TopoGente.Core.Services
                 }
             }
 
-            // CenÃ¡rio ABERTO: sem compensaÃ§Ã£o (se quiser eliminar este `if`, crie uma Strategy para Aberta e dÃª suporte na Factory)
             if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
             {
-                var irradiacoesAberta = OrquestrarCalculoIrradiacoes(poligonalBrutaLocal, todasEstacoes, pontosConhecidos, azimuteInicial);
-
                 return new ResultadoLevantamento
                 {
                     PoligonalBruta = poligonalBrutaLocal,
                     Poligonal = poligonalBrutaLocal,
-                    Irradiacoes = irradiacoesAberta,
                     TipoCenario = TipoCenarioPoligonal.AbertaOrientada,
                     PoligonalFechada = false,
                     Perimetro = perimetro,
@@ -241,9 +296,6 @@ namespace TopoGente.Core.Services
 
             double anguloFechamento = 0;
 
-            // CÃ¡lculo neutro: Strategy decide como interpretar.
-            // Para Fechada: RÃ© inicial + Ãºltima leitura no mesmo visado (como era).
-            // Para Enquadrada: pode usar a Ãºltima RÃ© (como era).
             string nomeEstacaoInicial = leiturasPoligonal.FirstOrDefault()?.EstacaoOcupada ?? pontoPartida.Nome;
             var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstacaoInicial);
             if (reInicial != null)
@@ -281,13 +333,10 @@ namespace TopoGente.Core.Services
             var alertasLocal = new List<string>();
             if (!compensacao.AprovadoNorma) alertasLocal.Add(compensacao.AlertaReprovacao);
 
-            var irradiacoesLocal = OrquestrarCalculoIrradiacoes(poligonalCompensadaLocal, todasEstacoes, pontosConhecidos, azimuteInicial);
-
             return new ResultadoLevantamento
             {
                 PoligonalBruta = poligonalBrutaLocal,
                 Poligonal = poligonalCompensadaLocal,
-                Irradiacoes = irradiacoesLocal,
                 Alertas = alertasLocal,
                 AprovadoNorma = compensacao.AprovadoNorma,
                 ErroAngular = compensacao.ErroAngular,
@@ -359,69 +408,184 @@ namespace TopoGente.Core.Services
             return origemPorAresta;
         }
 
-        public ResultadoLevantamento GerarEsbocoBruto(MetadadosCenario metadadosAtuais, List<Estacao> todasEstacoes)
+        public ResultadoLevantamento GerarEsbocoBruto(List<SequenciaPoligonal> sequencias, List<Estacao> todasEstacoes)
         {
-            if (metadadosAtuais == null || todasEstacoes == null || todasEstacoes.Count == 0)
+            if (sequencias == null || !sequencias.Any() || todasEstacoes == null || todasEstacoes.Count == 0)
                 return new ResultadoLevantamento { AprovadoNorma = false };
 
-            if (metadadosAtuais.SequenciaEstacoesSelecionadas == null || metadadosAtuais.SequenciaEstacoesSelecionadas.Count < 2)
+            var principal = sequencias.FirstOrDefault(s => s.EhPrincipal);
+            if (principal == null || principal.Metadados == null)
                 return new ResultadoLevantamento { AprovadoNorma = false };
 
-            var poligonalBrutaLocal = new List<PontoCoordenada>();
+            var dicionarioBruto = new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
+
+            var poligonaisBrutasTotais = new List<PontoCoordenada>();
 
             try
             {
-                var sequenciaEstacoes = metadadosAtuais.SequenciaEstacoesSelecionadas
-                    .Where(nome => !string.IsNullOrWhiteSpace(nome))
-                    .Select(nome => nome.Trim())
-                    .ToList();
+                // 2. Resolve a Geometria Bruta da Poligonal Principal (Fase 1)
+                var seqEstacoesPrincipal = principal.Metadados.SequenciaEstacoesSelecionadas
+                    .Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
 
-                if (sequenciaEstacoes.Count < 2) return new ResultadoLevantamento { AprovadoNorma = false };
+                var nomePartida = seqEstacoesPrincipal.FirstOrDefault() ?? "E1";
 
-                double azimuteInicial = metadadosAtuais.UsarCoordenadaRe
-                    ? GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(metadadosAtuais.PartidaX, metadadosAtuais.PartidaY, metadadosAtuais.ReX, metadadosAtuais.ReY)
-                    : metadadosAtuais.AzimutePartida;
-
+                // 1. Inicializa o ponto de partida da Poligonal Principal
                 var pontoPartida = new PontoCoordenada
                 {
-                    Nome = sequenciaEstacoes[0],
-                    X = metadadosAtuais.PartidaX,
-                    Y = metadadosAtuais.PartidaY,
-                    Z = metadadosAtuais.PartidaZ,
+                    Nome = nomePartida,
+                    X = principal.Metadados.PartidaX,
+                    Y = principal.Metadados.PartidaY,
+                    Z = principal.Metadados.PartidaZ,
                     EhPontoPoligonal = true,
-                    AzimuteChegada = azimuteInicial
+                    AzimuteChegada = principal.Metadados.AzimutePartida,
+                    XBruto = principal.Metadados.PartidaX,
+                    YBruto = principal.Metadados.PartidaY,
+                    ZBruto = principal.Metadados.PartidaZ
                 };
+                dicionarioBruto[pontoPartida.Nome] = pontoPartida;
 
-                _classificadorGrafo.ClassificarArestasGrafo(todasEstacoes, metadadosAtuais);
+                var estacoesOrigemPrin = VincularEstacoesDeOrigem(todasEstacoes, seqEstacoesPrincipal);
+                var leiturasPoligonalPrin = new List<LeituraEstacaoTotal>();
 
-                var leiturasPoligonal = new List<LeituraEstacaoTotal>();
-                var estacoesOrigem = VincularEstacoesDeOrigem(todasEstacoes, sequenciaEstacoes);
-                for (int i = 0; i < sequenciaEstacoes.Count - 1; i++)
+                for (int i = 0; i < seqEstacoesPrincipal.Count - 1; i++)
                 {
-                    string estacaoPara = sequenciaEstacoes[i + 1];
-                    var estacaoOrigem = estacoesOrigem[i];
+                    string estacaoPara = seqEstacoesPrincipal[i + 1];
+                    var estacaoOrigem = estacoesOrigemPrin[i];
                     var leituraAlvo = estacaoOrigem?.Leituras.FirstOrDefault(l =>
                         l.Tipo == TipoLeitura.Poligonal &&
                         string.Equals(l.PontoVisado, estacaoPara, StringComparison.OrdinalIgnoreCase));
 
                     if (leituraAlvo != null)
-                        leiturasPoligonal.Add(leituraAlvo);
+                        leiturasPoligonalPrin.Add(leituraAlvo);
                     else
-                        break; // Interrompe silenciosamente para desenhar até o ponto onde há ruptura
+                        break;
                 }
 
-                poligonalBrutaLocal = CalcularMalhaBruta(pontoPartida, leiturasPoligonal);
+                var malhaBrutaPrincipal = CalcularMalhaBruta(pontoPartida, leiturasPoligonalPrin);
+                poligonaisBrutasTotais.AddRange(malhaBrutaPrincipal);
+
+                foreach (var p in malhaBrutaPrincipal)
+                {
+                    dicionarioBruto[p.Nome] = p;
+                }
+
+                // 3. Resolve a Geometria Bruta das Poligonais Secundárias/Auxiliares (Fase 2 - DAG)
+                var secundarias = sequencias.Where(s => !s.EhPrincipal).ToList();
+                foreach (var sec in secundarias)
+                {
+                    if (string.IsNullOrWhiteSpace(sec.EstacaoAncoragemNome) || !dicionarioBruto.ContainsKey(sec.EstacaoAncoragemNome))
+                        continue;
+
+                    var ancoragemBruta = dicionarioBruto[sec.EstacaoAncoragemNome];
+                    
+                    var pontoPartidaSec = new PontoCoordenada
+                    {
+                        Nome = ancoragemBruta.Nome,
+                        X = ancoragemBruta.X,
+                        Y = ancoragemBruta.Y,
+                        Z = ancoragemBruta.Z,
+                        EhPontoPoligonal = true,
+                        AzimuteChegada = sec.Metadados.AzimutePartida,
+                        XBruto = ancoragemBruta.X,
+                        YBruto = ancoragemBruta.Y,
+                        ZBruto = ancoragemBruta.Z
+                    };
+
+                    var seqEstacoesSec = sec.Metadados.SequenciaEstacoesSelecionadas
+                        .Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
+
+                    var estacoesOrigemSec = VincularEstacoesDeOrigem(todasEstacoes, seqEstacoesSec);
+                    var leiturasPoligonalSec = new List<LeituraEstacaoTotal>();
+
+                    for (int i = 0; i < seqEstacoesSec.Count - 1; i++)
+                    {
+                        string estacaoPara = seqEstacoesSec[i + 1];
+                        var estacaoOrigem = estacoesOrigemSec[i];
+                        var leituraAlvo = estacaoOrigem?.Leituras.FirstOrDefault(l =>
+                            l.Tipo == TipoLeitura.Poligonal &&
+                            string.Equals(l.PontoVisado, estacaoPara, StringComparison.OrdinalIgnoreCase));
+
+                        if (leituraAlvo != null)
+                            leiturasPoligonalSec.Add(leituraAlvo);
+                        else
+                            break;
+                    }
+
+                    var malhaBrutaSec = CalcularMalhaBruta(pontoPartidaSec, leiturasPoligonalSec);
+                    poligonaisBrutasTotais.AddRange(malhaBrutaSec);
+
+                    foreach (var p in malhaBrutaSec)
+                    {
+                        dicionarioBruto[p.Nome] = p;
+                    }
+                }
+
+                // 4. Calcula os Erros de Fechamento Brutos da Poligonal Principal para amostragem prévia
+                double perimetro = 0;
+                foreach (var leitura in leiturasPoligonalPrin)
+                {
+                    perimetro += GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                }
+
+                double erroFechamentoX = 0;
+                double erroFechamentoY = 0;
+                double erroFechamentoZ = 0;
+                double erroLinearTotal = 0;
+                double precisaoRelativa = 0;
+
+                if (malhaBrutaPrincipal.Count > 1)
+                {
+                    var pontoFinalBruto = malhaBrutaPrincipal.Last();
+                    if (principal.Metadados.TipoCenario == TipoCenarioPoligonal.Fechada)
+                    {
+                        erroFechamentoX = pontoFinalBruto.X - pontoPartida.X;
+                        erroFechamentoY = pontoFinalBruto.Y - pontoPartida.Y;
+                        erroFechamentoZ = pontoFinalBruto.Z - pontoPartida.Z;
+                        erroLinearTotal = Math.Sqrt((erroFechamentoX * erroFechamentoX) + (erroFechamentoY * erroFechamentoY));
+                        precisaoRelativa = perimetro > 0.0001 ? erroLinearTotal / perimetro : 0;
+                    }
+                    else if (principal.Metadados.TipoCenario == TipoCenarioPoligonal.Enquadrada && principal.Metadados.ChegadaX.HasValue)
+                    {
+                        erroFechamentoX = pontoFinalBruto.X - principal.Metadados.ChegadaX.GetValueOrDefault();
+                        erroFechamentoY = pontoFinalBruto.Y - principal.Metadados.ChegadaY.GetValueOrDefault();
+                        erroFechamentoZ = pontoFinalBruto.Z - principal.Metadados.ChegadaZ.GetValueOrDefault();
+                        erroLinearTotal = Math.Sqrt((erroFechamentoX * erroFechamentoX) + (erroFechamentoY * erroFechamentoY));
+                        precisaoRelativa = perimetro > 0.0001 ? erroLinearTotal / perimetro : 0;
+                    }
+                }
+
+                // 5. Calcula as Irradiações Brutas sobre as estacas não compensadas (Fase 3)
+                // Passamos o dicionarioBruto para servir como a referência de origem espacial das visadas!
+                var irradiacoesBrutas = OrquestrarCalculoIrradiacoes(poligonaisBrutasTotais, todasEstacoes, dicionarioBruto, principal.Metadados.AzimutePartida);
+
+                // Preenche os atributos brutos de cada ponto irradiado para auditoria visual
+                foreach (var irr in irradiacoesBrutas)
+                {
+                    irr.XBruto = irr.X;
+                    irr.YBruto = irr.Y;
+                    irr.ZBruto = irr.Z;
+                }
+
+                return new ResultadoLevantamento
+                {
+                    PoligonalBruta = poligonaisBrutasTotais,
+                    Poligonal = poligonaisBrutasTotais, // No esboço, a malha de desenho assume a malha bruta
+                    Irradiacoes = irradiacoesBrutas,
+                    ErroFechamentoX = erroFechamentoX,
+                    ErroFechamentoY = erroFechamentoY,
+                    ErroFechamentoZ = erroFechamentoZ,
+                    ErroLinear = erroLinearTotal,
+                    Precisao = precisaoRelativa,
+                    Perimetro = perimetro,
+                    TipoCenario = principal.Metadados.TipoCenario,
+                    AprovadoNorma = false // Indica estado pré-ajustamento
+                };
             }
             catch
             {
-                // Falha silenciosa para manter a tela limpa ou parcial
+                // Falha graciosa mantendo o retorno vazio seguro
+                return new ResultadoLevantamento { AprovadoNorma = false };
             }
-
-            return new ResultadoLevantamento
-            {
-                PoligonalBruta = poligonalBrutaLocal,
-                AprovadoNorma = false
-            };
         }
 
         private static List<PontoCoordenada> CalcularMalhaBruta(PontoCoordenada pontoPartida, List<LeituraEstacaoTotal> leiturasPoligonal)

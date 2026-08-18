@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /TopoGente.Core/html_paste
 /.github
+*.bak
+/TopoGente.ETL

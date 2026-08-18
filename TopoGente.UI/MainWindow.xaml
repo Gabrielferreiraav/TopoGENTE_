@@ -24,154 +24,202 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <GroupBox Header="Metadados de Partida" Grid.Row="0" Grid.Column="0" Padding="10" Margin="0,0,10,10">
-                <StackPanel>
-                    <!-- Selecao de cenario-->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Cenário:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0"/>
-                        <ComboBox Width="280" Height="25" SelectedIndex="{Binding CenarioIndex}">
-                            <ComboBoxItem Content="Enquadrada (Apoiada)" Tag="Enquadrada"/>
-                            <ComboBoxItem Content="Fechada" Tag="Fechada"/>
-                            <ComboBoxItem Content="Aberta Orientada" Tag="AbertaOrientada"/>
-                        </ComboBox>
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- MASTER: Lista de Poligonais -->
+                <GroupBox Header="Poligonais" Grid.Column="0" Margin="0,0,5,0" Padding="5">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <ListBox Grid.Row="0" ItemsSource="{Binding Poligonais}" 
+                                 SelectedItem="{Binding PoligonalSelecionada, Mode=TwoWay}"
+                                 DisplayMemberPath="Nome" MinHeight="200" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                        
+                        <Button Grid.Row="1" Content="Nova Poligonal" Margin="0,5,0,0" Height="25"
+                                Command="{Binding AdicionarPoligonalCommand}"/>
+                        <Button Grid.Row="2" Content="Remover Poligonal" Margin="0,5,0,0" Height="25"
+                                Command="{Binding RemoverPoligonalCommand}"/>
+                    </Grid>
+                </GroupBox>
+
+                <!-- DETAIL: Metadados da Poligonal Selecionada -->
+                <GroupBox Header="{Binding PoligonalSelecionada.Nome}" Grid.Column="1" Padding="10" Margin="5,0,0,0">
+                    <StackPanel DataContext="{Binding PoligonalSelecionada}">
+                        
+                        <!-- Checkbox para renomear e indicar Ancoragem se nao for principal -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="150"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock Text="Nome:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding Nome, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="25" Margin="0,0,15,0"/>
+                            
+                            <TextBlock Grid.Column="2" Text="Ancoragem (Nó da Princ.):" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" 
+                                       Visibility="{Binding EhPrincipal, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}"/>
+                            <TextBox Grid.Column="3" Text="{Binding EstacaoAncoragemNome, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="25"
+                                     Visibility="{Binding EhPrincipal, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}"
+                                     ToolTip="Nome da estação onde esta poligonal se amarra à principal"/>
+                        </Grid>
+                        
+                        <!-- Selecao de cenario-->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Cenário:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0"/>
+                            <ComboBox Width="280" Height="25" SelectedIndex="{Binding CenarioIndex}">
+                                <ComboBoxItem Content="Enquadrada (Apoiada)" Tag="Enquadrada"/>
+                                <ComboBoxItem Content="Fechada" Tag="Fechada"/>
+                                <ComboBoxItem Content="Aberta Orientada" Tag="AbertaOrientada"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Coordenada de partida (para todos) -->
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="Partida:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+
+                            <StackPanel Grid.Column="1" Margin="5,0">
+                                <TextBlock Text="E (X):" FontSize="11"/>
+                                <TextBox Text="{Binding PartidaX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="5,0">
+                                <TextBlock Text="N (Y):" FontSize="11"/>
+                                <TextBox Text="{Binding PartidaY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Margin="5,0">
+                                <TextBlock Text="Cota (Z):" FontSize="11"/>
+                                <TextBox Text="{Binding PartidaZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!--Orientacao de Partida-->
+                        <Grid Margin="0,0,0,6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Text="Orientação:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+
+                            <RadioButton Grid.Row="0" Grid.Column="1"
+                                         Content="Azimute"
+                                         VerticalAlignment="Center" Margin="0,0,12,0" 
+                                         IsChecked="{Binding UsarAzimute, Mode=TwoWay}"/>
+                            <RadioButton Grid.Row="0" Grid.Column="2"
+                                         Content="Coord. de Ré"
+                                         VerticalAlignment="Center" Margin="0,0,12,0"
+                                         IsChecked="{Binding UsarCoordenadaRe, Mode=TwoWay}"/>
+
+                            <!-- Azimute direto -->
+                            <StackPanel Grid.Row="0" Grid.Column="3"
+                                        Orientation="Horizontal" 
+                                        Visibility="{Binding MostrarPainelAzimute, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
+                                <TextBox Text="{Binding Azimute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100" Padding="3"
+                                         ToolTip="Informe em Graus.Minutos.Segundos"/>
+                            </StackPanel>
+
+                            <!-- Coordenada de Ré -->
+                            <StackPanel Grid.Row="0" Grid.Column="3"
+                                        Orientation="Horizontal" 
+                                        Visibility="{Binding MostrarPainelCoordenadaRe, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Ré E:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBox Text="{Binding ReX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3" Margin="0,0,8,0"/>
+                                <TextBlock Text="Ré N:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBox Text="{Binding ReY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3" Margin="0,0,8,0"/>
+                                <TextBlock Text="Ré Z:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBox Text="{Binding ReZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3"/>
+                            </StackPanel>
+
+                            <!-- Nome Re partida (linha separada para não sobrepor) -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
+                                        Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="Nome da Ré:" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
+                                <TextBox Text="{Binding NomeRe, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3"
+                                         ToolTip="Nome do alvo de orientação."/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!--Coordenada de Chegada para Enquadrada-->
+                        <Grid Margin="0,4,0,0" Visibility="{Binding MostrarPainelChegada, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Linha 0: coordenadas de chegada -->
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Text="Chegada:" VerticalAlignment="Center"
+                                       FontWeight="SemiBold" Margin="0,0,8,0" Foreground="DarkRed"/>
+
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0">
+                                <TextBlock Text="E (X):" FontSize="11"/>
+                                <TextBox Text="{Binding ChegadaX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="5,0">
+                                <TextBlock Text="N (Y):" FontSize="11"/>
+                                <TextBox Text="{Binding ChegadaY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="3" Margin="5,0">
+                                <TextBlock Text="Cota (Z):" FontSize="11"/>
+                                <TextBox Text="{Binding ChegadaZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="4" Margin="5,0">
+                                <TextBlock Text="Nome Chegada:" FontSize="11"/>
+                                <TextBox Text="{Binding NomeChegada, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3" Width="80"/>
+                            </StackPanel>
+
+                            <!-- Linha 1: azimute de verificação -->
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                       Text="Az. Chegada:" VerticalAlignment="Center"
+                                       FontWeight="SemiBold" Margin="0,6,8,0" Foreground="DarkRed"/>
+
+                            <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4"
+                                        Orientation="Horizontal" Margin="5,6,0,0">
+                                <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,6,0"/>
+                                <TextBox Text="{Binding AzimuteChegada, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="110" Padding="3"
+                                         ToolTip="Azimute conhecido na estação final para uma referência final."/>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-
-                    <!-- Coordenada de partida (para todos) -->
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Text="Partida:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
-
-                        <StackPanel Grid.Column="1" Margin="5,0">
-                            <TextBlock Text="E (X):" FontSize="11"/>
-                            <TextBox Text="{Binding PartidaX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Margin="5,0">
-                            <TextBlock Text="N (Y):" FontSize="11"/>
-                            <TextBox Text="{Binding PartidaY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="3" Margin="5,0">
-                            <TextBlock Text="Cota (Z):" FontSize="11"/>
-                            <TextBox Text="{Binding PartidaZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
-                        </StackPanel>
-                    </Grid>
-
-                    <!--Orientacao de Partida-->
-                    <Grid Margin="0,0,0,6">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                   Text="Orientação:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
-
-                        <RadioButton Grid.Row="0" Grid.Column="1"
-                                     Content="Azimute"
-                                     VerticalAlignment="Center" Margin="0,0,12,0" 
-                                     IsChecked="{Binding UsarAzimute, Mode=TwoWay}"/>
-                        <RadioButton Grid.Row="0" Grid.Column="2"
-                                     Content="Coord. de Ré"
-                                     VerticalAlignment="Center" Margin="0,0,12,0"
-                                     IsChecked="{Binding UsarCoordenadaRe, Mode=TwoWay}"/>
-
-                        <!-- Azimute direto -->
-                        <StackPanel Grid.Row="0" Grid.Column="3"
-                                    Orientation="Horizontal" 
-                                    Visibility="{Binding MostrarPainelAzimute, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
-                            <TextBox Text="{Binding Azimute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100" Padding="3"
-                                     ToolTip="Informe em Graus.Minutos.Segundos"/>
-                        </StackPanel>
-
-                        <!-- Coordenada de Ré -->
-                        <StackPanel Grid.Row="0" Grid.Column="3"
-                                    Orientation="Horizontal" 
-                                    Visibility="{Binding MostrarPainelCoordenadaRe, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Ré E:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                            <TextBox Text="{Binding ReX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3" Margin="0,0,8,0"/>
-                            <TextBlock Text="Ré N:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                            <TextBox Text="{Binding ReY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3" Margin="0,0,8,0"/>
-                            <TextBlock Text="Ré Z:" VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"/>
-                            <TextBox Text="{Binding ReZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3"/>
-                        </StackPanel>
-
-                        <!-- Nome Re partida (linha separada para não sobrepor) -->
-                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
-                                    Orientation="Horizontal" Margin="0,6,0,0">
-                            <TextBlock Text="Nome da Ré:" VerticalAlignment="Center" FontSize="11" Margin="0,0,5,0"/>
-                            <TextBox Text="{Binding NomeRe, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="80" Padding="3"
-                                     ToolTip="Nome do alvo de orientação."/>
-                        </StackPanel>
-                    </Grid>
-
-                    <!--Coordenada de Chegada para Enquadrada-->
-                    <Grid Margin="0,4,0,0" Visibility="{Binding MostrarPainelChegada, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Linha 0: coordenadas de chegada -->
-                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                   Text="Chegada:" VerticalAlignment="Center"
-                                   FontWeight="SemiBold" Margin="0,0,8,0" Foreground="DarkRed"/>
-
-                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0">
-                            <TextBlock Text="E (X):" FontSize="11"/>
-                            <TextBox Text="{Binding ChegadaX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="5,0">
-                            <TextBlock Text="N (Y):" FontSize="11"/>
-                            <TextBox Text="{Binding ChegadaY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="3" Margin="5,0">
-                            <TextBlock Text="Cota (Z):" FontSize="11"/>
-                            <TextBox Text="{Binding ChegadaZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="5,0">
-                            <TextBlock Text="Nome Chegada:" FontSize="11"/>
-                            <TextBox Text="{Binding NomeChegada, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="3" Width="80"/>
-                        </StackPanel>
-
-                        <!-- Linha 1: azimute de verificação -->
-                        <TextBlock Grid.Row="1" Grid.Column="0"
-                                   Text="Az. Chegada:" VerticalAlignment="Center"
-                                   FontWeight="SemiBold" Margin="0,6,8,0" Foreground="DarkRed"/>
-
-                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4"
-                                    Orientation="Horizontal" Margin="5,6,0,0">
-                            <TextBlock Text="Az (°):" VerticalAlignment="Center" FontSize="11" Margin="0,0,6,0"/>
-                            <TextBox Text="{Binding AzimuteChegada, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="110" Padding="3"
-                                     ToolTip="Azimute conhecido na estação final para uma referência final."/>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </GroupBox>
+                </GroupBox>
+            </Grid>
 
             <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="1" Margin="0,0,0,10" Background="#F7F9FC">
                 <Grid.ColumnDefinitions>
@@ -201,14 +249,14 @@
                     <Button Content="×" Width="36" Height="30" Command="{Binding RemoverSequenciaCommand}"/>
                 </StackPanel>
 
-                <GroupBox Header="Sequência (O 1º Item é a Partida)" Grid.Column="2" Margin="5" Padding="6">
+                <GroupBox Header="Estações da Poligonal Selecionada (1º Item é Partida)" Grid.Column="2" Margin="5" Padding="6">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <ListBox Grid.Row="0" MinHeight="120" MaxHeight="250" ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ItemsSource="{Binding SequenciaPoligonal}"
+                                 ItemsSource="{Binding PoligonalSelecionada.Estacoes}"
                                  SelectedItem="{Binding EstacaoSequenciaSelecionada, Mode=TwoWay}"/>
                         <TextBlock Grid.Row="1" Text="Atenção: Em poligonais fechadas, repita a estação de partida no final da lista."
                                    FontStyle="Italic" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
@@ -231,6 +279,8 @@
                         Width="120" Height="25" Margin="5,0" FontWeight="SemiBold" Command="{Binding ExibirCadernetaCommand}"/>
                 <Button Content="Ver Gráfico"
                         Width="110" Height="25" Margin="5,0" FontWeight="SemiBold" Command="{Binding ExibirGraficoCommand}"/>
+                <Button Content="Diagnóstico"
+                        Width="100" Height="25" Margin="5,0" FontWeight="SemiBold" Command="{Binding ExibirDiagnosticoCommand}"/>
                 <Button Content="Exportar Relatorio e Coord (TXT)" Width="220" Height="25"
                         Margin="5,0" FontWeight="SemiBold" Command="{Binding ExportarTxtCommand}"/>
             </StackPanel>

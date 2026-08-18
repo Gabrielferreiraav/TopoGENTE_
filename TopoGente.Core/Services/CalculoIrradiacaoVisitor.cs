@@ -99,6 +99,9 @@ namespace TopoGente.Core.Services
             }
 
             var pontoIrradiado = GeometriaTopograficaHelper.CalcularPontoIrradiado(_estacaoAtual!, leitura, azReUsado);
+            pontoIrradiado.XBruto = pontoIrradiado.X;
+            pontoIrradiado.YBruto = pontoIrradiado.Y;
+            pontoIrradiado.ZBruto = pontoIrradiado.Z;
             pontoIrradiado.Descricao = leitura.Observacao ?? string.Empty; // <-- O transporte semântico vital
             IrradiacoesCalculadas.Add(pontoIrradiado);
             _estacaoBase?.AdicionarPontoCalculado(pontoIrradiado);

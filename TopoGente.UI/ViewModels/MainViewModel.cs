@@ -30,94 +30,26 @@ namespace TopoGente.UI.ViewModels
         private List<Estacao> _estacoesEmMemoria = new();
         private ResultadoLevantamento? _resultadoAtual;
 
-        // UI Properties
-        private int _formatoArquivoIndex = 1; // Default FBK
-        public int FormatoArquivoIndex
-        {
-            get => _formatoArquivoIndex;
-            set => SetProperty(ref _formatoArquivoIndex, value);
-        }
+        public ObservableCollection<SequenciaPoligonalViewModel> Poligonais { get; } = new();
 
-        private int _cenarioIndex = 1; // Default Fechada
-        public int CenarioIndex
+        private SequenciaPoligonalViewModel? _poligonalSelecionada;
+        public SequenciaPoligonalViewModel? PoligonalSelecionada
         {
-            get => _cenarioIndex;
+            get => _poligonalSelecionada;
             set
             {
-                if (SetProperty(ref _cenarioIndex, value))
+                if (SetProperty(ref _poligonalSelecionada, value))
                 {
-                    OnPropertyChanged(nameof(MostrarPainelChegada));
-                    (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (RemoverPoligonalCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (AdicionarSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (RemoverSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (SubirSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (DescerSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
-
-        public bool MostrarPainelChegada => CenarioIndex == 0; // 0 = Enquadrada
-
-        private string _partidaX = "1000,000";
-        public string PartidaX { get => _partidaX; set { if (SetProperty(ref _partidaX, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _partidaY = "1000,000";
-        public string PartidaY { get => _partidaY; set { if (SetProperty(ref _partidaY, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _partidaZ = "100,000";
-        public string PartidaZ { get => _partidaZ; set { if (SetProperty(ref _partidaZ, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private bool _usarAzimute = true;
-        public bool UsarAzimute
-        {
-            get => _usarAzimute;
-            set
-            {
-                if (SetProperty(ref _usarAzimute, value))
-                {
-                    OnPropertyChanged(nameof(MostrarPainelAzimute));
-                    OnPropertyChanged(nameof(MostrarPainelCoordenadaRe));
-                }
-            }
-        }
-
-        public bool UsarCoordenadaRe
-        {
-            get => !_usarAzimute;
-            set => UsarAzimute = !value;
-        }
-
-        public bool MostrarPainelAzimute => UsarAzimute;
-        public bool MostrarPainelCoordenadaRe => !UsarAzimute;
-
-        private string _azimute = "0";
-        public string Azimute { get => _azimute; set { if (SetProperty(ref _azimute, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _reX = "0";
-        public string ReX { get => _reX; set { if (SetProperty(ref _reX, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _reY = "0";
-        public string ReY { get => _reY; set { if (SetProperty(ref _reY, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _reZ = "0";
-        public string ReZ { get => _reZ; set { if (SetProperty(ref _reZ, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _nomeRe = "REF";
-        public string NomeRe { get => _nomeRe; set => SetProperty(ref _nomeRe, value); }
-
-        private string _chegadaX = "0";
-        public string ChegadaX { get => _chegadaX; set { if (SetProperty(ref _chegadaX, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _chegadaY = "0";
-        public string ChegadaY { get => _chegadaY; set { if (SetProperty(ref _chegadaY, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _chegadaZ = "0";
-        public string ChegadaZ { get => _chegadaZ; set { if (SetProperty(ref _chegadaZ, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
-
-        private string _nomeChegada = "M99";
-        public string NomeChegada { get => _nomeChegada; set => SetProperty(ref _nomeChegada, value); }
-
-        private string _azimuteChegada = "0";
-        public string AzimuteChegada { get => _azimuteChegada; set { if (SetProperty(ref _azimuteChegada, value)) (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged(); } }
 
         public ObservableCollection<string> EstacoesDisponiveis { get; } = new();
-        public ObservableCollection<string> SequenciaPoligonal { get; } = new();
 
         private string? _estacaoDisponivelSelecionada;
         public string? EstacaoDisponivelSelecionada
@@ -133,16 +65,26 @@ namespace TopoGente.UI.ViewModels
             set => SetProperty(ref _estacaoSequenciaSelecionada, value);
         }
 
+        private int _formatoArquivoIndex = 0;
+        public int FormatoArquivoIndex
+        {
+            get => _formatoArquivoIndex;
+            set => SetProperty(ref _formatoArquivoIndex, value);
+        }
+
         // Commands
         public ICommand CarregarArquivoCommand { get; }
         public ICommand ProcessarCommand { get; }
         public ICommand ExportarTxtCommand { get; }
+        public ICommand AdicionarPoligonalCommand { get; }
+        public ICommand RemoverPoligonalCommand { get; }
         public ICommand AdicionarSequenciaCommand { get; }
         public ICommand RemoverSequenciaCommand { get; }
         public ICommand SubirSequenciaCommand { get; }
         public ICommand DescerSequenciaCommand { get; }
         public ICommand ExibirCadernetaCommand { get; }
         public ICommand ExibirGraficoCommand { get; }
+        public ICommand ExibirDiagnosticoCommand { get; }
 
         public MainViewModel(
             ILeituraArquivoFactory leitorService,
@@ -177,13 +119,25 @@ namespace TopoGente.UI.ViewModels
             ProcessarCommand = new RelayCommand(OnProcessar, PodeCalcularCompensacao);
             ExportarTxtCommand = new RelayCommand(OnExportarTxt, _ => _resultadoAtual?.TodosOsPontos.Any() == true);
             
-            AdicionarSequenciaCommand = new RelayCommand(OnAdicionarSequencia);
-            RemoverSequenciaCommand = new RelayCommand(OnRemoverSequencia);
-            SubirSequenciaCommand = new RelayCommand(OnSubirSequencia);
-            DescerSequenciaCommand = new RelayCommand(OnDescerSequencia);
+            AdicionarPoligonalCommand = new RelayCommand(OnAdicionarPoligonal);
+            RemoverPoligonalCommand = new RelayCommand(OnRemoverPoligonal, _ => PoligonalSelecionada != null && !PoligonalSelecionada.EhPrincipal);
+            
+            AdicionarSequenciaCommand = new RelayCommand(OnAdicionarSequencia, _ => PoligonalSelecionada != null);
+            RemoverSequenciaCommand = new RelayCommand(OnRemoverSequencia, _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
+            SubirSequenciaCommand = new RelayCommand(OnSubirSequencia, _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
+            DescerSequenciaCommand = new RelayCommand(OnDescerSequencia, _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
 
             ExibirCadernetaCommand = new RelayCommand(_ => AbrirJanela<CadernetaWindow>());
-            ExibirGraficoCommand = new RelayCommand(_ => AbrirJanela<VisualizacaoWindow>());
+            ExibirGraficoCommand = new RelayCommand(OnExibirGrafico);
+            ExibirDiagnosticoCommand = new RelayCommand(OnExibirDiagnostico);
+
+            // Adiciona a poligonal principal por padrão
+            var principal = new SequenciaPoligonalViewModel { Nome = "Poligonal Principal", EhPrincipal = true };
+            principal.PropertyChanged += (s, e) => {
+                (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            };
+            Poligonais.Add(principal);
+            PoligonalSelecionada = principal;
         }
 
         private void OnLeituraRemovida(object? sender, LeituraRemovidaEventArgs e)
@@ -273,48 +227,50 @@ namespace TopoGente.UI.ViewModels
                     AtualizarListaEstacoes();
                     SugerirSequenciaPoligonalPorPurpose();
 
-                    if (_estacoesEmMemoria.Count > 0)
+                    if (_estacoesEmMemoria.Count > 0 && Poligonais.Count > 0)
                     {
                         var primeiraEstacao = _estacoesEmMemoria[0];
+                        var polPrincipal = Poligonais[0];
+
                         if (primeiraEstacao.CoordenadaConhecida != null)
                         {
-                            PartidaX = primeiraEstacao.CoordenadaConhecida.X.ToString("F3");
-                            PartidaY = primeiraEstacao.CoordenadaConhecida.Y.ToString("F3");
-                            PartidaZ = primeiraEstacao.CoordenadaConhecida.Z.ToString("F3");
+                            polPrincipal.PartidaX = primeiraEstacao.CoordenadaConhecida.X.ToString("F3");
+                            polPrincipal.PartidaY = primeiraEstacao.CoordenadaConhecida.Y.ToString("F3");
+                            polPrincipal.PartidaZ = primeiraEstacao.CoordenadaConhecida.Z.ToString("F3");
                         }
                         else
                         {
-                            PartidaX = "0.000"; PartidaY = "0.000"; PartidaZ = "0.000";
+                            polPrincipal.PartidaX = "0.000"; polPrincipal.PartidaY = "0.000"; polPrincipal.PartidaZ = "0.000";
                         }
 
                         var leituraRe = primeiraEstacao.Leituras?.FirstOrDefault(l => string.Equals((l.Purpose ?? string.Empty).Trim(), "re", StringComparison.OrdinalIgnoreCase));
                         if (leituraRe != null)
                         {
-                            NomeRe = leituraRe.PontoVisado ?? string.Empty;
+                            polPrincipal.NomeRe = leituraRe.PontoVisado ?? string.Empty;
                             if (!string.IsNullOrEmpty(leituraRe.PontoVisado) && resultadoLeitura.PontosConhecidosGlobais.TryGetValue(leituraRe.PontoVisado, out var coordenadaRe))
                             {
-                                ReX = coordenadaRe.X.ToString("F3");
-                                ReY = coordenadaRe.Y.ToString("F3");
-                                ReZ = coordenadaRe.Z.ToString("F3");
-                                UsarCoordenadaRe = true;
+                                polPrincipal.ReX = coordenadaRe.X.ToString("F3");
+                                polPrincipal.ReY = coordenadaRe.Y.ToString("F3");
+                                polPrincipal.ReZ = coordenadaRe.Z.ToString("F3");
+                                polPrincipal.UsarCoordenadaRe = true;
                             }
                             else
                             {
-                                UsarAzimute = true;
-                                Azimute = leituraRe.AnguloHorizontal.ToString("F4");
+                                polPrincipal.UsarAzimute = true;
+                                polPrincipal.Azimute = leituraRe.AnguloHorizontal.ToString("F4");
                             }
                         }
-
-                        _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
-                        PublicarEsbocoGeodesicoSobDemanda();
                     }
+
+                    _uiEventHub.PublicarEstacoes(_estacoesEmMemoria);
+                    PublicarEsbocoGeodesicoSobDemanda();
                 }
                 catch (Exception ex)
                 {
                     _messageService.MostrarErro($"Erro ao ler arquivo: {ex.Message}", "Erro");
                 }
             }
-        }
+           }
 
         private bool ValidarCoordenadas(string? x, string? y, string? z)
         {
@@ -326,42 +282,47 @@ namespace TopoGente.UI.ViewModels
         private bool PodeCalcularCompensacao(object? parameter)
         {
             if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0) return false;
+            if (Poligonais.Count == 0) return false;
 
-            if (!ValidarCoordenadas(PartidaX, PartidaY, PartidaZ)) return false;
-
-            if (UsarAzimute)
+            foreach (var pol in Poligonais)
             {
-                if (string.IsNullOrWhiteSpace(Azimute)) return false;
-            }
-            else
-            {
-                if (!ValidarCoordenadas(ReX, ReY, ReZ)) return false;
-            }
+                if (!ValidarCoordenadas(pol.PartidaX, pol.PartidaY, pol.PartidaZ)) return false;
 
-            if (CenarioIndex == 0) // Enquadrada
-            {
-                if (!ValidarCoordenadas(ChegadaX, ChegadaY, ChegadaZ)) return false;
-            }
+                if (pol.UsarAzimute)
+                {
+                    if (string.IsNullOrWhiteSpace(pol.Azimute)) return false;
+                }
+                else
+                {
+                    if (!ValidarCoordenadas(pol.ReX, pol.ReY, pol.ReZ)) return false;
+                }
 
-            var leituras = _estacoesEmMemoria.SelectMany(e => e.Leituras ?? new List<LeituraEstacaoTotal>()).ToList();
-            if (leituras.Count == 0) return false;
-            if (SequenciaPoligonal.Count == 0) return false;
+                if (pol.CenarioIndex == 0) // Enquadrada
+                {
+                    if (!ValidarCoordenadas(pol.ChegadaX, pol.ChegadaY, pol.ChegadaZ)) return false;
+                }
+
+                if (pol.Estacoes.Count == 0) return false;
+            }
 
             return true;
         }
 
         private void ProcessamentoSilencioso()
         {
-            var metadados = ColetarMetadadosDaUI();
+            var listaSequencias = Poligonais.Select(p => p.ToEntity()).ToList();
+            
             var pontosConhecidos = _estacoesEmMemoria
                 .Where(e => e.CoordenadaConhecida != null)
                 .Select(e => e.CoordenadaConhecida!)
                 .GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-
-
-            _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, metadados);
+            var principal = listaSequencias.FirstOrDefault(p => p.EhPrincipal);
+            if (principal != null)
+            {
+                _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, principal.Metadados);
+            }
             
             // Opcional: Se houver falha de validação primária, aborte silenciosamente
             var leiturasClassificadas = _estacoesEmMemoria.SelectMany(e => e.Leituras).ToList();
@@ -371,7 +332,7 @@ namespace TopoGente.UI.ViewModels
                 return; 
             }
 
-            _resultadoAtual = _processadorService.Processar(metadados, _estacoesEmMemoria, pontosConhecidos);
+            _resultadoAtual = _processadorService.Processar(listaSequencias, _estacoesEmMemoria, pontosConhecidos);
             var relatorioQa = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, _resultadoAtual, pontosConhecidos);
 
             _uiEventHub.PublicarResultado(_resultadoAtual);
@@ -425,6 +386,19 @@ namespace TopoGente.UI.ViewModels
             }
         }
 
+        private void OnExibirGrafico(object? parameter)
+        {
+            var window = new VisualizacaoWindow(_uiEventHub);
+            window.ShowDialog();
+        }
+
+        private void OnExibirDiagnostico(object? parameter)
+        {
+            if (_resultadoAtual == null) return;
+            var window = new DiagnosticoErrosWindow(_resultadoAtual);
+            window.ShowDialog();
+        }
+
         private void OnExportarTxt(object? parameter)
         {
             if (_resultadoAtual == null || !_resultadoAtual.TodosOsPontos.Any()) return;
@@ -458,42 +432,63 @@ namespace TopoGente.UI.ViewModels
             }
         }
 
+        private void OnAdicionarPoligonal(object? parameter)
+        {
+            var sec = new SequenciaPoligonalViewModel { Nome = $"Ramal Secundário {Poligonais.Count}" };
+            sec.PropertyChanged += (s, e) => {
+                (ProcessarCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            };
+            Poligonais.Add(sec);
+            PoligonalSelecionada = sec;
+            PublicarEsbocoGeodesicoSobDemanda();
+        }
+
+        private void OnRemoverPoligonal(object? parameter)
+        {
+            if (PoligonalSelecionada != null && !PoligonalSelecionada.EhPrincipal)
+            {
+                Poligonais.Remove(PoligonalSelecionada);
+                PoligonalSelecionada = Poligonais.FirstOrDefault();
+                PublicarEsbocoGeodesicoSobDemanda();
+            }
+        }
+
         private void OnAdicionarSequencia(object? parameter)
         {
-            if (!string.IsNullOrWhiteSpace(EstacaoDisponivelSelecionada))
+            if (PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoDisponivelSelecionada))
             {
-                SequenciaPoligonal.Add(EstacaoDisponivelSelecionada);
+                PoligonalSelecionada.Estacoes.Add(EstacaoDisponivelSelecionada);
                 PublicarEsbocoGeodesicoSobDemanda();
             }
         }
 
         private void OnRemoverSequencia(object? parameter)
         {
-            if (!string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada))
+            if (PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada))
             {
-                SequenciaPoligonal.Remove(EstacaoSequenciaSelecionada);
+                PoligonalSelecionada.Estacoes.Remove(EstacaoSequenciaSelecionada);
                 PublicarEsbocoGeodesicoSobDemanda();
             }
         }
 
         private void OnSubirSequencia(object? parameter)
         {
-            if (string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada)) return;
-            var index = SequenciaPoligonal.IndexOf(EstacaoSequenciaSelecionada);
+            if (PoligonalSelecionada == null || string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada)) return;
+            var index = PoligonalSelecionada.Estacoes.IndexOf(EstacaoSequenciaSelecionada);
             if (index > 0)
             {
-                SequenciaPoligonal.Move(index, index - 1);
+                PoligonalSelecionada.Estacoes.Move(index, index - 1);
                 PublicarEsbocoGeodesicoSobDemanda();
             }
         }
 
         private void OnDescerSequencia(object? parameter)
         {
-            if (string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada)) return;
-            var index = SequenciaPoligonal.IndexOf(EstacaoSequenciaSelecionada);
-            if (index >= 0 && index < SequenciaPoligonal.Count - 1)
+            if (PoligonalSelecionada == null || string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada)) return;
+            var index = PoligonalSelecionada.Estacoes.IndexOf(EstacaoSequenciaSelecionada);
+            if (index >= 0 && index < PoligonalSelecionada.Estacoes.Count - 1)
             {
-                SequenciaPoligonal.Move(index, index + 1);
+                PoligonalSelecionada.Estacoes.Move(index, index + 1);
                 PublicarEsbocoGeodesicoSobDemanda();
             }
         }
@@ -530,7 +525,7 @@ namespace TopoGente.UI.ViewModels
                 .Where(nome => !string.IsNullOrWhiteSpace(nome))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            if (_estacoesEmMemoria.Count == 0 || nomesOcupados.Count == 0) return;
+            if (_estacoesEmMemoria.Count == 0 || nomesOcupados.Count == 0 || Poligonais.Count == 0) return;
 
             var sequenciaSugerida = new List<string>();
             var visitadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -554,10 +549,11 @@ namespace TopoGente.UI.ViewModels
 
             if (sequenciaSugerida.Count > 1)
             {
-                SequenciaPoligonal.Clear();
+                var polPrincipal = Poligonais[0];
+                polPrincipal.Estacoes.Clear();
                 foreach (var nome in sequenciaSugerida)
                 {
-                    SequenciaPoligonal.Add(nome);
+                    polPrincipal.Estacoes.Add(nome);
                 }
             }
         }
@@ -567,50 +563,15 @@ namespace TopoGente.UI.ViewModels
             if (_estacoesEmMemoria == null || _estacoesEmMemoria.Count == 0) return;
             try
             {
-                var metadados = ColetarMetadadosDaUI();
-                var dtoPreliminar = _processadorService.GerarEsbocoBruto(metadados, _estacoesEmMemoria);
+                var listaSequencias = Poligonais.Select(p => p.ToEntity()).ToList();
+                var dtoPreliminar = _processadorService.GerarEsbocoBruto(listaSequencias, _estacoesEmMemoria);
                 _uiEventHub.PublicarResultado(dtoPreliminar);
             }
             catch (TopoGente.Core.Entities.DadosInsuficientesException) { /* Ignorar falhas apenas de topologia incompleta no preview */ }
+            catch (FormatException) { /* Ignorar erros de parse durante edição live */ }
         }
 
-        private MetadadosCenario ColetarMetadadosDaUI()
-        {
-            var cenario = CenarioIndex switch
-            {
-                0 => TipoCenarioPoligonal.Enquadrada,
-                1 => TipoCenarioPoligonal.Fechada,
-                2 => TipoCenarioPoligonal.AbertaOrientada,
-                _ => TipoCenarioPoligonal.Fechada
-            };
 
-            var meta = new MetadadosCenario
-            {
-                TipoCenario = cenario,
-                PartidaX = LerDoubleUi(PartidaX, "X (Partida)"),
-                PartidaY = LerDoubleUi(PartidaY, "Y (Partida)"),
-                PartidaZ = LerDoubleUi(PartidaZ, "Z (Partida)"),
-                UsarCoordenadaRe = UsarCoordenadaRe,
-                AzimutePartida = UsarCoordenadaRe ? 0 : ConverterAzimute(Azimute),
-                ReX = UsarCoordenadaRe ? LerDoubleUi(ReX, "X (Ré)") : 0,
-                ReY = UsarCoordenadaRe ? LerDoubleUi(ReY, "Y (Ré)") : 0,
-                ReZ = UsarCoordenadaRe ? LerDoubleUi(ReZ, "Z (Ré)") : 0,
-                AzimuteChegada = null,
-                NomeRe = NomeRe.Trim(),
-                SequenciaEstacoesSelecionadas = SequenciaPoligonal.ToList()
-            };
-
-            if (cenario == TipoCenarioPoligonal.Enquadrada)
-            {
-                meta.ChegadaX = LerDoubleUi(ChegadaX, "X (Chegada)");
-                meta.ChegadaY = LerDoubleUi(ChegadaY, "Y (Chegada)");
-                meta.ChegadaZ = LerDoubleUi(ChegadaZ, "Z (Chegada)");
-                meta.AzimuteChegada = ConverterAzimute(AzimuteChegada);
-                meta.NomeChegada = NomeChegada.Trim();
-            }
-
-            return meta;
-        }
 
         private static double LerDoubleUi(string? texto, string nomeCampo)
         {
