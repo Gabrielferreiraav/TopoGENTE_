@@ -423,6 +423,8 @@ namespace TopoGente.Core.Services
 
             try
             {
+                _classificadorGrafo.ClassificarArestasGrafo(todasEstacoes, principal.Metadados);
+
                 // 2. Resolve a Geometria Bruta da Poligonal Principal (Fase 1)
                 var seqEstacoesPrincipal = principal.Metadados.SequenciaEstacoesSelecionadas
                     .Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
@@ -578,7 +580,8 @@ namespace TopoGente.Core.Services
                     Precisao = precisaoRelativa,
                     Perimetro = perimetro,
                     TipoCenario = principal.Metadados.TipoCenario,
-                    AprovadoNorma = false // Indica estado pré-ajustamento
+                    AprovadoNorma = false, // Indica estado pré-ajustamento
+                    EhEsboco = true
                 };
             }
             catch

@@ -257,21 +257,24 @@ namespace TopoGente.UI
 
             var poligonal = pontos.Where(p => p.EhPontoPoligonal).ToList();
 
-            for (int i = 0; i < poligonal.Count - 1; i++)
+            if (!resultado.EhEsboco)
             {
-                Point p1 = ParaTela(poligonal[i].X, poligonal[i].Y);
-                Point p2 = ParaTela(poligonal[i + 1].X, poligonal[i + 1].Y);
-
-                Line linha = new Line
+                for (int i = 0; i < poligonal.Count - 1; i++)
                 {
-                    X1 = p1.X,
-                    Y1 = p1.Y,
-                    X2 = p2.X,
-                    Y2 = p2.Y,
-                    Stroke = Brushes.Blue,
-                    StrokeThickness = 2
-                };
-                canvasDesenho.Children.Add(linha);
+                    Point p1 = ParaTela(poligonal[i].X, poligonal[i].Y);
+                    Point p2 = ParaTela(poligonal[i + 1].X, poligonal[i + 1].Y);
+
+                    Line linha = new Line
+                    {
+                        X1 = p1.X,
+                        Y1 = p1.Y,
+                        X2 = p2.X,
+                        Y2 = p2.Y,
+                        Stroke = Brushes.Blue,
+                        StrokeThickness = 2
+                    };
+                    canvasDesenho.Children.Add(linha);
+                }
             }
 
             // CARREGA QUAIS LAYERS ESTÃO ATIVOS (O(1) HashSet)
@@ -289,10 +292,18 @@ namespace TopoGente.UI
 
                 Point pos = ParaTela(p.X, p.Y);
 
-                string toolTipText = $"{p.Nome}\n\nCOMPENSADO\nE: {p.X:F3}\nN: {p.Y:F3}\nZ: {p.Z:F3}";
-                if (p.XBruto != 0 || p.YBruto != 0) // Assumindo que dados brutos foram populados
+                string toolTipText;
+                if (resultado.EhEsboco)
                 {
-                    toolTipText += $"\n\nBRUTO\nE: {p.XBruto:F3}\nN: {p.YBruto:F3}\nZ: {p.ZBruto:F3}";
+                    toolTipText = $"{p.Nome}\n\nBRUTO (NÃO COMPENSADO)\nE: {p.X:F3}\nN: {p.Y:F3}\nZ: {p.Z:F3}";
+                }
+                else
+                {
+                    toolTipText = $"{p.Nome}\n\nCOMPENSADO\nE: {p.X:F3}\nN: {p.Y:F3}\nZ: {p.Z:F3}";
+                    if (p.XBruto != 0 || p.YBruto != 0) 
+                    {
+                        toolTipText += $"\n\nBRUTO\nE: {p.XBruto:F3}\nN: {p.YBruto:F3}\nZ: {p.ZBruto:F3}";
+                    }
                 }
 
                 Ellipse pontoGeo = new Ellipse

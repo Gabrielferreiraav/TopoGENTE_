@@ -28,6 +28,8 @@ namespace TopoGente.Core.Entities
 
         public bool AprovadoNorma { get; set; } = true;
 
+        public bool EhEsboco { get; set; }
+
         public IReadOnlyList<string> Alertas { get; init; } = System.Array.Empty<string>();
     }
 }
