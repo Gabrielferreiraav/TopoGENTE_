@@ -306,11 +306,28 @@ namespace TopoGente.UI
                     }
                 }
 
+                // Paleta cromática semântica:
+                //   Esboço (não-compensado): âmbar escuro (poligonal) / verde-oliva (irradiações)
+                //   Compensado            : azul (poligonal) / verde (irradiações)
+                System.Windows.Media.Brush corPonto;
+                if (resultado.EhEsboco)
+                {
+                    corPonto = p.EhPontoPoligonal
+                        ? new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromRgb(0xFF, 0x8C, 0x00))  // DarkOrange (#FF8C00)
+                        : new System.Windows.Media.SolidColorBrush(
+                            System.Windows.Media.Color.FromRgb(0x6B, 0x8E, 0x23)); // OliveDrab  (#6B8E23)
+                }
+                else
+                {
+                    corPonto = p.EhPontoPoligonal ? Brushes.Blue : Brushes.Green;
+                }
+
                 Ellipse pontoGeo = new Ellipse
                 {
                     Width = 6,
                     Height = 6,
-                    Fill = p.EhPontoPoligonal ? Brushes.Blue : Brushes.Green,
+                    Fill = corPonto,
                     ToolTip = toolTipText
                 };
 

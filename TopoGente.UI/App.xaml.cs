@@ -1,10 +1,13 @@
+using System;
 using System.Windows;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
+using TopoGENTE.Infrastructure.Adapters;
 using TopoGente.Infrastructure.Adapters.Exportadores;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using TopoGente.Infrastructure.Adapters.Storage;
+using TopoGENTE.Domain.Ports;
 using TopoGente.UI.Eventing;
 using TopoGente.UI.Services;
 
@@ -12,6 +15,17 @@ namespace TopoGente.UI
 {
     public partial class App : Application
     {
+        // REGISTRO DE CICLO DE VIDA — MDT:
+        // RichFeatureTinfourAdapter é TRANSIENT: cada invocação da factory produz
+        // uma instância isolada. O adaptador mantém estado interno de malha (IncrementalTin
+        // selado via Lock()), portanto NUNCA deve ser compartilhado entre cenários paralelos.
+        // Consuma a factory onde precisar de triangulação ou análise topográfica.
+        public static readonly Func<ITerrainTriangulator> TerrainTriangulatorFactory =
+            () => new RichFeatureTinfourAdapter();
+
+        public static readonly Func<ITopographicAnalytics> TopographicAnalyticsFactory =
+            () => new RichFeatureTinfourAdapter();
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -56,3 +70,4 @@ namespace TopoGente.UI
         }
     }
 }
+

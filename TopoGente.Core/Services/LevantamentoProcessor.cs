@@ -584,11 +584,19 @@ namespace TopoGente.Core.Services
                     EhEsboco = true
                 };
             }
-            catch
+            catch (DadosInsuficientesException ex)
             {
-                // Falha graciosa mantendo o retorno vazio seguro
-                return new ResultadoLevantamento { AprovadoNorma = false };
+                // Falha controlada de domínio: dados de campo insuficientes ou sequência inválida.
+                // Retorna esboço vazio com o alerta descritivo para exibição ao operador.
+                return new ResultadoLevantamento
+                {
+                    AprovadoNorma = false,
+                    EhEsboco = true,
+                    Alertas = new[] { $"[ESBOÇO] Dado insuficiente: {ex.Message}" }
+                };
             }
+            // Exceções inesperadas do CLR (OutOfMemoryException, etc.) NÃO são capturadas:
+            // deixamos propagar para não mascarar falhas críticas de infraestrutura (Fail-Fast).
         }
 
         private static List<PontoCoordenada> CalcularMalhaBruta(PontoCoordenada pontoPartida, List<LeituraEstacaoTotal> leiturasPoligonal)
