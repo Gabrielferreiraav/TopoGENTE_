@@ -424,3 +424,13 @@ FodyWeavers.xsd
 /skills/testes-numericos-topograficos/scripts
 /skills/testes-numericos-topograficos/scripts/.gitkeep
 /skills/testes-numericos-topograficos/SKILL.md
+/TopoGente.Core/bin/Debug/net10.0/TopoGente.Core.deps.json
+/TopoGente.Core/bin/Debug/net10.0/TopoGente.Core.dll
+/TopoGente.Core/bin/Debug/net10.0/TopoGente.Core.pdb
+/TopoGente.Core/obj/Debug/net10.0/ref/TopoGente.Core.dll
+/inspect.cs
+/tes em AuxiliarTests.cs para mapeamento e punição de uso incorreto de vante em pontos auxiliares
+/test_fbk.cs
+/test_fbk2.cs
+/AGENTS.md
+/TopoGENTE.Test/Loop113503FbkTests.cs
