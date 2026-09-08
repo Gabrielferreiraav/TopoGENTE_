@@ -25,32 +25,58 @@ namespace TopoGENTE.Infrastructure.Adapters;
 /// CICLO DE VIDA: Deve ser registrado como TRANSIENT no container de DI.
 ///   Uma instância por cenário de levantamento. Nunca compartilhe entre cenários paralelos.
 ///
-/// THREAD-SAFETY após Lock():
-///   - _tinEngine (IncrementalTin selado): seguro para leitura concorrente.
-///   - Interpoladores (NaturalNeighborInterpolator): UMA INSTÂNCIA POR THREAD — use localInit.
+/// THREAD-SAFETY:
+///   Todas as operações públicas são protegidas por exclusão mútua via lock (_syncLock).
+///   Coleções retornadas são snapshots materializados (arrays), desconectados do motor interno.
+///   Iteradores diferidos (yield return) são estritamente proibidos em métodos sincronizados.
 /// </summary>
-public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopographicAnalytics
+public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopographicAnalytics, IDisposable
 {
-    // Motor stateful: selado via Lock() após GenerateBaseDelaunayMesh.
-    // Após o Lock(), é seguro compartilhar entre threads de leitura.
+    // -------------------------------------------------------------------------
+    // Campos de Estado Interno
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Monitor de exclusão mútua. Encapsula TODAS as leituras e escritas ao _tinEngine,
+    /// impedindo que a Thread STA de UI modifique a malha enquanto uma Worker Thread
+    /// do ThreadPool gera isolinhas ou extrai triângulos.
+    /// </summary>
+    private readonly System.Threading.Lock _syncLock = new();
+
+    /// <summary>
+    /// Motor stateful de triangulação incremental de Delaunay.
+    /// </summary>
     private IncrementalTin? _tinEngine;
 
-    // Mapeamento Index-Tinfour → TerrainVertex de domínio.
-    // O Index de cada Vertex no TIN corresponde ao índice do array _domainVertices.
-    private TerrainVertex[] _domainVertices = Array.Empty<TerrainVertex>();
+    /// <summary>
+    /// Coleção mestre de vértices de domínio indexados por Id.
+    /// Fonte de verdade para Rebuild: quando o Tinfour.NET não suporta deleção incremental,
+    /// o motor é destruído e recriado a partir desta coleção.
+    /// </summary>
+    private readonly Dictionary<int, TerrainVertex> _domainVertices = [];
 
-    // Quantidade de vértices físicos (de campo). Vértices com IsSynthetic() == true são Steiner Points.
+    /// <summary>
+    /// Coleção mestre de breaklines ativas. Necessária para:
+    /// 1. Block Delete (verificar se um vértice ancora restrições antes de excluí-lo).
+    /// 2. Rebuild (reinjetar todas as restrições após reconstrução do motor).
+    /// </summary>
+    private readonly HashSet<Breakline> _activeBreaklines = [];
+
+    /// <summary>
+    /// Quantidade de vértices físicos de campo na última triangulação base.
+    /// </summary>
     private int _rawCount;
 
-    // Elevações mínima e máxima da malha — calculadas durante a construção pois
-    // IIncrementalTin não expõe GetMinimumElevation/GetMaximumElevation diretamente.
+    /// <summary>
+    /// Elevações mínima e máxima da malha — calculadas durante a construção.
+    /// </summary>
     private double _minZ = double.MaxValue;
     private double _maxZ = double.MinValue;
 
-    private bool _isMeshSealed;
+    private bool _disposed;
 
     // -------------------------------------------------------------------------
-    // ITerrainTriangulator
+    // ITerrainTriangulator — Triangulação Base
     // -------------------------------------------------------------------------
 
     /// <summary>
@@ -67,123 +93,195 @@ public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopograph
         if (rawPoints.IsEmpty)
             throw new TopoGenteDomainException("Nuvem de pontos vazia: impossível triangular.");
 
-        _rawCount = rawPoints.Length;
-        _domainVertices = new TerrainVertex[_rawCount];
+        // Validação preventiva de domínio (Bentley-Ottmann) O(n log n)
+        TopoGente.Core.Services.SweepLineValidator.ValidarCruzamentos(rawPoints, topographicBreaklines);
 
-        // --- Fase 1: Conversão para vértices nativos do Tinfour ---
-        // API REAL: Vertex(double x, double y, double z, int index)
-        // O Index passado será preservado para lookups O(1) no _domainVertices.
-        var tinfourList = new List<Vertex>(_rawCount);
-        _minZ = double.MaxValue;
-        _maxZ = double.MinValue;
-
-        for (int i = 0; i < _rawCount; i++)
+        lock (_syncLock)
         {
-            var p = rawPoints[i];
-            tinfourList.Add(new Vertex(p.X, p.Y, p.Z, i));
-            _domainVertices[i] = p;
+            _rawCount = rawPoints.Length;
+            _domainVertices.Clear();
+            _activeBreaklines.Clear();
 
-            if (p.Z < _minZ) _minZ = p.Z;
-            if (p.Z > _maxZ) _maxZ = p.Z;
-        }
+            // --- Fase 1: Conversão para vértices nativos do Tinfour ---
+            var tinfourList = new List<Vertex>(_rawCount);
+            _minZ = double.MaxValue;
+            _maxZ = double.MinValue;
 
-        // --- Fase 2: Hilbert Sort nativo + Inserção via AddSorted ---
-        // HilbertSort é uma classe ESTÁTICA — chamar HilbertSort.Sort() diretamente.
-        // AddSorted pressupõe entrada ordenada — jamais usar com dados brutos não-ordenados.
-        // IncrementalTin() aceita construtor vazio ou (double nominalPointSpacing).
-        _tinEngine = new IncrementalTin();
-        _tinEngine.PreAllocateForVertices(_rawCount);
-
-        // Cast para IEnumerable<IVertex> necessário pois HilbertSort.Sort recebe IEnumerable<IVertex>
-        var sortedVertices = HilbertSort.Sort(tinfourList.Cast<IVertex>());
-        _tinEngine.AddSorted(sortedVertices);
-
-        // --- Fase 3: Injeção de Breaklines (Constrained Delaunay) ---
-        // API REAL: LinearConstraint(IEnumerable<IVertex>)
-        if (topographicBreaklines.Length > 0)
-        {
-            var constraints = new List<IConstraint>(topographicBreaklines.Length);
-
-            foreach (var breakline in topographicBreaklines)
+            for (int i = 0; i < _rawCount; i++)
             {
-                var pStart = rawPoints[breakline.StartVertexId];
-                var pEnd   = rawPoints[breakline.EndVertexId];
+                var p = rawPoints[i];
+                tinfourList.Add(new Vertex(p.X, p.Y, p.Z, p.Id));
+                _domainVertices[p.Id] = p;
 
-                var segmentVertices = new List<IVertex>(2)
+                if (p.Z < _minZ) _minZ = p.Z;
+                if (p.Z > _maxZ) _maxZ = p.Z;
+            }
+
+            // --- Fase 2: Hilbert Sort nativo + Inserção via AddSorted ---
+            _tinEngine = new IncrementalTin(0.001);
+            _tinEngine.PreAllocateForVertices(_rawCount);
+
+            var sortedVertices = HilbertSort.Sort(tinfourList.Cast<IVertex>());
+            _tinEngine.AddSorted(sortedVertices);
+
+            // --- Fase 3: Injeção de Breaklines (Constrained Delaunay) ---
+            if (topographicBreaklines.Length > 0)
+            {
+                var constraints = new List<IConstraint>(topographicBreaklines.Length);
+
+                foreach (var breakline in topographicBreaklines)
                 {
-                    new Vertex(pStart.X, pStart.Y, pStart.Z, breakline.StartVertexId),
-                    new Vertex(pEnd.X,   pEnd.Y,   pEnd.Z,   breakline.EndVertexId)
-                };
+                    var pStart = rawPoints[breakline.StartVertexId];
+                    var pEnd   = rawPoints[breakline.EndVertexId];
 
-                constraints.Add(new LinearConstraint(segmentVertices));
+                    var segmentVertices = new List<IVertex>(2)
+                    {
+                        new Vertex(pStart.X, pStart.Y, pStart.Z, breakline.StartVertexId),
+                        new Vertex(pEnd.X,   pEnd.Y,   pEnd.Z,   breakline.EndVertexId)
+                    };
+
+                    constraints.Add(new LinearConstraint(segmentVertices));
+                    _activeBreaklines.Add(breakline);
+                }
+
+                try
+                {
+                    _tinEngine.AddConstraints(constraints, restoreConformity: true);
+                }
+                catch (Exception ex) when (IsConstraintViolation(ex))
+                {
+                    throw new BreaklineConflictException(
+                        "Conflito geométrico nas linhas de quebra: dois ou mais segmentos se " +
+                        "intersectam em ponto não-vértice de campo. Corrija a geometria antes de gerar o MDT.",
+                        ex);
+                }
             }
 
-            try
-            {
-                // restoreConformity: true → propriedade de Delaunay restaurada ao redor das restrições.
-                // Steiner Points sintéticos podem ser introduzidos internamente pelo motor.
-                _tinEngine.AddConstraints(constraints, restoreConformity: true);
-            }
-            catch (Exception ex) when (IsConstraintViolation(ex))
-            {
-                throw new BreaklineConflictException(
-                    "Conflito geométrico nas linhas de quebra: dois ou mais segmentos se " +
-                    "intersectam em ponto não-vértice de campo. Corrija a geometria antes de gerar o MDT.",
-                    ex);
-            }
+            // --- Fase 4: Sela a malha para acesso concorrente seguro ---
+            _tinEngine.Lock();
+
+            // --- Fase 5: Montagem dos tipos de retorno do Domínio ---
+            return ExtractDomainMesh();
         }
+    }
 
-        // --- Fase 4: Sela a malha para acesso concorrente seguro ---
-        _tinEngine.Lock();
-        _isMeshSealed = true;
-
-        // --- Fase 5: Montagem dos tipos de retorno do Domínio ---
-        // API REAL: GetVertexA/B/C() retorna IVertex.
-        // IVertex.IsSynthetic() == true → Steiner Point (descartado).
-        // SimpleTriangle.IsGhost() == true → triângulo de borda infinita (descartado).
-        var domainTriangles = new List<TerrainTriangle>();
-
-        foreach (var t in _tinEngine.GetTriangles())
+    /// <summary>
+    /// Retorna a malha de Delaunay atual do adaptador.
+    /// Snapshot materializado em array, desconectado do motor interno.
+    /// </summary>
+    public (TerrainVertex[] Vertices, TerrainTriangle[] Triangles) GetCurrentMesh()
+    {
+        lock (_syncLock)
         {
-            // Descarta ghost triangles (triângulos de borda infinita do TIN)
-            if (t.IsGhost()) continue;
-
-            var vA = t.GetVertexA();
-            var vB = t.GetVertexB();
-            var vC = t.GetVertexC();
-
-            // Rejeita ghost triangles com vértice nulo
-            if (vA is null || vB is null || vC is null) continue;
-
-            // Rejeita triângulos que contenham Steiner Points (sintéticos, não físicos)
-            if (vA.IsSynthetic() || vB.IsSynthetic() || vC.IsSynthetic()) continue;
-
-            int idxA = vA.GetIndex();
-            int idxB = vB.GetIndex();
-            int idxC = vC.GetIndex();
-
-            // Garante que os índices estão dentro do range do array de domínio
-            if (idxA < 0 || idxA >= _rawCount) continue;
-            if (idxB < 0 || idxB >= _rawCount) continue;
-            if (idxC < 0 || idxC >= _rawCount) continue;
-
-            try
-            {
-                var dt = new TerrainTriangle(
-                    _domainVertices[idxA],
-                    _domainVertices[idxB],
-                    _domainVertices[idxC]);
-
-                domainTriangles.Add(dt);
-            }
-            catch (DegenerateTriangleException)
-            {
-                // Triângulos de borda gerados internamente pelas constraints são colineares
-                // no plano 2D: descartados silenciosamente — não são dados de campo.
-            }
+            AssertMeshReady();
+            return ExtractDomainMesh();
         }
+    }
 
-        return (_domainVertices, domainTriangles.ToArray());
+    // -------------------------------------------------------------------------
+    // ITerrainTriangulator — Operações Incrementais
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Insere um vértice na malha de forma incremental. Custo: O(log N).
+    /// </summary>
+    public void InsertVertex(TerrainVertex vertex)
+    {
+        lock (_syncLock)
+        {
+            AssertMeshReady();
+
+            _domainVertices[vertex.Id] = vertex;
+            var tinfourVertex = new Vertex(vertex.X, vertex.Y, vertex.Z, vertex.Id);
+            _tinEngine!.Add(tinfourVertex);
+            _tinEngine.Lock();
+
+            // Atualizar elevações extremas
+            if (vertex.Z < _minZ) _minZ = vertex.Z;
+            if (vertex.Z > _maxZ) _maxZ = vertex.Z;
+        }
+    }
+
+    /// <summary>
+    /// Remove um vértice da malha com verificação de integridade topológica (Block Delete).
+    /// Se o vértice ancorar breaklines ativas, lança TopologicalInvarianceException.
+    /// Caso contrário, executa Rebuild global (Tinfour.NET não suporta deleção incremental).
+    /// </summary>
+    public void RemoveVertex(int vertexId)
+    {
+        lock (_syncLock)
+        {
+            AssertMeshReady();
+
+            if (!_domainVertices.ContainsKey(vertexId)) return;
+
+            // Block Delete: verificar integridade referencial
+            int anchoredCount = 0;
+            foreach (var bl in _activeBreaklines)
+            {
+                if (bl.StartVertexId == vertexId || bl.EndVertexId == vertexId)
+                    anchoredCount++;
+            }
+
+            if (anchoredCount > 0)
+                throw new TopologicalInvarianceException(vertexId, anchoredCount);
+
+            // Vértice livre: remover da coleção mestre e reconstruir
+            _domainVertices.Remove(vertexId);
+            RecalcularExtremosAltimetricos();
+            RebuildFromMasterCollections();
+        }
+    }
+
+    /// <summary>
+    /// Adiciona uma restrição física (Breakline) à malha.
+    /// </summary>
+    public void AddConstraint(Breakline breakline)
+    {
+        lock (_syncLock)
+        {
+            AssertMeshReady();
+
+            if (!_domainVertices.TryGetValue(breakline.StartVertexId, out _) ||
+                !_domainVertices.TryGetValue(breakline.EndVertexId, out _))
+                return;
+
+            _activeBreaklines.Add(breakline);
+            RebuildFromMasterCollections();
+        }
+    }
+
+    /// <summary>
+    /// Remove uma restrição física e restaura a optimalidade plana de Delaunay.
+    /// Tinfour.NET não suporta deleção incremental de restrições — executa Rebuild global.
+    /// </summary>
+    public void RemoveConstraint(Breakline breakline)
+    {
+        lock (_syncLock)
+        {
+            AssertMeshReady();
+
+            if (!_activeBreaklines.Remove(breakline)) return;
+            RebuildFromMasterCollections();
+        }
+    }
+
+    public IEnumerable<Breakline> GetActiveBreaklines()
+    {
+        lock (_syncLock)
+        {
+            AssertMeshReady();
+            return [.. _activeBreaklines];
+        }
+    }
+
+    public bool ExisteBreakline(Breakline breakline)
+    {
+        lock (_syncLock)
+        {
+            if (_disposed || _tinEngine == null) return false;
+            return _activeBreaklines.Contains(breakline);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -192,26 +290,24 @@ public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopograph
 
     /// <summary>
     /// Interpola a cota exata de um ponto arbitrário sobre a malha TIN usando o método
-    /// dos Vizinhos Naturais de Sibson — máxima precisão para terrenos esparsos e MDTs irregulares.
-    ///
-    /// THREAD-SAFETY: Cria um interpolador LOCAL por chamada. Custo de instanciação é O(1).
-    /// Para chamadas em massa (rasterização), prefira RasterizarGridParalelo().
+    /// dos Vizinhos Naturais de Sibson.
     /// </summary>
     public double InterpolateExactElevationUsingSibson(double easting, double northing)
     {
-        AssertMeshSealed();
+        lock (_syncLock)
+        {
+            AssertMeshReady();
 
-        // Interpolador local: nunca compartilhado entre threads.
-        // Cada instância mantém cache interno de posição do navegador e normais de superfície.
-        var interpolator = new NaturalNeighborInterpolator(_tinEngine!);
-        double result = interpolator.Interpolate(easting, northing, null);
+            var interpolator = new NaturalNeighborInterpolator(_tinEngine!);
+            double result = interpolator.Interpolate(easting, northing, null);
 
-        if (double.IsNaN(result))
-            throw new TopoGenteDomainException(
-                $"Ponto ({easting:F3}, {northing:F3}) está fora do casco convexo da malha TIN. " +
-                "A interpolação por Vizinhos Naturais não pode extrapolar além do domínio triangulado.");
+            if (double.IsNaN(result))
+                throw new TopoGenteDomainException(
+                    $"Ponto ({easting:F3}, {northing:F3}) está fora do casco convexo da malha TIN. " +
+                    "A interpolação por Vizinhos Naturais não pode extrapolar além do domínio triangulado.");
 
-        return result;
+            return result;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -220,66 +316,62 @@ public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopograph
 
     /// <summary>
     /// Extrai o mapa isohípsico (curvas de nível) fatiando matematicamente o relevo triangulado.
-    /// Implementado como lazy sequence (yield return) — iteração sob demanda sem alocação prévia.
-    ///
-    /// API REAL:
-    ///   - ContourBuilderForTin(IIncrementalTin tin, IVertexValuator valuator, double[] zLevels, bool buildRegions)
-    ///   - Contour.GetZ() → cota da curva
-    ///   - Contour.GetXY() → array double[] com pares [x0, y0, x1, y1, ...]
-    ///
-    /// THREAD-SAFETY: ContourBuilderForTin opera em thread única. Para paralelismo geográfico,
-    /// particione o bounding-box e crie builders independentes por região.
+    /// 
+    /// MATERIALIZAÇÃO FORÇADA: A coleção inteira é construída DENTRO do lock e retornada
+    /// como array desconectado. Iteradores diferidos (yield return) são proibidos para impedir
+    /// que threads consumidoras acessem o motor Tinfour fora da barreira de exclusão mútua.
     /// </summary>
     public IEnumerable<Isoline> ComputeContourMap(double stepInterval, double anchorElevation)
     {
-        AssertMeshSealed();
-
-        if (stepInterval <= 0)
-            throw new TopoGenteDomainException(
-                $"A equidistância entre curvas de nível deve ser estritamente positiva. Valor recebido: {stepInterval}");
-
-        // Calcula o vetor de níveis de corte alinhado ao âncora de cota
-        var zLevels = new List<double>();
-        double z = anchorElevation;
-
-        while (z > _minZ) z -= stepInterval;
-        z += stepInterval; // Primeiro nível acima de _minZ
-
-        while (z <= _maxZ)
+        lock (_syncLock)
         {
-            zLevels.Add(z);
+            AssertMeshReady();
+
+            if (stepInterval <= 0)
+                throw new TopoGenteDomainException(
+                    $"A equidistância entre curvas de nível deve ser estritamente positiva. Valor recebido: {stepInterval}");
+
+            // Calcula o vetor de níveis de corte alinhado ao âncora de cota
+            List<double> zLevels = [];
+            double z = anchorElevation;
+
+            while (z > _minZ) z -= stepInterval;
             z += stepInterval;
-        }
 
-        if (zLevels.Count == 0) yield break;
-
-        // API REAL: ContourBuilderForTin(tin, valuator, zLevels, buildRegions)
-        // valuator: null usa a cota Z padrão dos vértices.
-        // buildRegions: false — não necessitamos da hierarquia de regiões de fechamento para curvas simples.
-        var builder = new ContourBuilderForTin(_tinEngine!, null, zLevels.ToArray(), false);
-        var contours = builder.GetContours();
-
-        foreach (var contour in contours)
-        {
-            double contourZ = contour.GetZ();
-
-            // API REAL: GetXY() retorna double[] com pares intercalados [x0, y0, x1, y1, ...]
-            double[] xy = contour.GetXY();
-            int vertexCount = xy.Length / 2;
-
-            if (vertexCount < 2) continue; // Polilinha inválida — descarta
-
-            var isolineVertices = new TerrainVertex[vertexCount];
-            for (int i = 0; i < vertexCount; i++)
+            while (z <= _maxZ)
             {
-                double vx = xy[i * 2];
-                double vy = xy[i * 2 + 1];
-                // Id = 0: vértice matemático sintético — não é pino físico de campo.
-                isolineVertices[i] = new TerrainVertex(vx, vy, contourZ, Id: 0);
+                zLevels.Add(z);
+                z += stepInterval;
             }
 
-            // AsMemory() evita cópia adicional: zero-copy para o consumidor da isolinha.
-            yield return new Isoline(contourZ, isolineVertices.AsMemory());
+            if (zLevels.Count == 0) return [];
+
+            var builder = new ContourBuilderForTin(_tinEngine!, null, zLevels.ToArray(), false);
+            var contours = builder.GetContours();
+
+            // Materialização forçada: snapshot completo em memória RAM
+            List<Isoline> result = [];
+
+            foreach (var contour in contours)
+            {
+                double contourZ = contour.GetZ();
+                double[] xy = contour.GetXY();
+                int vertexCount = xy.Length / 2;
+
+                if (vertexCount < 2) continue;
+
+                var isolineVertices = new TerrainVertex[vertexCount];
+                for (int i = 0; i < vertexCount; i++)
+                {
+                    double vx = xy[i * 2];
+                    double vy = xy[i * 2 + 1];
+                    isolineVertices[i] = new TerrainVertex(vx, vy, contourZ, Id: 0);
+                }
+
+                result.Add(new Isoline(contourZ, isolineVertices.AsMemory()));
+            }
+
+            return result.ToArray();
         }
     }
 
@@ -289,63 +381,197 @@ public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopograph
 
     /// <summary>
     /// Rasteriza um grid regular com Natural Neighbor Interpolation usando Task Parallel Library.
-    ///
-    /// THREAD-SAFETY: Cada thread recebe seu próprio interpolador via localInit,
-    /// conforme padrão oficial documentado em THREAD_SAFETY.md do Tinfour.NET.
-    /// O _tinEngine selado é compartilhado de forma segura entre todas as threads.
+    /// O lock é retido durante toda a rasterização para impedir mutações concorrentes.
     /// </summary>
     public double[,] RasterizarGridParalelo(
         double xMin, double yMin, double xMax, double yMax,
         int colunas, int linhas)
     {
-        AssertMeshSealed();
+        lock (_syncLock)
+        {
+            AssertMeshReady();
 
-        if (colunas < 2 || linhas < 2)
-            throw new TopoGenteDomainException("O grid raster requer mínimo de 2×2 células.");
+            if (colunas < 2 || linhas < 2)
+                throw new TopoGenteDomainException("O grid raster requer mínimo de 2×2 células.");
 
-        double stepX = (xMax - xMin) / (colunas - 1);
-        double stepY = (yMax - yMin) / (linhas - 1);
-        var raster = new double[linhas, colunas];
+            double stepX = (xMax - xMin) / (colunas - 1);
+            double stepY = (yMax - yMin) / (linhas - 1);
+            var raster = new double[linhas, colunas];
 
-        // Padrão: um interpolador por thread de execução (localInit).
-        // O mesmo interpolador é reutilizado para todas as linhas processadas pela mesma thread,
-        // aproveitando a otimização interna de cache de proximidade do NaturalNeighborInterpolator.
-        Parallel.For(
-            fromInclusive: 0,
-            toExclusive: linhas,
-            localInit: () => new NaturalNeighborInterpolator(_tinEngine!),
-            body: (row, _, interpolator) =>
-            {
-                double y = yMin + row * stepY;
-                for (int col = 0; col < colunas; col++)
+            Parallel.For(
+                fromInclusive: 0,
+                toExclusive: linhas,
+                localInit: () => new NaturalNeighborInterpolator(_tinEngine!),
+                body: (row, _, interpolator) =>
                 {
-                    double x = xMin + col * stepX;
-                    raster[row, col] = interpolator.Interpolate(x, y, null);
-                    // double.NaN indica ponto fora do casco convexo — preservado como marcador.
-                }
-                return interpolator; // Reutiliza o interpolador na próxima linha desta thread
-            },
-            localFinally: _ => { /* Sem recursos externos a liberar */ });
+                    double y = yMin + row * stepY;
+                    for (int col = 0; col < colunas; col++)
+                    {
+                        double x = xMin + col * stepX;
+                        raster[row, col] = interpolator.Interpolate(x, y, null);
+                    }
+                    return interpolator;
+                },
+                localFinally: _ => { });
 
-        return raster;
+            return raster;
+        }
     }
 
     // -------------------------------------------------------------------------
-    // Helpers Privados
+    // IDisposable
     // -------------------------------------------------------------------------
 
-    private void AssertMeshSealed()
+    public void Dispose()
     {
-        if (!_isMeshSealed || _tinEngine is null)
+        if (_disposed) return;
+
+        lock (_syncLock)
+        {
+            _domainVertices.Clear();
+            _activeBreaklines.Clear();
+            _tinEngine = null;
+            _minZ = double.MaxValue;
+            _maxZ = double.MinValue;
+            _disposed = true;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers Privados — Todos chamados DENTRO do lock
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Destrói o motor Tinfour atual e reconstrói a malha integralmente
+    /// a partir das coleções mestre (_domainVertices e _activeBreaklines).
+    /// Chamado como fallback quando a deleção incremental não é suportada.
+    /// PRECONDIÇÃO: Deve ser invocado DENTRO do lock (_syncLock).
+    /// </summary>
+    private void RebuildFromMasterCollections()
+    {
+        var vertices = _domainVertices.Values.ToArray();
+        if (vertices.Length == 0)
+        {
+            _tinEngine = null;
+            return;
+        }
+
+        // Reconstruir motor do zero
+        _tinEngine = new IncrementalTin(0.001);
+        _tinEngine.PreAllocateForVertices(vertices.Length);
+
+        var tinfourList = new List<Vertex>(vertices.Length);
+        foreach (var v in vertices)
+        {
+            tinfourList.Add(new Vertex(v.X, v.Y, v.Z, v.Id));
+        }
+
+        var sorted = HilbertSort.Sort(tinfourList.Cast<IVertex>());
+        _tinEngine.AddSorted(sorted);
+
+        // Reinjetar todas as breaklines ativas
+        if (_activeBreaklines.Count > 0)
+        {
+            var constraints = new List<IConstraint>(_activeBreaklines.Count);
+
+            foreach (var bl in _activeBreaklines)
+            {
+                if (!_domainVertices.TryGetValue(bl.StartVertexId, out var pStart) ||
+                    !_domainVertices.TryGetValue(bl.EndVertexId, out var pEnd))
+                    continue;
+
+                var segVerts = new List<IVertex>(2)
+                {
+                    new Vertex(pStart.X, pStart.Y, pStart.Z, bl.StartVertexId),
+                    new Vertex(pEnd.X,   pEnd.Y,   pEnd.Z,   bl.EndVertexId)
+                };
+                constraints.Add(new LinearConstraint(segVerts));
+            }
+
+            if (constraints.Count > 0)
+                _tinEngine.AddConstraints(constraints, restoreConformity: true);
+        }
+
+        _tinEngine.Lock();
+    }
+
+    /// <summary>
+    /// Extrai a malha de domínio como snapshot materializado (arrays desconectados).
+    /// PRECONDIÇÃO: Deve ser invocado DENTRO do lock (_syncLock).
+    /// </summary>
+    private (TerrainVertex[] Vertices, TerrainTriangle[] Triangles) ExtractDomainMesh()
+    {
+        var domainTriangles = new List<TerrainTriangle>();
+
+        foreach (var t in _tinEngine!.GetTriangles())
+        {
+            if (t.IsGhost()) continue;
+
+            var vA = t.GetVertexA();
+            var vB = t.GetVertexB();
+            var vC = t.GetVertexC();
+
+            if (vA is null || vB is null || vC is null) continue;
+            if (vA.IsSynthetic() || vB.IsSynthetic() || vC.IsSynthetic()) continue;
+
+            int idxA = vA.GetIndex();
+            int idxB = vB.GetIndex();
+            int idxC = vC.GetIndex();
+
+            if (!_domainVertices.TryGetValue(idxA, out var pA) ||
+                !_domainVertices.TryGetValue(idxB, out var pB) ||
+                !_domainVertices.TryGetValue(idxC, out var pC))
+            {
+                continue;
+            }
+
+            try
+            {
+                var dt = new TerrainTriangle(pA, pB, pC);
+                domainTriangles.Add(dt);
+            }
+            catch (DegenerateTriangleException)
+            {
+                // Triângulos de borda gerados pelas constraints: colineares no plano 2D.
+            }
+        }
+
+        return (_domainVertices.Values.ToArray(), domainTriangles.ToArray());
+    }
+
+    /// <summary>
+    /// Recalcula os extremos altimétricos após mutação do dicionário de vértices.
+    /// PRECONDIÇÃO: Deve ser invocado DENTRO do lock (_syncLock).
+    /// </summary>
+    private void RecalcularExtremosAltimetricos()
+    {
+        _minZ = double.MaxValue;
+        _maxZ = double.MinValue;
+
+        foreach (var v in _domainVertices.Values)
+        {
+            if (v.Z < _minZ) _minZ = v.Z;
+            if (v.Z > _maxZ) _maxZ = v.Z;
+        }
+    }
+
+    /// <summary>
+    /// Valida que o motor está pronto para operações.
+    /// PRECONDIÇÃO: Deve ser invocado DENTRO do lock (_syncLock).
+    /// </summary>
+    private void AssertMeshReady()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_tinEngine is null)
             throw new TopoGenteDomainException(
-                "Malha Delaunay inexistente ou não-selada. " +
+                "Malha Delaunay inexistente. " +
                 "Invoque GenerateBaseDelaunayMesh() antes de qualquer operação analítica.");
     }
 
     /// <summary>
     /// Identifica heuristicamente se uma exceção originou-se de violação de restrições
-    /// geométricas no Tinfour. Migrar para catch tipado quando o Tinfour.NET
-    /// expuser TinfourConstraintException como tipo público estável.
+    /// geométricas no Tinfour.
     /// </summary>
     private static bool IsConstraintViolation(Exception ex)
     {
@@ -359,3 +585,4 @@ public sealed class RichFeatureTinfourAdapter : ITerrainTriangulator, ITopograph
             || message.Contains("collinear",     StringComparison.OrdinalIgnoreCase);
     }
 }
+
