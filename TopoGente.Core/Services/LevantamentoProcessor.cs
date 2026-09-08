@@ -5,6 +5,7 @@ using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Strategies;
 using TopoGente.Core.Utilities;
+using TopoGENTE.Domain.ValueObjects;
 
 namespace TopoGente.Core.Services
 {
@@ -19,6 +20,15 @@ namespace TopoGente.Core.Services
         {
             _classificadorGrafo = classificadorGrafo;
             _compensacaoStrategyFactory = compensacaoStrategyFactory;
+        }
+
+        /// <summary>
+        /// Validação preventiva (Sweep-Line Bentley-Ottmann) integrada ao pipeline do Levantamento,
+        /// respeitando o isolamento do domínio (Hexagonal Architecture) antes de enviar ao MDT.
+        /// </summary>
+        public void ValidarBreaklines(ReadOnlySpan<TerrainVertex> vertices, ReadOnlySpan<Breakline> breaklines)
+        {
+            SweepLineValidator.ValidarCruzamentos(vertices, breaklines);
         }
 
 

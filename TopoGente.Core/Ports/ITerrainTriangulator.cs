@@ -22,4 +22,41 @@ public interface ITerrainTriangulator
         ReadOnlySpan<TerrainVertex> rawPoints,
         ReadOnlySpan<Breakline> topographicBreaklines,
         double toleranceThreshold);
+
+    /// <summary>
+    /// Retorna a malha de Delaunay atual do adaptador. 
+    /// O(N) para exportação, mas sem custo de retriangulação.
+    /// </summary>
+    (TerrainVertex[] Vertices, TerrainTriangle[] Triangles) GetCurrentMesh();
+
+    /// <summary>
+    /// Insere um vértice na malha de forma incremental. Custo: O(1) a O(log N).
+    /// </summary>
+    void InsertVertex(TerrainVertex vertex);
+
+    /// <summary>
+    /// Remove um vértice da malha, reconstituindo o vazio gerado via critério de Delaunay.
+    /// </summary>
+    void RemoveVertex(int vertexId);
+
+    /// <summary>
+    /// Adiciona uma restrição física (Breakline) forçando a reconfiguração de arestas cruzadas.
+    /// </summary>
+    void AddConstraint(Breakline breakline);
+
+    /// <summary>
+    /// Remove uma restrição física e restaura a optimalidade plana de Delaunay.
+    /// </summary>
+    void RemoveConstraint(Breakline breakline);
+
+    /// <summary>
+    /// Retorna as restrições ativas na malha.
+    /// </summary>
+    IEnumerable<Breakline> GetActiveBreaklines();
+
+    /// <summary>
+    /// Verifica a existência ativa de uma restrição morfológica. 
+    /// Útil para validação pré-transição.
+    /// </summary>
+    bool ExisteBreakline(Breakline breakline);
 }
