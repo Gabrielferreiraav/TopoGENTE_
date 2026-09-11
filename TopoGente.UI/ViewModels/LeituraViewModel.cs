@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TopoGente.Core.Entities;
 
 namespace TopoGente.UI.ViewModels
@@ -7,6 +7,10 @@ namespace TopoGente.UI.ViewModels
     {
         public string Id { get; }
         public TipoLeitura Tipo { get; }
+        public double AlturaInstrumento { get; set; }
+        public double AlturaRefletor => AlturaPrisma;
+        public string AnguloHorizontalString => AnguloHorizontal.ToString("F4");
+        public string AnguloZenitalString => AnguloVertical.ToString("F4");
         
         private string _pontoVisado;
         public string PontoVisado

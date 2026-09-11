@@ -1,0 +1,87 @@
+<mah:MetroWindow x:Class="TopoGente.UI.Views.DashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        xmlns:views="clr-namespace:TopoGente.UI.Views"
+        xmlns:domain="clr-namespace:TopoGente.Core.Domain;assembly=TopoGente.Core"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="{Binding TituloJanela}" Height="800" Width="1200"
+        Background="{DynamicResource MahApps.Brushes.ThemeBackground}"
+        TextElement.Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <Style TargetType="StatusBar" x:Key="ReactiveStatusBarStyle">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.Bruto}">
+                    <Setter Property="Background" Value="#2D2D30"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.Calculando}">
+                    <Setter Property="Background" Value="#D4A017"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.Compensado}">
+                    <Setter Property="Background" Value="#2E7D32"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.ReprovadoNorma}">
+                    <Setter Property="Background" Value="#B71C1C"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ToolBarTray Grid.Row="0" Background="Transparent">
+            <ToolBar Style="{DynamicResource MaterialDesignToolBar}" Background="Transparent" ClipToBounds="False">
+                <Button Command="{Binding AbrirProjetoCommand}" ToolTip="Abrir Projeto (.topogente)">
+                    <materialDesign:PackIcon Kind="FolderOpen" />
+                </Button>
+                <Button Command="{Binding SalvarProjetoCommand}" ToolTip="Salvar Projeto">
+                    <materialDesign:PackIcon Kind="ContentSave" />
+                </Button>
+                <Separator/>
+                <Button Command="{Binding ImportarCadernetaCommand}" ToolTip="Importar Caderneta de Campo (FBK/CSV)">
+                    <materialDesign:PackIcon Kind="FileImport" />
+                </Button>
+                <Separator/>
+                <Button Command="{Binding ProcessarCommand}" ToolTip="Processar Poligonal (Bowditch)" 
+                        Background="{DynamicResource PrimaryHueMidBrush}" 
+                        Foreground="{DynamicResource PrimaryHueMidForegroundBrush}">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Calculator" Margin="0,0,5,0" />
+                        <TextBlock Text="Calcular e Ajustar"/>
+                    </StackPanel>
+                </Button>
+                <Separator/>
+                <Button Command="{Binding ExportarTxtCommand}" ToolTip="Exportar Coordenadas (TXT)">
+                    <materialDesign:PackIcon Kind="FileExport" />
+                </Button>
+                <Button Command="{Binding ExportarDxfCommand}" ToolTip="Exportar Desenho CAD (DXF)">
+                    <materialDesign:PackIcon Kind="VectorPolygon" />
+                </Button>
+            </ToolBar>
+        </ToolBarTray>
+
+        <views:DashboardView Grid.Row="1" Loaded="DashboardView_Loaded"/>
+        
+        <StatusBar Grid.Row="2" Style="{StaticResource ReactiveStatusBarStyle}">
+            <StatusBarItem>
+                <TextBlock Text="{Binding TextoStatusBar}" FontWeight="SemiBold"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding EstadoAtualMotor, StringFormat='Status Geométrico: {0}'}" Margin="0,0,10,0"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</mah:MetroWindow>

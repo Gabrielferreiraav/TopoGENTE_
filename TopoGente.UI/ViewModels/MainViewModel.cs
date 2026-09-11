@@ -127,7 +127,7 @@ namespace TopoGente.UI.ViewModels
             SubirSequenciaCommand = new RelayCommand(OnSubirSequencia, _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
             DescerSequenciaCommand = new RelayCommand(OnDescerSequencia, _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
 
-            ExibirCadernetaCommand = new RelayCommand(_ => AbrirJanela<CadernetaWindow>());
+            ExibirCadernetaCommand = new RelayCommand(_ => { /* Removido na Fase 5 */ });
             ExibirGraficoCommand = new RelayCommand(OnExibirGrafico);
             ExibirDiagnosticoCommand = new RelayCommand(OnExibirDiagnostico);
 
@@ -388,8 +388,8 @@ namespace TopoGente.UI.ViewModels
 
         private void OnExibirGrafico(object? parameter)
         {
-            var window = new VisualizacaoWindow(_uiEventHub);
-            window.ShowDialog();
+            // var window = new VisualizacaoWindow(_uiEventHub);
+            // window.ShowDialog();
         }
 
         private void OnExibirDiagnostico(object? parameter)

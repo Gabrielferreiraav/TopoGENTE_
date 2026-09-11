@@ -1,0 +1,309 @@
+<UserControl x:Class="TopoGente.UI.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:domain="clr-namespace:TopoGente.Core.Domain;assembly=TopoGente.Core"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="720" d:DesignWidth="1280"
+             Background="{DynamicResource MahApps.Brushes.ThemeBackground}"
+             TextElement.Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <UserControl.InputBindings>
+        <KeyBinding Key="Enter" Command="{Binding ProcessarCommand}"/>
+    </UserControl.InputBindings>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="{DynamicResource MahApps.Brushes.Control.Background}" Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Background="{DynamicResource MahApps.Brushes.ThemeBackground}">
+                    <RadioButton x:Name="TabCaderneta" Content="Visadas" GroupName="Abas" Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" Margin="4"/>
+                    <RadioButton x:Name="TabPoligonal" Content="Poligonal" IsChecked="True" GroupName="Abas" Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" Margin="4"/>
+                    <RadioButton x:Name="TabDiagnostico" Content="Diagnóstico/QA" GroupName="Abas" Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" Margin="4"/>
+                    <RadioButton x:Name="TabCamadas" Content="Camadas" GroupName="Abas" Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" Margin="4"/>
+                </StackPanel>
+
+                <!-- ABA 1 - VISADAS -->
+                <Grid Grid.Row="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsChecked, ElementName=TabCaderneta}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Visadas de Campo" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,10"/>
+                            <DataGrid ItemsSource="{Binding Visadas}" AutoGenerateColumns="False" CanUserAddRows="True" CanUserDeleteRows="True"
+                                      HeadersVisibility="Column" Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#333" BorderThickness="1">
+                                <i:Interaction.Triggers>
+                                    <i:EventTrigger EventName="RowEditEnding">
+                                        <i:InvokeCommandAction Command="{Binding RowEditEndingCommand}" />
+                                    </i:EventTrigger>
+                                </i:Interaction.Triggers>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Est" Binding="{Binding EstacaoOrigem}"/>
+                                    <DataGridTextColumn Header="Visado" Binding="{Binding PontoVisado}"/>
+                                    <DataGridTextColumn Header="H. Inst" Binding="{Binding AlturaInstrumento, StringFormat=F3}"/>
+                                    <DataGridTextColumn Header="H. Ref" Binding="{Binding AlturaRefletor, StringFormat=F3}"/>
+                                    <DataGridTextColumn Header="Ang. Hor" Binding="{Binding AnguloHorizontalString, UpdateSourceTrigger=LostFocus}"/>
+                                    <DataGridTextColumn Header="Ang. Zen" Binding="{Binding AnguloZenitalString, UpdateSourceTrigger=LostFocus}"/>
+                                    <DataGridTextColumn Header="Dist (m)" Binding="{Binding DistanciaInclinada, StringFormat=F3}"/>
+                                    <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ABA 2 - POLIGONAL -->
+                <Grid Grid.Row="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsChecked, ElementName=TabPoligonal}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Configuração da Poligonal" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,10"/>
+                            
+                            <TextBlock Text="Tipo de Fechamento:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,2"/>
+                            <ComboBox SelectedIndex="{Binding PoligonalSelecionada.CenarioIndex}" Margin="0,0,0,10"><ComboBoxItem>Enquadrada</ComboBoxItem><ComboBoxItem>Fechada</ComboBoxItem><ComboBoxItem>Aberta Orientada</ComboBoxItem></ComboBox>
+
+                            <GroupBox Header="Estação de Partida (E0)" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.EstacaoAncoragemNome}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coord X:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.PartidaX, StringFormat=F3}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coord Y:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.PartidaY, StringFormat=F3}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coord Z:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.PartidaZ, StringFormat=F3}" Margin="0,0,0,5"/>
+
+                                    <TextBlock Text="Amarração à Ré" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <CheckBox IsChecked="{Binding PoligonalSelecionada.UsarCoordenadaRe}" Content="Usar Coordenada ao invés de Azimute" Margin="0,0,0,5"/>
+                                    <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelAzimute, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="Azimute de Partida:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                        <TextBox Text="{Binding PoligonalSelecionada.Azimute, StringFormat=F4}" Margin="0,0,0,5"/>
+                                    </StackPanel>
+                                    <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelCoordenadaRe, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="Coord X da Ré:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                        <TextBox Text="{Binding PoligonalSelecionada.ReX, StringFormat=F3}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Coord Y da Ré:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                        <TextBox Text="{Binding PoligonalSelecionada.ReY, StringFormat=F3}" Margin="0,0,0,5"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <GroupBox Header="Estação de Chegada (En)" Visibility="{Binding PoligonalSelecionada.MostrarPainelChegada, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel>
+                                    <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.NomeChegada}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coord X:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.ChegadaX, StringFormat=F3}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coord Y:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.ChegadaY, StringFormat=F3}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coord Z:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.ChegadaZ, StringFormat=F3}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Azimute de Chegada:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.AzimuteChegada, StringFormat=F4}" Margin="0,0,0,5"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <Button Content="→ EXTRAIR CAMINHAMENTO" Command="{Binding ProcessarCommand}" Margin="0,10,0,10" Background="#2D2D30"/>
+                            
+                            <ListBox ItemsSource="{Binding EstacoesCaminhamento}" Background="{DynamicResource MahApps.Brushes.Control.Background}" MaxHeight="200">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding NomeEstacao}" FontWeight="Bold" Margin="0,0,10,0" Width="40"/>
+                                            <TextBlock Text="{Binding NomeRe, StringFormat='Ré: {0}'}" Foreground="#E57373" Margin="2"/>
+                                            <TextBlock Text="{Binding AnguloHorizontalVante, StringFormat='Hz: {0}'}" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="5,2"/>
+                                            <TextBlock Text="{Binding NomeVante, StringFormat='Vante: {0}'}" Foreground="#4CAF50" Margin="2"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ABA 3 - DIAGNÓSTICO -->
+                <Grid Grid.Row="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsChecked, ElementName=TabDiagnostico}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Laudo Técnico de Auditoria (NBR 13.133)" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,8"/>
+                            <ListBox ItemsSource="{Binding RelatorioQaAtual.Checks}" Background="{DynamicResource MahApps.Brushes.Control.Background}" Foreground="#E57373" MinHeight="100" Margin="0,0,0,15"/>
+
+                            <TextBlock Text="Erros de Fechamento" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,5"/>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="Angular:" Grid.Row="0" Grid.Column="0" Margin="0,2,10,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                <TextBlock Text="{Binding RelatorioQaAtual.ErroAngular}" Grid.Row="0" Grid.Column="1" Margin="0,2" FontWeight="SemiBold"/>
+                                
+                                <TextBlock Text="Linear (Plani):" Grid.Row="1" Grid.Column="0" Margin="0,2,10,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                <TextBlock Text="{Binding RelatorioQaAtual.ErroLinear, StringFormat='{}{0:F4} m'}" Grid.Row="1" Grid.Column="1" Margin="0,2" FontWeight="SemiBold"/>
+
+                                <TextBlock Text="Altimétrico:" Grid.Row="2" Grid.Column="0" Margin="0,2,10,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                <TextBlock Text="{Binding RelatorioQaAtual.ErroAltimetrico, StringFormat='{}{0:F4} m'}" Grid.Row="2" Grid.Column="1" Margin="0,2" FontWeight="SemiBold"/>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ABA 4 - CAMADAS -->
+                <Grid Grid.Row="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsChecked, ElementName=TabCamadas}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Controle de Visibilidade CAD" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,15"/>
+                            
+                            <!-- Apoio Planimétrico -->
+                            <TextBlock Text="Apoio Planimétrico" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,10,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarEsbocoBruto}"/>
+                                <TextBlock Text="Esboço de Campo (Poligonal Bruta)" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarPontos}"/>
+                                <TextBlock Text="Nuvem de Pontos (Vértices)" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+
+                            <!-- Modelagem Digital (MDT) -->
+                            <TextBlock Text="Modelagem Digital (MDT)" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,20,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarTin}"/>
+                                <TextBlock Text="Triângulos do Terreno (Malha TIN)" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarBreaklines}"/>
+                                <TextBlock Text="Linhas Obrigatórias (Breaklines)" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+
+                            <!-- Altimetria -->
+                            <TextBlock Text="Altimetria" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,20,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarCurvasMestras}"/>
+                                <TextBlock Text="Curvas de Nível Mestras" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,5">
+                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarCurvasSecundarias}"/>
+                                <TextBlock Text="Curvas de Nível Secundárias" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+            </Grid>
+        </Border>
+
+        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#2C2C2C"/>
+
+        <Border Grid.Column="2" Background="{DynamicResource MahApps.Brushes.ThemeBackground}" ClipToBounds="True">
+            <Grid Focusable="True">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Cursor" Value="Cross"/>
+                        <Setter Property="IsHitTestVisible" Value="True"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsTopologyRebuilding}" Value="True">
+                                <Setter Property="Cursor" Value="Wait"/>
+                                <Setter Property="IsHitTestVisible" Value="False"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                <Grid.RenderTransform>
+                    <MatrixTransform Matrix="{Binding CameraMatrix}"/>
+                </Grid.RenderTransform>
+
+                <!-- LAYER 1: MDT / COMPENSATED (Só aparece se Compensado) -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.Compensado}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Path Data="{Binding StaticTinGeometry}"           Stroke="#2A2A2A" StrokeThickness="0.5" Visibility="{Binding MostrarTin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Path Data="{Binding StaticMinorContoursGeometry}" Stroke="#6B5B4B" StrokeThickness="0.5" Visibility="{Binding MostrarCurvasSecundarias, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Path Data="{Binding StaticMajorContoursGeometry}" Stroke="#8C6B4B" StrokeThickness="1.5" Visibility="{Binding MostrarCurvasMestras, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Path Data="{Binding StaticBreaklinesGeometry}"    Stroke="#FF00FFFF" StrokeThickness="2" Visibility="{Binding MostrarBreaklines, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Path Data="{Binding StaticPointsGeometry}"        Stroke="#4CAF50" StrokeThickness="1.5" Visibility="{Binding MostrarPontos, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </Grid>
+
+                <!-- LAYER 2: DRAFT / BRUTO (Aparece se Bruto ou Reprovado) -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.Compensado}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    
+                    <Path Data="{Binding StaticDraftGeometry}" Stroke="#FFB300" StrokeThickness="1.5" StrokeDashArray="4 2" Visibility="{Binding MostrarEsbocoBruto, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Path Data="{Binding StaticErrorVectorGeometry}" Stroke="#D32F2F" StrokeThickness="3" StrokeDashArray="2 2"/>
+                </Grid>
+
+                <Path Stroke="Yellow" StrokeThickness="2" StrokeDashArray="4 2" Data="{Binding DynamicRubberBandGeometry}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

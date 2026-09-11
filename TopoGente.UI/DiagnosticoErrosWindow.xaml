@@ -16,7 +16,7 @@
 
         <StackPanel Grid.Row="0" Margin="0,0,0,10">
             <TextBlock Text="Diagnóstico de Auditoria - NBR 13.133" FontWeight="Bold" FontSize="16" Margin="0,0,0,5"/>
-            <TextBlock x:Name="txtStatus" FontSize="14" Foreground="DarkBlue" TextWrapping="Wrap"/>
+            <TextBlock x:Name="txtStatus" FontSize="14" Foreground="Black" TextWrapping="Wrap"/>
         </StackPanel>
 
         <DataGrid x:Name="dgDiagnostico" Grid.Row="1" AutoGenerateColumns="False" 

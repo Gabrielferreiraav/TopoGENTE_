@@ -4,25 +4,16 @@ using TopoGente.Core.Interfaces;
 using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
 using TopoGENTE.Infrastructure.Adapters;
-using TopoGente.Infrastructure.Adapters.Exportadores;
 using TopoGente.Infrastructure.Adapters.Leitores;
-using TopoGente.Infrastructure.Adapters.Storage;
 using TopoGENTE.Domain.Ports;
-using TopoGente.UI.Eventing;
 using TopoGente.UI.Services;
 
 namespace TopoGente.UI
 {
     public partial class App : Application
     {
-        // REGISTRO DE CICLO DE VIDA — MDT:
-        // RichFeatureTinfourAdapter é TRANSIENT: cada invocação da factory produz
-        // uma instância isolada. O adaptador mantém estado interno de malha (IncrementalTin
-        // selado via Lock()), portanto NUNCA deve ser compartilhado entre cenários paralelos.
-        // Consuma a factory onde precisar de triangulação ou análise topográfica.
         public static readonly Func<ITerrainTriangulator> TerrainTriangulatorFactory =
             () => new RichFeatureTinfourAdapter();
-
         public static readonly Func<ITopographicAnalytics> TopographicAnalyticsFactory =
             () => new RichFeatureTinfourAdapter();
 
@@ -30,44 +21,42 @@ namespace TopoGente.UI
         {
             base.OnStartup(e);
 
-            ILeituraArquivoFactory leitorFactory = new LeituraArquivoFactory();
-            IArquivoProjetoService projetoService = new ArquivoProjetoService();
-            IExportadorDxfService dxfService = new ExportadorDxfService();
-            IExportarTxtService exportarTxtService = new ExportarTxtService();
+            var classificador    = new ClassificadorGrafo();
+            var leitorFactory    = new LeituraArquivoFactory();
+            var organizador      = new OrganizarCaminhamento();
+            var processador      = new LevantamentoProcessor(classificador, new CompensacaoStrategyFactory());
+            var qaCheckService   = new QaCheckService();
+            
+            var projetoService   = new TopoGente.Infrastructure.Adapters.Storage.ArquivoProjetoService();
+            var exportarTxt      = new TopoGente.Infrastructure.Adapters.Exportadores.ExportarTxtService();
+            var exportarDxf      = new TopoGente.Infrastructure.Adapters.Exportadores.ExportadorDxfService();
 
-            IClassificadorGrafo classificador = new ClassificadorGrafo();
-            var factory = new CompensacaoStrategyFactory();
-            ILevantamentoProcessor processador = new LevantamentoProcessor(classificador, factory);
-            IOrganizarCaminhamento organizador = new OrganizarCaminhamento();
-            IQaCheckService qaCheck = new QaCheckService();
+            var dialogService    = new WindowsDialogService();
+            var fileService      = new LocalFileService();
+            var messageService   = new WindowsMessageService();
 
-            IUiEventHub uiEventHub = new UiEventHub();
+            var dashboardViewModel = new TopoGente.UI.ViewModels.DashboardViewModel(
+                TerrainTriangulatorFactory,
+                TopographicAnalyticsFactory,
+                leitorFactory, 
+                organizador, 
+                processador, 
+                qaCheckService, 
+                classificador, 
+                projetoService, 
+                exportarTxt, 
+                exportarDxf,
+                dialogService, 
+                fileService, 
+                messageService);
 
-            var mainViewModel = new TopoGente.UI.ViewModels.MainViewModel(
-                leitorFactory,
-                processador,
-                projetoService,
-                organizador,
-                dxfService,
-                exportarTxtService,
-                qaCheck,
-                classificador,
-                uiEventHub,
-                new WindowsDialogService(),
-                new WindowsMessageService(),
-                new LocalFileService());
+            var dashboardWindow = new TopoGente.UI.Views.DashboardWindow
+            {
+                DataContext = dashboardViewModel
+            };
 
-            MainWindow janelaPrincipal = new MainWindow(mainViewModel);
-
-            CadernetaWindow cadernetaWindow = new CadernetaWindow(uiEventHub);
-            VisualizacaoWindow visualizacaoWindow = new VisualizacaoWindow(uiEventHub);
-
-            MainWindow = janelaPrincipal;
-            janelaPrincipal.Show();
-
-            cadernetaWindow.Owner = janelaPrincipal;
-            visualizacaoWindow.Owner = janelaPrincipal;
+            this.MainWindow = dashboardWindow;
+            dashboardWindow.Show();
         }
     }
 }
-
