@@ -31,8 +31,8 @@ public class ContourMapTests
         for (int r = 0; r < n; r++)
             for (int c = 0; c < n; c++)
             {
-                double x = c * espc;
-                double y = r * espc;
+                double x = c * espc + (r % 2 == 0 ? 0.001 : 0);
+                double y = r * espc + (c % 2 == 0 ? 0.001 : 0);
                 lista.Add(new TerrainVertex(x, y, lei(x, y), id++));
             }
         return lista.ToArray();
