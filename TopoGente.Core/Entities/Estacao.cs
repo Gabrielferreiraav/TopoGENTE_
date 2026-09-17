@@ -9,6 +9,8 @@ namespace TopoGente.Core.Entities
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Nome { get; set; } = string.Empty;
+        public int NumeroSessao { get; set; } = 1;
+        public string IdentificadorSessao => $"{Nome} (Sessão {NumeroSessao})";
 
         public double AlturaInstrumento { get; set; }
 

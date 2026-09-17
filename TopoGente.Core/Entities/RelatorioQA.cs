@@ -11,11 +11,15 @@ namespace TopoGente.Core.Entities
         public double ToleranciaCheckDeltaZ { get; set; } = 0.02;
 
         public List<EventoQACheck> Checks { get; set; } = new();
+
+        public double ErroAngular { get; set; }
+        public double ErroLinear { get; set; }
+        public double ErroAltimetrico { get; set; }
     }
 
     public class EventoQACheck
     {
-        // Chave lógica (setupID + targetPoint + timeStamp (se existir))
+        // Chave l?gica (setupID + targetPoint + timeStamp (se existir))
         public string SetupId { get; set; } = string.Empty;
         public string TargetPoint { get; set; } = string.Empty;
         public DateTime? TimeStamp { get; set; }

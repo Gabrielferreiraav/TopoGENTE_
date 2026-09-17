@@ -307,7 +307,8 @@ namespace TopoGente.Core.Services
             double anguloFechamento = 0;
 
             string nomeEstacaoInicial = leiturasPoligonal.FirstOrDefault()?.EstacaoOcupada ?? pontoPartida.Nome;
-            var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstacaoInicial);
+            var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstacaoInicial)
+                ?? todasLeituras.FirstOrDefault(r => r.EstacaoOcupada == nomeEstacaoInicial && (r.Tipo == TipoLeitura.Re || r.Tipo == TipoLeitura.ReLocal || string.Equals(r.Purpose, "re", StringComparison.OrdinalIgnoreCase)));
             if (reInicial != null)
             {
                 string nomePontoReInicial = reInicial.PontoVisado;

@@ -15,25 +15,52 @@ namespace TopoGente.Core.Services
         /// </summary>
         public List<Estacao> UnificarEstacoes(List<Estacao> todasEstacoes)
         {
-            return todasEstacoes
-                .GroupBy(e => new { Nome = e.Nome.ToUpper(), e.AlturaInstrumento })
-                .Select(g => 
+            var estacoesUnificadas = new List<Estacao>();
+            Estacao? estacaoAtual = null;
+
+            foreach (var est in todasEstacoes)
+            {
+                if (estacaoAtual != null && 
+                    estacaoAtual.Nome.Equals(est.Nome, StringComparison.OrdinalIgnoreCase) && 
+                    estacaoAtual.AlturaInstrumento == est.AlturaInstrumento)
                 {
-                    var estacao = new Estacao
+                    foreach (var leitura in est.Leituras)
                     {
-                        Id = g.First().Id,
-                        Nome = g.First().Nome,
-                        AlturaInstrumento = g.Key.AlturaInstrumento,
-                        CoordenadaConhecida = g.First().CoordenadaConhecida
+                        estacaoAtual.AdicionarVisada(leitura);
+                    }
+                }
+                else
+                {
+                    estacaoAtual = new Estacao
+                    {
+                        Id = est.Id,
+                        Nome = est.Nome,
+                        AlturaInstrumento = est.AlturaInstrumento,
+                        CoordenadaConhecida = est.CoordenadaConhecida
                     };
                     
-                    foreach (var leitura in g.SelectMany(e => e.Leituras))
+                    foreach (var leitura in est.Leituras)
                     {
-                        estacao.AdicionarVisada(leitura);
+                        estacaoAtual.AdicionarVisada(leitura);
                     }
                     
-                    return estacao;
-                })
+                    estacoesUnificadas.Add(estacaoAtual);
+                }
+            }
+
+            var contagemSessoes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var est in estacoesUnificadas)
+            {
+                if (!contagemSessoes.TryGetValue(est.Nome, out int sessao))
+                {
+                    sessao = 1;
+                }
+                est.NumeroSessao = sessao;
+                contagemSessoes[est.Nome] = sessao + 1;
+            }
+
+            return estacoesUnificadas
+                .OrderBy(e => e.Leituras.Any() ? e.Leituras.Min(l => l.OrdemArquivo) : int.MaxValue)
                 .ToList();
         }
 
@@ -64,7 +91,9 @@ namespace TopoGente.Core.Services
             }
 
 
-            var mapaEstacoes = estacoesUnicas.ToDictionary(e => e.Nome, e => e, StringComparer.OrdinalIgnoreCase);
+            var mapaEstacoes = estacoesUnicas
+                .GroupBy(e => e.Nome, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
             var estacoesVisitadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             while (estacaoAtual != null)

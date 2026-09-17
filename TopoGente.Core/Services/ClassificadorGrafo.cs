@@ -69,6 +69,24 @@ namespace TopoGente.Core.Services
                             string.Equals(leitura.PontoVisado, metadados.NomeReReferencia, StringComparison.OrdinalIgnoreCase)
                         );
 
+                        bool temNomeRePredefinido = metadados != null &&
+                            !string.IsNullOrEmpty(metadados.NomeRe) &&
+                            !metadados.NomeRe.Equals("REF", StringComparison.OrdinalIgnoreCase);
+
+                        // Se não há Ré definida e estamos na primeira estação da sequência, a leitura de Ré passa a ser a Ré Oficial
+                        if (!temNomeRePredefinido && i == 0)
+                        {
+                            string? nomeInicioSeq = metadados?.SequenciaEstacoesSelecionadas?.FirstOrDefault();
+                            if (nomeInicioSeq == null || string.Equals(estacaoAtual.Nome, nomeInicioSeq, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (metadados != null)
+                                {
+                                    metadados.NomeRe = leitura.PontoVisado;
+                                }
+                                ehNomeReOficial = true;
+                            }
+                        }
+
                         if (ehNomeReOficial || string.IsNullOrEmpty(metadados?.NomeRe))
                         {
                             leitura.Tipo = TipoLeitura.Re;
