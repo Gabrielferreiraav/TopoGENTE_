@@ -24,7 +24,7 @@ namespace TopoGente.UI.Collections
     /// </summary>
     public class BulkObservableCollection<T> : ObservableCollection<T>
     {
-        private bool _suppressNotification;
+        private volatile bool _suppressNotification;
 
         protected override void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
         {

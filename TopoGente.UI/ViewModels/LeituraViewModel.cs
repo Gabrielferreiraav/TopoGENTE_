@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TopoGente.Core.Entities;
 
 namespace TopoGente.UI.ViewModels
@@ -7,7 +7,10 @@ namespace TopoGente.UI.ViewModels
     {
         public string Id { get; }
         public TipoLeitura Tipo { get; }
+        public string EstacaoOcupada { get; init; } = string.Empty;
+        public int NumeroSessao { get; init; }
         public double AlturaInstrumento { get; set; }
+        public string IdentificadorSessao => $"Estação {EstacaoOcupada} (Sessão {NumeroSessao}) | HI: {AlturaInstrumento:F3} m";
         public double AlturaRefletor => AlturaPrisma;
         public string AnguloHorizontalString => AnguloHorizontal.ToString("F4");
         public string AnguloZenitalString => AnguloVertical.ToString("F4");
@@ -58,6 +61,7 @@ namespace TopoGente.UI.ViewModels
         {
             Id = leituraOriginal.Id;
             Tipo = leituraOriginal.Tipo;
+            EstacaoOcupada = leituraOriginal.EstacaoOcupada ?? string.Empty;
             
             _pontoVisado = leituraOriginal.PontoVisado;
             _anguloHorizontal = leituraOriginal.AnguloHorizontal;

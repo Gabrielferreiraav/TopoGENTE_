@@ -159,6 +159,21 @@ namespace TopoGente.UI.ViewModels
         {
             var s = (texto ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(s)) throw new FormatException($"Campo '{nomeCampo}' está vazio.");
+
+            // Se contém apenas ponto decimal e nenhuma vírgula, parse direto invariante (evita interpretar ponto como milhar no pt-BR)
+            if (s.Contains('.') && !s.Contains(','))
+            {
+                if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var vDot))
+                    return vDot;
+            }
+
+            // Se contém apenas vírgula decimal e nenhum ponto, parse direto pt-BR
+            if (s.Contains(',') && !s.Contains('.'))
+            {
+                if (double.TryParse(s, NumberStyles.Float, CultureInfo.GetCultureInfo("pt-BR"), out var vComma))
+                    return vComma;
+            }
+
             const NumberStyles styles = NumberStyles.Float | NumberStyles.AllowThousands;
             var culturePt = CultureInfo.GetCultureInfo("pt-BR");
 

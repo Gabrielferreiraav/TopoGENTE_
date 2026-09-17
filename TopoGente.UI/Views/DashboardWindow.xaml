@@ -54,14 +54,26 @@
                 <Button Command="{Binding ImportarCadernetaCommand}" ToolTip="Importar Caderneta de Campo (FBK/CSV)">
                     <materialDesign:PackIcon Kind="FileImport" />
                 </Button>
+                <ComboBox SelectedIndex="{Binding FormatoArquivoIndex}" 
+                          ToolTip="Selecione o formato do arquivo de entrada"
+                          Width="120" Margin="4,0"
+                          VerticalContentAlignment="Center">
+                    <ComboBoxItem>CSV Padrão</ComboBoxItem>
+                    <ComboBoxItem>FBK</ComboBoxItem>
+                    <ComboBoxItem>LandXML</ComboBoxItem>
+                </ComboBox>
                 <Separator/>
                 <Button Command="{Binding ProcessarCommand}" ToolTip="Processar Poligonal (Bowditch)" 
                         Background="{DynamicResource PrimaryHueMidBrush}" 
-                        Foreground="{DynamicResource PrimaryHueMidForegroundBrush}">
+                        Foreground="White">
                     <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="Calculator" Margin="0,0,5,0" />
-                        <TextBlock Text="Calcular e Ajustar"/>
+                        <materialDesign:PackIcon Kind="Calculator" Margin="0,0,5,0" Foreground="White" />
+                        <TextBlock Text="Calcular e Ajustar" Foreground="White"/>
                     </StackPanel>
+                </Button>
+                <Separator/>
+                <Button Command="{Binding ZoomExtentsCommand}" ToolTip="Zoom Geral / Extents (Enquadrar Desenho)">
+                    <materialDesign:PackIcon Kind="FitToScreen" />
                 </Button>
                 <Separator/>
                 <Button Command="{Binding ExportarTxtCommand}" ToolTip="Exportar Coordenadas (TXT)">

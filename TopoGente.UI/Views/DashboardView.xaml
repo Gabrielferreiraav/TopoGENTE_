@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:domain="clr-namespace:TopoGente.Core.Domain;assembly=TopoGente.Core"
+             xmlns:viewmodels="clr-namespace:TopoGente.UI.ViewModels"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d" 
@@ -27,10 +28,12 @@
 
         <Border Grid.Column="0" Background="{DynamicResource MahApps.Brushes.Control.Background}" Padding="10">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+                <!-- WORKSPACE 1: APOIO PLANIMÉTRICO (Visadas, Poligonal, Diagnóstico/QA e Gerenciador de Camadas) -->
+                <Grid Visibility="{Binding EhModuloPlanimetria, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Background="{DynamicResource MahApps.Brushes.ThemeBackground}">
                     <RadioButton x:Name="TabCaderneta" Content="Visadas" GroupName="Abas" Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" Margin="4"/>
@@ -54,22 +57,45 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <TextBlock Text="Visadas de Campo" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,10"/>
-                            <DataGrid ItemsSource="{Binding Visadas}" AutoGenerateColumns="False" CanUserAddRows="True" CanUserDeleteRows="True"
-                                      HeadersVisibility="Column" Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#333" BorderThickness="1">
+                            <DataGrid ItemsSource="{Binding VisadasView}" AutoGenerateColumns="False" CanUserAddRows="True" CanUserDeleteRows="True"
+                                      HeadersVisibility="Column" Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#333" BorderThickness="1"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      VirtualizingPanel.IsVirtualizingWhenGrouping="True">
                                 <i:Interaction.Triggers>
                                     <i:EventTrigger EventName="RowEditEnding">
                                         <i:InvokeCommandAction Command="{Binding RowEditEndingCommand}" />
                                     </i:EventTrigger>
                                 </i:Interaction.Triggers>
+                                <DataGrid.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.ContainerStyle>
+                                            <Style TargetType="{x:Type GroupItem}">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                            <Expander IsExpanded="False" BorderBrush="#555" BorderThickness="0,0,0,1">
+                                                                <Expander.Header>
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="5,0"/>
+                                                                </Expander.Header>
+                                                                <ItemsPresenter />
+                                                            </Expander>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </GroupStyle.ContainerStyle>
+                                    </GroupStyle>
+                                </DataGrid.GroupStyle>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Est" Binding="{Binding EstacaoOrigem}"/>
-                                    <DataGridTextColumn Header="Visado" Binding="{Binding PontoVisado}"/>
-                                    <DataGridTextColumn Header="H. Inst" Binding="{Binding AlturaInstrumento, StringFormat=F3}"/>
-                                    <DataGridTextColumn Header="H. Ref" Binding="{Binding AlturaRefletor, StringFormat=F3}"/>
-                                    <DataGridTextColumn Header="Ang. Hor" Binding="{Binding AnguloHorizontalString, UpdateSourceTrigger=LostFocus}"/>
-                                    <DataGridTextColumn Header="Ang. Zen" Binding="{Binding AnguloZenitalString, UpdateSourceTrigger=LostFocus}"/>
-                                    <DataGridTextColumn Header="Dist (m)" Binding="{Binding DistanciaInclinada, StringFormat=F3}"/>
-                                    <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}"/>
+                                    <DataGridTextColumn Header="Est" Binding="{Binding EstacaoOcupada, Mode=OneWay}" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Visado" Binding="{Binding PontoVisado, Mode=TwoWay}"/>
+                                    <DataGridTextColumn Header="H. Inst" Binding="{Binding AlturaInstrumento, Mode=OneWay, StringFormat=F3}" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="H. Ref" Binding="{Binding AlturaPrisma, Mode=TwoWay, StringFormat=F3}"/>
+                                    <DataGridTextColumn Header="Ang. Hor" Binding="{Binding AnguloHorizontal, Mode=TwoWay, StringFormat=F4, UpdateSourceTrigger=LostFocus}"/>
+                                    <DataGridTextColumn Header="Ang. Zen" Binding="{Binding AnguloVertical, Mode=TwoWay, StringFormat=F4, UpdateSourceTrigger=LostFocus}"/>
+                                    <DataGridTextColumn Header="Dist (m)" Binding="{Binding DistanciaInclinada, Mode=TwoWay, StringFormat=F3}"/>
+                                    <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo, Mode=OneWay}" IsReadOnly="True"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </StackPanel>
@@ -95,6 +121,52 @@
                             <TextBlock Text="Tipo de Fechamento:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,2"/>
                             <ComboBox SelectedIndex="{Binding PoligonalSelecionada.CenarioIndex}" Margin="0,0,0,10"><ComboBoxItem>Enquadrada</ComboBoxItem><ComboBoxItem>Fechada</ComboBoxItem><ComboBoxItem>Aberta Orientada</ComboBoxItem></ComboBox>
 
+                            <GroupBox Header="Sequência do Caminhamento" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Seletor de estações disponíveis -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <ComboBox ItemsSource="{Binding EstacoesDisponiveis}"
+                                                  SelectedItem="{Binding EstacaoDisponivelSelecionada}"
+                                                  Width="120" Margin="0,0,5,0"
+                                                  ToolTip="Estações importadas da caderneta"/>
+                                        <Button Content="+ Adicionar" Command="{Binding AdicionarSequenciaCommand}"
+                                                ToolTip="Adicionar estação selecionada ao caminhamento"/>
+                                    </StackPanel>
+
+                                    <!-- Lista da sequência montada -->
+                                    <Grid Grid.Row="1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ListBox Grid.Column="0"
+                                                 ItemsSource="{Binding PoligonalSelecionada.Estacoes}"
+                                                 SelectedItem="{Binding EstacaoSequenciaSelecionada}"
+                                                 MinHeight="80" MaxHeight="120"
+                                                 Background="{DynamicResource MahApps.Brushes.Control.Background}"/>
+                                        <StackPanel Grid.Column="1" Margin="5,0,0,0" VerticalAlignment="Center">
+                                            <Button Content="▲" Command="{Binding SubirSequenciaCommand}" Margin="0,2"
+                                                    ToolTip="Mover estação para cima na ordem do caminhamento"/>
+                                            <Button Content="▼" Command="{Binding DescerSequenciaCommand}" Margin="0,2"
+                                                    ToolTip="Mover estação para baixo na ordem do caminhamento"/>
+                                            <Button Content="✕" Command="{Binding RemoverSequenciaCommand}" Margin="0,2"
+                                                    Foreground="#E57373"
+                                                    ToolTip="Remover estação selecionada do caminhamento"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <TextBlock Grid.Row="2" Margin="0,3,0,0" FontSize="10"
+                                               Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"
+                                               Text="Ordem define o caminhamento da poligonal"/>
+                                </Grid>
+                            </GroupBox>
+
                             <GroupBox Header="Estação de Partida (E0)" Margin="0,0,0,10">
                                 <StackPanel>
                                     <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.EstacaoAncoragemNome}" Margin="0,0,0,5"/>
@@ -106,6 +178,8 @@
                                     <TextBox Text="{Binding PoligonalSelecionada.PartidaZ, StringFormat=F3}" Margin="0,0,0,5"/>
 
                                     <TextBlock Text="Amarração à Ré" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Ponto de Ré (Referência):" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.NomeRe, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
                                     <CheckBox IsChecked="{Binding PoligonalSelecionada.UsarCoordenadaRe}" Content="Usar Coordenada ao invés de Azimute" Margin="0,0,0,5"/>
                                     <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelAzimute, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <TextBlock Text="Azimute de Partida:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
@@ -142,7 +216,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding NomeEstacao}" FontWeight="Bold" Margin="0,0,10,0" Width="40"/>
                                             <TextBlock Text="{Binding NomeRe, StringFormat='Ré: {0}'}" Foreground="#E57373" Margin="2"/>
-                                            <TextBlock Text="{Binding AnguloHorizontalVante, StringFormat='Hz: {0}'}" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="5,2"/>
+                                            <TextBlock Text="{Binding AnguloHorizontalVante, StringFormat='Hz: {0:F4}°'}" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="5,2"/>
                                             <TextBlock Text="{Binding NomeVante, StringFormat='Vante: {0}'}" Foreground="#4CAF50" Margin="2"/>
                                         </StackPanel>
                                     </DataTemplate>
@@ -205,51 +279,759 @@
                     </Grid.Style>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
                         <StackPanel>
-                            <TextBlock Text="Controle de Visibilidade CAD" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,15"/>
-                            
+                            <TextBlock Text="Gerenciador de Camadas CAD" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Controle de visibilidade das camadas no viewport gráfico" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.Gray3}" Margin="0,0,0,12"/>
+
                             <!-- Apoio Planimétrico -->
-                            <TextBlock Text="Apoio Planimétrico" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,10,0,5"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarEsbocoBruto}"/>
-                                <TextBlock Text="Esboço de Campo (Poligonal Bruta)" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarPontos}"/>
-                                <TextBlock Text="Nuvem de Pontos (Vértices)" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
+                            <TextBlock Text="APOIO PLANIMÉTRICO" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="2,8,0,6"/>
+
+                            <!-- Poligonal Compensada -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#1565C0" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Azul Cobalto (#1565C0)"/>
+                                    <TextBlock Grid.Column="1" Text="Poligonal Compensada (NBR)" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPoligonalCompensada}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarPoligonalCompensada}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarPoligonalCompensada}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Esboço de Campo (Poligonal Bruta) -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#E65100" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Âmbar Escuro (#E65100)"/>
+                                    <TextBlock Grid.Column="1" Text="Esboço de Campo (Bruta)" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarEsbocoBruto}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarEsbocoBruto}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarEsbocoBruto}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Nuvem de Pontos (Vértices) -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#2E7D32" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Verde Floresta (#2E7D32)"/>
+                                    <TextBlock Grid.Column="1" Text="Nuvem de Pontos (Vértices)" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPontos}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarPontos}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarPontos}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
 
                             <!-- Modelagem Digital (MDT) -->
-                            <TextBlock Text="Modelagem Digital (MDT)" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,20,0,5"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarTin}"/>
-                                <TextBlock Text="Triângulos do Terreno (Malha TIN)" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarBreaklines}"/>
-                                <TextBlock Text="Linhas Obrigatórias (Breaklines)" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
+                            <TextBlock Text="MODELAGEM DIGITAL (MDT)" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="2,14,0,6"/>
+
+                            <!-- Triângulos do Terreno (Malha TIN) -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#B0BEC5" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Cinza Suave (#B0BEC5)"/>
+                                    <TextBlock Grid.Column="1" Text="Triângulos do Terreno (TIN)" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarTin}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarTin}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarTin}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Linhas Obrigatórias (Breaklines) -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#D81B60" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Magenta (#D81B60)"/>
+                                    <TextBlock Grid.Column="1" Text="Linhas Obrigatórias (Breaklines)" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarBreaklines}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarBreaklines}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarBreaklines}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
 
                             <!-- Altimetria -->
-                            <TextBlock Text="Altimetria" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,20,0,5"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarCurvasMestras}"/>
-                                <TextBlock Text="Curvas de Nível Mestras" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <ToggleButton Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" IsChecked="{Binding MostrarCurvasSecundarias}"/>
-                                <TextBlock Text="Curvas de Nível Secundárias" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
+                            <TextBlock Text="ALTIMETRIA" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="2,14,0,6"/>
+
+                            <!-- Curvas de Nível Mestras -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#8C6B4B" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Marrom Mestre (#8C6B4B)"/>
+                                    <TextBlock Grid.Column="1" Text="Curvas de Nível Mestras" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarCurvasMestras}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarCurvasMestras}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarCurvasMestras}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Curvas de Nível Secundárias -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="62"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#6B5B4B" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Marrom Secundário (#6B5B4B)"/>
+                                    <TextBlock Grid.Column="1" Text="Curvas de Nível Secundárias" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarCurvasSecundarias}" VerticalAlignment="Center" Margin="6,0" Cursor="Hand"/>
+                                    <Border Grid.Column="3" CornerRadius="3" Padding="5,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1E4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MostrarCurvasSecundarias}" Value="False">
+                                                        <Setter Property="Background" Value="#1A757575"/>
+                                                        <Setter Property="BorderBrush" Value="#66757575"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="VISÍVEL"/>
+                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MostrarCurvasSecundarias}" Value="False">
+                                                            <Setter Property="Text" Value="OCULTO"/>
+                                                            <Setter Property="Foreground" Value="#757575"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+                </Grid>
+
+                <!-- WORKSPACE 2: MODELAGEM DIGITAL (MDT) -->
+                <Grid Visibility="{Binding EhModuloMdt, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,4,0">
+                            <TextBlock Text="MODELAGEM DIGITAL (MDT)" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Triangulação Delaunay (CDT) e Malha de Terreno" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.Gray3}" Margin="0,0,0,12"/>
+
+                            <!-- Estatísticas da Superfície -->
+                            <GroupBox Header="Estatísticas da Superfície (TIN)" Margin="0,0,0,10">
+                                <Grid Margin="6,4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Total de Triângulos:" Grid.Row="0" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding TotalTriangulosMdt, StringFormat='{}{0:N0} elementos'}" Grid.Row="0" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Vértices da Malha:" Grid.Row="1" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding TotalVerticesMdt, StringFormat='{}{0:N0} nós'}" Grid.Row="1" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Cota Mínima (Z mín):" Grid.Row="2" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding CotaMinimaTerreno, StringFormat='{}{0:F3} m'}" Grid.Row="2" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Cota Máxima (Z máx):" Grid.Row="3" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding CotaMaximaTerreno, StringFormat='{}{0:F3} m'}" Grid.Row="3" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Desnível Total (ΔZ):" Grid.Row="4" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding DesnivelTerreno, StringFormat='{}{0:F3} m'}" Grid.Row="4" Grid.Column="1" Margin="0,3" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- Processamento de Malha -->
+                            <GroupBox Header="Processamento de Terreno" Margin="0,0,0,10">
+                                <StackPanel Margin="4">
+                                    <Button Content="⚡ RECALCULAR MALHA TIN" Command="{Binding RecalcularMalhaCommand}" Margin="0,2,0,6" Height="32" Background="#2D2D30" FontWeight="SemiBold" Cursor="Hand" ToolTip="Regenera a triangulação Delaunay constrained e isolinhas"/>
+                                    <TextBlock Text="Atualiza o modelo numérico de terreno aplicando as restrições lineares (breaklines)." FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Controles de Camadas de Terreno -->
+                            <GroupBox Header="Controle de Camadas de Terreno" Margin="0,0,0,10">
+                                <StackPanel Margin="2">
+                                    <!-- Triângulos TIN -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#B0BEC5" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Cinza Suave (#B0BEC5)"/>
+                                            <TextBlock Grid.Column="1" Text="Triângulos do Terreno (TIN)" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarTin}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Breaklines -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#D81B60" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Magenta (#D81B60)"/>
+                                            <TextBlock Grid.Column="1" Text="Linhas Obrigatórias (Breaklines)" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarBreaklines}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Nuvem de Pontos -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#2E7D32" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Verde Floresta (#2E7D32)"/>
+                                            <TextBlock Grid.Column="1" Text="Nuvem de Pontos (Referência)" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPontos}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Operações CAD no Viewport -->
+                            <GroupBox Header="Interação CAD no Terreno" Margin="0,0,0,10">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="• Botão Esquerdo: Clique e arraste para traçar Breaklines entre vértices atraídos." FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                                    <TextBlock Text="• Botão Direito: Cancela a operação de traçado ativa." FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                                    <TextBlock Text="• Botão do Meio (Scroll): Pressione e arraste para efetuar Pan." FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                                    <TextBlock Text="• Roda do Mouse: Zoom in / Zoom out centrado no cursor." FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                                    <TextBlock Text="• Atalhos: Ctrl+Z (Desfazer) e Ctrl+Y (Refazer)." FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
 
+                <!-- WORKSPACE 3: ALTIMETRIA (CURVAS DE NÍVEL) -->
+                <Grid Visibility="{Binding EhModuloAltimetria, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,4,0">
+                            <TextBlock Text="ALTIMETRIA &amp; RELEVO" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Geração e parametrização de curvas de nível (isolinhas)" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.Gray3}" Margin="0,0,0,12"/>
+
+                            <!-- Parametrização de Curvas de Nível -->
+                            <GroupBox Header="Configuração de Isolinhas" Margin="0,0,0,10">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="Equidistância das Curvas Secundárias:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,4"/>
+                                    <ComboBox ItemsSource="{Binding EquidistanciasDisponiveis}" SelectedItem="{Binding StepInterval, Mode=TwoWay}" Margin="0,0,0,8">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding StringFormat='{}{0:F2} m'}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+                                    <Grid Margin="0,4">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Frequência Mestras:" Grid.Row="0" Grid.Column="0" Margin="0,2,8,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                        <TextBlock Text="A cada 5 curvas (Padrão)" Grid.Row="0" Grid.Column="1" Margin="0,2" FontWeight="SemiBold"/>
+
+                                        <TextBlock Text="Cota de Amarração:" Grid.Row="1" Grid.Column="0" Margin="0,2,8,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                        <TextBlock Text="{Binding AnchorElevation, StringFormat='{}{0:F1} m'}" Grid.Row="1" Grid.Column="1" Margin="0,2" FontWeight="SemiBold"/>
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Tabela / Resumo de Cotas do Terreno -->
+                            <GroupBox Header="Tabela de Cotas do Terreno" Margin="0,0,0,10">
+                                <Grid Margin="6,4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Cota Mínima (Z mín):" Grid.Row="0" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding CotaMinimaTerreno, StringFormat='{}{0:F3} m'}" Grid.Row="0" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Cota Máxima (Z máx):" Grid.Row="1" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding CotaMaximaTerreno, StringFormat='{}{0:F3} m'}" Grid.Row="1" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Desnível Total (ΔZ):" Grid.Row="2" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding DesnivelTerreno, StringFormat='{}{0:F3} m'}" Grid.Row="2" Grid.Column="1" Margin="0,3" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}"/>
+
+                                    <TextBlock Text="Equidistância Ativa:" Grid.Row="3" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding StepInterval, StringFormat='{}{0:F2} m'}" Grid.Row="3" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- Controles de Camadas Altimétricas -->
+                            <GroupBox Header="Controle de Camadas Altimétricas" Margin="0,0,0,10">
+                                <StackPanel Margin="2">
+                                    <!-- Curvas Mestras -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#8C6B4B" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Marrom Mestre (#8C6B4B)"/>
+                                            <TextBlock Grid.Column="1" Text="Curvas de Nível Mestras" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarCurvasMestras}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Curvas Secundárias -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#6B5B4B" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Marrom Secundário (#6B5B4B)"/>
+                                            <TextBlock Grid.Column="1" Text="Curvas de Nível Secundárias" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarCurvasSecundarias}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Poligonal Compensada -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#1565C0" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Azul Cobalto (#1565C0)"/>
+                                            <TextBlock Grid.Column="1" Text="Poligonal (Limite de Referência)" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPoligonalCompensada}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Nuvem de Pontos (Referência) -->
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#2E7D32" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Cor da camada: Verde Floresta (#2E7D32)"/>
+                                            <TextBlock Grid.Column="1" Text="Nuvem de Pontos (Referência)" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPontos}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- WORKSPACE 4: PLANTA GERAL (ENTREGA) -->
+                <Grid Visibility="{Binding EhModuloPlantaGeral, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,4,0">
+                            <TextBlock Text="PLANTA GERAL &amp; PRODUTO CARTOGRÁFICO" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource MahApps.Brushes.AccentBase}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Visão consolidada do levantamento e exportações técnicas" FontSize="11" Foreground="{DynamicResource MahApps.Brushes.Gray3}" Margin="0,0,0,12"/>
+
+                            <!-- Sumário Cartográfico do Levantamento -->
+                            <GroupBox Header="Sumário Cartográfico" Margin="0,0,0,10">
+                                <Grid Margin="6,4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Arquivo:" Grid.Row="0" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding NomeArquivoAtual}" Grid.Row="0" Grid.Column="1" Margin="0,3" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Text="Status NBR 13.133:" Grid.Row="1" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding TextoStatusBar}" Grid.Row="1" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Pontos Levantados:" Grid.Row="2" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding TotalPontos, StringFormat='{}{0:N0} pontos'}" Grid.Row="2" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Triângulos do Terreno:" Grid.Row="3" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding TotalTriangulosMdt, StringFormat='{}{0:N0} triângulos'}" Grid.Row="3" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Desnível do Relevo:" Grid.Row="4" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding DesnivelTerreno, StringFormat='{}{0:F2} m'}" Grid.Row="4" Grid.Column="1" Margin="0,3" FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Erro Linear Fechamento:" Grid.Row="5" Grid.Column="0" Margin="0,3,10,3" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="{Binding RelatorioQaAtual.ErroLinear, StringFormat='{}{0:F4} m'}" Grid.Row="5" Grid.Column="1" Margin="0,3" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.AccentBase}"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- Botões de Exportação -->
+                            <GroupBox Header="Exportação &amp; Entregáveis" Margin="0,0,0,10">
+                                <StackPanel Margin="4">
+                                    <Button Content="📐 EXPORTAR PLANTA CAD (DXF)" Command="{Binding ExportarDxfCommand}" Margin="0,3" Height="34" FontWeight="SemiBold" Cursor="Hand" Background="#1565C0" ToolTip="Exporta arquivo DXF de alta compatibilidade para CAD com todas as feições"/>
+                                    <Button Content="📄 EXPORTAR COORDENADAS &amp; MEMÓRIA (TXT)" Command="{Binding ExportarTxtCommand}" Margin="0,3" Height="34" FontWeight="SemiBold" Cursor="Hand" Background="#2E7D32" ToolTip="Exporta tabela de coordenadas e memorial descritivo topográfico"/>
+                                    <Button Content="📋 EXPORTAR LAUDO TÉCNICO QA (TXT)" Command="{Binding ExportarRelatorioQaCommand}" Margin="0,3" Height="34" FontWeight="SemiBold" Cursor="Hand" Background="#424242" ToolTip="Exporta laudo de auditoria e controle de qualidade NBR 13.133"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Camadas Ativas na Planta Geral -->
+                            <GroupBox Header="Camadas Consolidadas na Prancha" Margin="0,0,0,10">
+                                <StackPanel Margin="2">
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#1565C0" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="Poligonal Compensada" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPoligonalCompensada}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#2E7D32" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="Nuvem de Pontos" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarPontos}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#8C6B4B" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="Curvas de Nível Mestras" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarCurvasMestras}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#6B5B4B" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="Curvas de Nível Secundárias" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarCurvasSecundarias}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="12" Height="12" CornerRadius="2" Background="#D81B60" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="Linhas Obrigatórias (Breaklines)" VerticalAlignment="Center" FontSize="12"/>
+                                            <ToggleButton Grid.Column="2" Style="{DynamicResource MahApps.Styles.ToggleButton.Switch}" Width="40" Height="18" IsChecked="{Binding MostrarBreaklines}" VerticalAlignment="Center" Cursor="Hand"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
         </Border>
 
-        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#2C2C2C"/>
+        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#E0E0E0"/>
 
-        <Border Grid.Column="2" Background="{DynamicResource MahApps.Brushes.ThemeBackground}" ClipToBounds="True">
-            <Grid Focusable="True">
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- BARRA DE SELEÇÃO DE WORKSPACES -->
+            <Border Grid.Row="0" Background="{DynamicResource MahApps.Brushes.Control.Background}" BorderBrush="#33000000" BorderThickness="0,0,0,1" Padding="8,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <RadioButton Content="📐 Apoio Planimétrico" 
+                                     GroupName="Workspaces" 
+                                     Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" 
+                                     IsChecked="{Binding EhModuloPlanimetria, Mode=OneWay}"
+                                     Command="{Binding MudarModuloCommand}"
+                                     CommandParameter="{x:Static viewmodels:WorkspaceModulo.Planimetria}"
+                                     Padding="12,5" Margin="2,0" FontWeight="SemiBold" FontSize="12" Cursor="Hand"/>
+
+                        <RadioButton Content="⛰️ Modelagem Digital (MDT)" 
+                                     GroupName="Workspaces" 
+                                     Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" 
+                                     IsChecked="{Binding EhModuloMdt, Mode=OneWay}"
+                                     Command="{Binding MudarModuloCommand}"
+                                     CommandParameter="{x:Static viewmodels:WorkspaceModulo.ModelagemMdt}"
+                                     Padding="12,5" Margin="2,0" FontWeight="SemiBold" FontSize="12" Cursor="Hand"/>
+
+                        <RadioButton Content="📈 Altimetria (Curvas de Nível)" 
+                                     GroupName="Workspaces" 
+                                     Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" 
+                                     IsChecked="{Binding EhModuloAltimetria, Mode=OneWay}"
+                                     Command="{Binding MudarModuloCommand}"
+                                     CommandParameter="{x:Static viewmodels:WorkspaceModulo.Altimetria}"
+                                     Padding="12,5" Margin="2,0" FontWeight="SemiBold" FontSize="12" Cursor="Hand"/>
+
+                        <RadioButton Content="🗺️ Planta Geral (Entrega)" 
+                                     GroupName="Workspaces" 
+                                     Style="{DynamicResource MahApps.Styles.RadioButton.Toggle}" 
+                                     IsChecked="{Binding EhModuloPlantaGeral, Mode=OneWay}"
+                                     Command="{Binding MudarModuloCommand}"
+                                     CommandParameter="{x:Static viewmodels:WorkspaceModulo.PlantaGeral}"
+                                     Padding="12,5" Margin="2,0" FontWeight="SemiBold" FontSize="12" Cursor="Hand"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                        <Button Command="{Binding ZoomExtentsCommand}" Content="🔍 Enquadrar Geral (Zoom Extents)" Padding="10,4" Margin="2,0" FontSize="11" Cursor="Hand" ToolTip="Enquadrar todas as feições no viewport"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- PRANCHETA CAD COMPARTILHADA (FUNDO BRANCO PURO) -->
+            <Border Grid.Row="1" Background="#FFFFFF" ClipToBounds="True">
+            <Grid Focusable="True"
+                  Background="Transparent"
+                  MouseDown="OnCanvasMouseDown"
+                  MouseMove="OnCanvasMouseMove"
+                  MouseUp="OnCanvasMouseUp"
+                  MouseRightButtonDown="OnCanvasRightClick"
+                  MouseWheel="OnCanvasMouseWheel"
+                  PreviewKeyDown="OnCanvasPreviewKeyDown"
+                  SizeChanged="OnViewportSizeChanged">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Cursor" Value="Cross"/>
@@ -278,11 +1060,23 @@
                             </Style.Triggers>
                         </Style>
                     </Grid.Style>
-                    <Path Data="{Binding StaticTinGeometry}"           Stroke="#2A2A2A" StrokeThickness="0.5" Visibility="{Binding MostrarTin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                    <!-- Poligonal Bruta de Referência (Opacidade Suave para Comparação - Âmbar Escuro) -->
+                    <Path Data="{Binding StaticDraftGeometry}" Stroke="#E65100" StrokeThickness="0.20" StrokeDashArray="3 2" Opacity="0.45" Visibility="{Binding MostrarEsbocoBruto, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                    <!-- Poligonal Compensada Oficial NBR 13.133 (Azul Cobalto) -->
+                    <Path Data="{Binding StaticPoligonalCompensadaGeometry}" Stroke="#1565C0" StrokeThickness="0.25" Visibility="{Binding MostrarPoligonalCompensada, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                    <!-- Triângulos TIN (Cinza Suave) -->
+                    <Path Data="{Binding StaticTinGeometry}"           Stroke="#B0BEC5" StrokeThickness="0.5" Visibility="{Binding MostrarTin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Curvas de Nível Secundárias (Marrom Claro) -->
                     <Path Data="{Binding StaticMinorContoursGeometry}" Stroke="#6B5B4B" StrokeThickness="0.5" Visibility="{Binding MostrarCurvasSecundarias, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Curvas de Nível Mestras (Marrom Escuro) -->
                     <Path Data="{Binding StaticMajorContoursGeometry}" Stroke="#8C6B4B" StrokeThickness="1.5" Visibility="{Binding MostrarCurvasMestras, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <Path Data="{Binding StaticBreaklinesGeometry}"    Stroke="#FF00FFFF" StrokeThickness="2" Visibility="{Binding MostrarBreaklines, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <Path Data="{Binding StaticPointsGeometry}"        Stroke="#4CAF50" StrokeThickness="1.5" Visibility="{Binding MostrarPontos, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Linhas Obrigatórias / Breaklines (Magenta) -->
+                    <Path Data="{Binding StaticBreaklinesGeometry}"    Stroke="#D81B60" StrokeThickness="1.5" Visibility="{Binding MostrarBreaklines, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Nuvem de Pontos (Verde Floresta Técnico) -->
+                    <Path Data="{Binding StaticPointsGeometry}"        Stroke="#2E7D32" StrokeThickness="1.5" Visibility="{Binding MostrarPontos, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                 </Grid>
 
                 <!-- LAYER 2: DRAFT / BRUTO (Aparece se Bruto ou Reprovado) -->
@@ -298,12 +1092,16 @@
                         </Style>
                     </Grid.Style>
                     
-                    <Path Data="{Binding StaticDraftGeometry}" Stroke="#FFB300" StrokeThickness="1.5" StrokeDashArray="4 2" Visibility="{Binding MostrarEsbocoBruto, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <Path Data="{Binding StaticErrorVectorGeometry}" Stroke="#D32F2F" StrokeThickness="3" StrokeDashArray="2 2"/>
+                    <!-- Poligonal Bruta de Campo (Âmbar Escuro) -->
+                    <Path Data="{Binding StaticDraftGeometry}" Stroke="#E65100" StrokeThickness="0.20" StrokeDashArray="3 2" Visibility="{Binding MostrarEsbocoBruto, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <!-- Pontos de Campo (Verde Floresta Técnico - Camada Nuvem de Pontos) -->
+                    <Path Data="{Binding StaticPointsGeometry}" Stroke="#2E7D32" StrokeThickness="1.5" Visibility="{Binding MostrarPontos, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Path Data="{Binding StaticErrorVectorGeometry}" Stroke="#D32F2F" StrokeThickness="0.4" StrokeDashArray="2 2"/>
                 </Grid>
 
-                <Path Stroke="Yellow" StrokeThickness="2" StrokeDashArray="4 2" Data="{Binding DynamicRubberBandGeometry}"/>
+                <Path Stroke="#1976D2" StrokeThickness="1" StrokeDashArray="4 2" Data="{Binding DynamicRubberBandGeometry}"/>
             </Grid>
         </Border>
+        </Grid>
     </Grid>
 </UserControl>

@@ -27,8 +27,24 @@ namespace TopoGente.UI.Views
             }
         }
 
+        private Point _lastMiddlePos;
+        private bool _isPanning;
+
         private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ChangedButton == MouseButton.Middle)
+            {
+                _isPanning = true;
+                _lastMiddlePos = e.GetPosition((IInputElement)sender);
+                ((UIElement)sender).CaptureMouse();
+                return;
+            }
+
+            if (sender is UIElement el)
+            {
+                el.Focus();
+            }
+
             if (_stateMachine == null || ViewModel == null) return;
 
             Point pixelCoords = e.GetPosition((IInputElement)sender);
@@ -39,6 +55,16 @@ namespace TopoGente.UI.Views
 
         private void OnCanvasMouseMove(object sender, MouseEventArgs e)
         {
+            if (_isPanning && ViewModel != null)
+            {
+                Point currentPos = e.GetPosition((IInputElement)sender);
+                double dx = currentPos.X - _lastMiddlePos.X;
+                double dy = currentPos.Y - _lastMiddlePos.Y;
+                _lastMiddlePos = currentPos;
+                ViewModel.AplicarPan(dx, dy);
+                return;
+            }
+
             if (_stateMachine == null || ViewModel == null) return;
 
             Point pixelCoords = e.GetPosition((IInputElement)sender);
@@ -46,6 +72,32 @@ namespace TopoGente.UI.Views
             KdNode? nearestNode = ObterNoAtraido(modelCoords);
 
             _stateMachine.HandleMouseMove(modelCoords.X, modelCoords.Y, nearestNode);
+        }
+
+        private void OnCanvasMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle && _isPanning)
+            {
+                _isPanning = false;
+                ((UIElement)sender).ReleaseMouseCapture();
+            }
+        }
+
+        private void OnCanvasMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (ViewModel == null) return;
+
+            Point mousePixel = e.GetPosition((IInputElement)sender);
+            double factor = e.Delta > 0 ? 1.15 : (1.0 / 1.15);
+            ViewModel.AplicarZoom(factor, mousePixel.X, mousePixel.Y);
+        }
+
+        private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (ViewModel != null && e.NewSize.Width > 10 && e.NewSize.Height > 10)
+            {
+                ViewModel.AtualizarDimensoesViewport(e.NewSize.Width, e.NewSize.Height);
+            }
         }
 
         private void OnCanvasRightClick(object sender, MouseButtonEventArgs e)
