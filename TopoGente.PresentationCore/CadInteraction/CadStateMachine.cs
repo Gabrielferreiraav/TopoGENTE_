@@ -5,10 +5,16 @@ namespace TopoGente.UI.CadInteraction
     public class CadStateMachine
     {
         public CadCanvasState CurrentState { get; private set; }
+        private readonly ICadCanvasContext _context;
 
-        public CadStateMachine(ICadCanvasContext context)
+        public CadStateMachine(ICadCanvasContext context, CadToolMode initialMode = CadToolMode.Inspecao)
         {
-            CurrentState = new IdleState(this, context);
+            _context = context;
+            CurrentState = new SelectionState(this, context);
+            if (initialMode != CadToolMode.Inspecao)
+            {
+                SetToolMode(initialMode);
+            }
         }
 
         public void ChangeState(CadCanvasState newState)
@@ -16,9 +22,9 @@ namespace TopoGente.UI.CadInteraction
             CurrentState = newState;
         }
 
-        public void HandleMouseDown(double modelX, double modelY)
+        public void HandleMouseDown(double modelX, double modelY, KdNode? nearestNode = null)
         {
-            CurrentState.OnMouseDown(modelX, modelY);
+            CurrentState.OnMouseDown(modelX, modelY, nearestNode);
         }
 
         public void HandleMouseMove(double modelX, double modelY, KdNode? nearestNode)
@@ -34,6 +40,32 @@ namespace TopoGente.UI.CadInteraction
         public void HandleKeyDown(CadInteractionKey key)
         {
             CurrentState.OnKeyDown(key);
+        }
+
+        public void SetToolMode(CadToolMode mode)
+        {
+            if (CurrentState is MeasurementState && mode != CadToolMode.Medicao)
+            {
+                CurrentState.OnKeyDown(CadInteractionKey.Escape);
+            }
+            if (CurrentState is LineDrawingState && mode != CadToolMode.Breakline)
+            {
+                CurrentState.OnKeyDown(CadInteractionKey.Escape);
+            }
+
+            switch (mode)
+            {
+                case CadToolMode.Breakline:
+                    ChangeState(new IdleState(this, _context));
+                    break;
+                case CadToolMode.Medicao:
+                    ChangeState(new MeasurementState(this, _context));
+                    break;
+                case CadToolMode.Inspecao:
+                default:
+                    ChangeState(new SelectionState(this, _context));
+                    break;
+            }
         }
     }
 }

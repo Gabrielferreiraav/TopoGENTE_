@@ -10,8 +10,14 @@ namespace TopoGente.UI.CadInteraction
         {
         }
 
-        public override void OnMouseDown(double modelX, double modelY)
+        public override void OnMouseDown(double modelX, double modelY, KdNode? nearestNode = null)
         {
+            if (nearestNode.HasValue)
+            {
+                double? z = Context.GetElevation(nearestNode.Value.DomainId);
+                Context.NotificarElementoInspecionado(nearestNode.Value.DomainId, nearestNode.Value.X, nearestNode.Value.Y, z, $"Vértice {nearestNode.Value.DomainId}");
+            }
+
             if (Context.EdgeSpatialIndex == null) return;
 
             Breakline? nearest = Context.EdgeSpatialIndex.FindNearestSegment(modelX, modelY, 0.5);
@@ -32,6 +38,7 @@ namespace TopoGente.UI.CadInteraction
                     return;
                 }
 
+                Context.NotificarElementoInspecionado(null, null, null, null, $"Breakline de {breakline.StartVertexId} para {breakline.EndVertexId}");
                 StateMachine.ChangeState(new EditingState(StateMachine, Context, breakline));
             }
         }
@@ -62,7 +69,7 @@ namespace TopoGente.UI.CadInteraction
             _selectedElement = selectedElement;
         }
 
-        public override void OnMouseDown(double modelX, double modelY)
+        public override void OnMouseDown(double modelX, double modelY, KdNode? nearestNode = null)
         {
             // Clique em vazio desmarca o elemento selecionado e retorna ao repouso
             StateMachine.ChangeState(new SelectionState(StateMachine, Context));

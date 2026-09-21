@@ -13,7 +13,7 @@ namespace TopoGente.UI.CadInteraction
             Context = context;
         }
 
-        public abstract void OnMouseDown(double modelX, double modelY);
+        public abstract void OnMouseDown(double modelX, double modelY, KdNode? nearestNode = null);
         public abstract void OnMouseMove(double modelX, double modelY, KdNode? nearestNode);
         public abstract void OnRightClick();
         

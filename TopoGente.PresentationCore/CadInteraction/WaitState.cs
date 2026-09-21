@@ -16,7 +16,7 @@ public class WaitState : CadCanvasState
     {
     }
 
-    public override void OnMouseDown(double modelX, double modelY)
+    public override void OnMouseDown(double modelX, double modelY, KdNode? nearestNode = null)
     {
         // No-op: bloqueio ativo durante recálculo
     }

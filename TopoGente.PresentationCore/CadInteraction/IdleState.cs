@@ -9,15 +9,30 @@ namespace TopoGente.UI.CadInteraction
         {
         }
 
-        public override void OnMouseDown(double modelX, double modelY)
+        public override void OnMouseDown(double modelX, double modelY, KdNode? nearestNode = null)
         {
-            // Transição para o estado de desenho aguardando o primeiro nó, ou capturando imediatamente se houver atração.
-            StateMachine.ChangeState(new LineDrawingState(StateMachine, Context, modelX, modelY));
+            if (nearestNode.HasValue)
+            {
+                if (!Context.PodeTraçarBreaklines)
+                {
+                    Context.NotificarAviso("Para traçar linhas obrigatórias (breaklines), primeiro compense a poligonal para gerar o MDT base.");
+                    return;
+                }
+
+                StateMachine.ChangeState(new LineDrawingState(StateMachine, Context, nearestNode.Value));
+            }
         }
 
         public override void OnMouseMove(double modelX, double modelY, KdNode? nearestNode)
         {
-            // Em repouso, apenas atualiza cursor ou ignora
+            if (nearestNode.HasValue)
+            {
+                Context.SetSnapMarker(nearestNode.Value.X, nearestNode.Value.Y);
+            }
+            else
+            {
+                Context.ClearSnapMarker();
+            }
         }
 
         public override void OnRightClick()

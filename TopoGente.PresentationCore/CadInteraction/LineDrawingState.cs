@@ -2,58 +2,58 @@ using TopoGente.UI.Spatial;
 
 namespace TopoGente.UI.CadInteraction
 {
+    /// <summary>
+    /// Estado de desenho de linhas (breaklines) com encadeamento contínuo.
+    /// Padrão topoGRAPH / AutoCAD: após consolidar (A, B), B torna-se a nova âncora.
+    /// O operador encerra a cadeia com ESC ou Botão Direito.
+    /// </summary>
     public class LineDrawingState : CadCanvasState
     {
-        private KdNode? _startNode;
+        private KdNode _startNode;
+        private KdNode? _hoveredNode;
         private double _currentMouseX;
         private double _currentMouseY;
 
-        public LineDrawingState(CadStateMachine stateMachine, ICadCanvasContext context, double initialX, double initialY) 
+        public LineDrawingState(CadStateMachine stateMachine, ICadCanvasContext context, KdNode startNode) 
             : base(stateMachine, context)
-        {
-            _currentMouseX = initialX;
-            _currentMouseY = initialY;
-        }
-
-        public override void OnMouseDown(double modelX, double modelY)
-        {
-            // O snapping será interceptado via MouseMove. 
-            // Para garantir precisão, assumiremos que OnMouseMove foi disparado imediatamente antes.
-        }
-
-        public void SetStartNode(KdNode startNode)
         {
             _startNode = startNode;
         }
 
+        public override void OnMouseDown(double modelX, double modelY, KdNode? nearestNode = null)
+        {
+            if (nearestNode.HasValue && nearestNode.Value.DomainId != _startNode.DomainId)
+            {
+                Context.EmitirLinhaVetorizada(_startNode.DomainId, nearestNode.Value.DomainId);
+                _startNode = nearestNode.Value;
+                RenderRubberBand();
+            }
+        }
+
         public override void OnMouseMove(double modelX, double modelY, KdNode? nearestNode)
         {
+            _hoveredNode = nearestNode;
+
             if (nearestNode.HasValue)
             {
                 _currentMouseX = nearestNode.Value.X;
                 _currentMouseY = nearestNode.Value.Y;
+                Context.SetSnapMarker(nearestNode.Value.X, nearestNode.Value.Y);
             }
             else
             {
                 _currentMouseX = modelX;
                 _currentMouseY = modelY;
+                Context.ClearSnapMarker();
             }
 
-            if (_startNode.HasValue)
-            {
-                RenderRubberBand();
-            }
-            else if (nearestNode.HasValue)
-            {
-                // Se ainda não temos um StartNode ancorado e acabamos de encontrar um via Snapping, nós o ancoramos
-                SetStartNode(nearestNode.Value);
-            }
+            RenderRubberBand();
         }
 
         public override void OnRightClick()
         {
-            // O usuário encerra a operação.
             Context.ClearRubberBand();
+            Context.ClearSnapMarker();
             StateMachine.ChangeState(new IdleState(StateMachine, Context));
         }
 
@@ -62,14 +62,15 @@ namespace TopoGente.UI.CadInteraction
             if (key == CadInteractionKey.Escape)
             {
                 Context.ClearRubberBand();
+                Context.ClearSnapMarker();
                 StateMachine.ChangeState(new IdleState(StateMachine, Context));
             }
         }
 
         private void RenderRubberBand()
         {
-            if (!_startNode.HasValue) return;
-            Context.SetRubberBand(_startNode.Value.X, _startNode.Value.Y, _currentMouseX, _currentMouseY);
+            Context.SetRubberBand(_startNode.X, _startNode.Y, _currentMouseX, _currentMouseY);
         }
     }
 }
+
