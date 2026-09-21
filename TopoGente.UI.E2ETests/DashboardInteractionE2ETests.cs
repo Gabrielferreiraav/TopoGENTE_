@@ -12,8 +12,11 @@ using TopoGente.Core.Entities;
 
 namespace TopoGENTE.Test.E2E
 {
+    [Collection("STA UI Tests")]
     public class DashboardInteractionE2ETests
     {
+        private static readonly object _appLock = new();
+
         [Fact]
         public void Deve_Executar_Fluxo_Completo_De_Vetorizacao_E_Undo_Sem_Excecao_Na_STA()
         {
@@ -22,9 +25,12 @@ namespace TopoGENTE.Test.E2E
             {
                 try
                 {
-                    if (Application.Current == null)
+                    lock (_appLock)
                     {
-                        new Application();
+                        if (Application.Current == null)
+                        {
+                            _ = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                        }
                     }
 
                     var frame = new System.Windows.Threading.DispatcherFrame();
@@ -61,6 +67,82 @@ namespace TopoGENTE.Test.E2E
                 catch (Exception ex)
                 {
                     testEx = ex;
+                }
+            });
+
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+            t.Join();
+
+            if (testEx != null) throw testEx;
+        }
+
+        [Fact]
+        public void Undo_E_Redo_Devem_Respeitar_Invariante_De_Pilha_Vazia()
+        {
+            Exception? testEx = null;
+            var t = new Thread(() =>
+            {
+                try
+                {
+                    lock (_appLock)
+                    {
+                        if (Application.Current == null)
+                        {
+                            _ = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                        }
+                    }
+
+                    var frame = new System.Windows.Threading.DispatcherFrame();
+
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, new Action(() =>
+                    {
+                        try
+                        {
+                            var triangulator = new MockTriangulator();
+                            var vm = new DashboardViewModel(() => triangulator, () => triangulator, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
+
+                            // Invariante 1: Sem breaklines adicionadas, Undo e Redo devem ter CanExecute == false
+                            Assert.False(vm.UndoCommand.CanExecute(null));
+                            Assert.False(vm.RedoCommand.CanExecute(null));
+
+                            // Adiciona uma breakline
+                            var cmd = new TopoGente.UI.Commands.AddBreaklineCommand(triangulator, new Breakline(1, 2));
+                            vm.ExecuteCommand(cmd);
+
+                            // Invariante 2: Com 1 breakline, Undo = true, Redo = false
+                            Assert.True(vm.UndoCommand.CanExecute(null));
+                            Assert.False(vm.RedoCommand.CanExecute(null));
+
+                            // Executa Undo
+                            vm.UndoCommand.Execute(null);
+
+                            // Invariante 3: Apos Undo, Undo = false, Redo = true
+                            Assert.False(vm.UndoCommand.CanExecute(null));
+                            Assert.True(vm.RedoCommand.CanExecute(null));
+
+                            // Executa Redo
+                            vm.RedoCommand.Execute(null);
+
+                            // Invariante 4: Apos Redo, Undo = true, Redo = false
+                            Assert.True(vm.UndoCommand.CanExecute(null));
+                            Assert.False(vm.RedoCommand.CanExecute(null));
+                        }
+                        catch (Exception innerEx)
+                        {
+                            testEx = innerEx;
+                        }
+                        finally
+                        {
+                            frame.Continue = false;
+                        }
+                    }));
+
+                    System.Windows.Threading.Dispatcher.PushFrame(frame);
+                }
+                catch (Exception threadEx)
+                {
+                    testEx = threadEx;
                 }
             });
 
