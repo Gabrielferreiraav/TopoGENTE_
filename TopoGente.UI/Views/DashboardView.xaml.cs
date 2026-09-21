@@ -23,7 +23,14 @@ namespace TopoGente.UI.Views
         {
             if (ViewModel != null)
             {
-                _stateMachine = new CadStateMachine(ViewModel);
+                _stateMachine = new CadStateMachine(ViewModel, ViewModel.ModoFerramentaAtiva);
+                ViewModel.PropertyChanged += (s, args) =>
+                {
+                    if (args.PropertyName == nameof(DashboardViewModel.ModoFerramentaAtiva))
+                    {
+                        _stateMachine.SetToolMode(ViewModel.ModoFerramentaAtiva);
+                    }
+                };
             }
         }
 
@@ -35,7 +42,7 @@ namespace TopoGente.UI.Views
             if (e.ChangedButton == MouseButton.Middle)
             {
                 _isPanning = true;
-                _lastMiddlePos = e.GetPosition((IInputElement)sender);
+                _lastMiddlePos = e.GetPosition(ViewportBorder);
                 ((UIElement)sender).CaptureMouse();
                 return;
             }
@@ -47,17 +54,18 @@ namespace TopoGente.UI.Views
 
             if (_stateMachine == null || ViewModel == null) return;
 
-            Point pixelCoords = e.GetPosition((IInputElement)sender);
+            Point pixelCoords = e.GetPosition(ViewportBorder);
             Point modelCoords = ProjetarPixelParaGeodesico(pixelCoords);
+            KdNode? nearestNode = ObterNoAtraido(modelCoords);
 
-            _stateMachine.HandleMouseDown(modelCoords.X, modelCoords.Y);
+            _stateMachine.HandleMouseDown(modelCoords.X, modelCoords.Y, nearestNode);
         }
 
         private void OnCanvasMouseMove(object sender, MouseEventArgs e)
         {
             if (_isPanning && ViewModel != null)
             {
-                Point currentPos = e.GetPosition((IInputElement)sender);
+                Point currentPos = e.GetPosition(ViewportBorder);
                 double dx = currentPos.X - _lastMiddlePos.X;
                 double dy = currentPos.Y - _lastMiddlePos.Y;
                 _lastMiddlePos = currentPos;
@@ -67,7 +75,7 @@ namespace TopoGente.UI.Views
 
             if (_stateMachine == null || ViewModel == null) return;
 
-            Point pixelCoords = e.GetPosition((IInputElement)sender);
+            Point pixelCoords = e.GetPosition(ViewportBorder);
             Point modelCoords = ProjetarPixelParaGeodesico(pixelCoords);
             KdNode? nearestNode = ObterNoAtraido(modelCoords);
 
@@ -83,11 +91,16 @@ namespace TopoGente.UI.Views
             }
         }
 
+        private void OnCanvasMouseLeave(object sender, MouseEventArgs e)
+        {
+            ViewModel?.SetSnapMarker(null, null);
+        }
+
         private void OnCanvasMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (ViewModel == null) return;
 
-            Point mousePixel = e.GetPosition((IInputElement)sender);
+            Point mousePixel = e.GetPosition(ViewportBorder);
             double factor = e.Delta > 0 ? 1.15 : (1.0 / 1.15);
             ViewModel.AplicarZoom(factor, mousePixel.X, mousePixel.Y);
         }
@@ -108,8 +121,43 @@ namespace TopoGente.UI.Views
 
         private void OnCanvasPreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (_stateMachine == null) return;
-            
+            if (_stateMachine == null || ViewModel == null) return;
+
+            // Interceptação de atalhos de edição CAD: Ctrl+Z (Desfazer) e Ctrl+Y / Ctrl+Shift+Z (Refazer)
+            bool ctrlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            bool shiftPressed = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
+            if (ctrlPressed)
+            {
+                if (e.Key == Key.Z && !shiftPressed)
+                {
+                    if (ViewModel.UndoCommand.CanExecute(null))
+                    {
+                        if (_stateMachine.CurrentState is LineDrawingState)
+                        {
+                            _stateMachine.HandleKeyDown(CadInteractionKey.Escape);
+                        }
+                        ViewModel.UndoCommand.Execute(null);
+                    }
+                    e.Handled = true;
+                    return;
+                }
+
+                if (e.Key == Key.Y || (e.Key == Key.Z && shiftPressed))
+                {
+                    if (ViewModel.RedoCommand.CanExecute(null))
+                    {
+                        if (_stateMachine.CurrentState is LineDrawingState)
+                        {
+                            _stateMachine.HandleKeyDown(CadInteractionKey.Escape);
+                        }
+                        ViewModel.RedoCommand.Execute(null);
+                    }
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             CadInteractionKey key = e.Key switch
             {
                 Key.Escape => CadInteractionKey.Escape,
@@ -128,14 +176,7 @@ namespace TopoGente.UI.Views
         private Point ProjetarPixelParaGeodesico(Point pixelCoords)
         {
             if (ViewModel == null) return pixelCoords;
-            
-            Matrix cameraMatrix = ViewModel.CameraMatrix; 
-            if (cameraMatrix.HasInverse)
-            {
-                cameraMatrix.Invert(); 
-                return cameraMatrix.Transform(pixelCoords); 
-            }
-            return pixelCoords;
+            return ViewModel.GetModelCoordinates(pixelCoords);
         }
 
         private KdNode? ObterNoAtraido(Point modelCoords)

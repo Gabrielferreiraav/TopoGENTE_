@@ -521,6 +521,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
         {
             var m = CameraMatrix;
             CameraMatrix = new Matrix(m.M11, m.M12, m.M21, m.M22, m.OffsetX + dx, m.OffsetY + dy);
+            SetSnapMarker(SnapMarkerX, SnapMarkerY);
         }
 
         public void AplicarZoom(double factor, double mousePixelX, double mousePixelY)
@@ -536,6 +537,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
             double newOffsetY = mousePixelY * (1.0 - factor) + m.OffsetY * factor;
 
             CameraMatrix = new Matrix(m.M11 * factor, m.M12 * factor, m.M21 * factor, m.M22 * factor, newOffsetX, newOffsetY);
+            SetSnapMarker(SnapMarkerX, SnapMarkerY);
         }
 
         public ICommand ZoomExtentsCommand { get; }
@@ -581,6 +583,154 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public Geometry DynamicRubberBandGeometry { get => _dynamicRubberBandGeometry; set => SetProperty(ref _dynamicRubberBandGeometry, value); }
 
+        public double? SnapMarkerX { get; private set; }
+
+        public double? SnapMarkerY { get; private set; }
+
+        private Geometry _snapMarkerGeometry = Geometry.Empty;
+
+        public Geometry SnapMarkerGeometry { get => _snapMarkerGeometry; set => SetProperty(ref _snapMarkerGeometry, value); }
+
+        public void SetSnapMarker(double? x, double? y)
+        {
+            SnapMarkerX = x;
+            SnapMarkerY = y;
+
+            if (x.HasValue && y.HasValue)
+            {
+                double det = CameraMatrix.M11 * CameraMatrix.M22 - CameraMatrix.M12 * CameraMatrix.M21;
+                double escala = Math.Sqrt(Math.Abs(det));
+                if (escala < 1e-9) escala = 1.0;
+                
+                double halfSize = (10.0 / escala) / 2.0;
+                double centerX = x.Value - _originX;
+                double centerY = y.Value - _originY;
+
+                var geom = new RectangleGeometry(new System.Windows.Rect(centerX - halfSize, centerY - halfSize, halfSize * 2, halfSize * 2));
+                geom.Freeze();
+                SnapMarkerGeometry = geom;
+            }
+            else
+            {
+                SnapMarkerGeometry = Geometry.Empty;
+            }
+        }
+
+        public double? GetElevation(int vertexId)
+        {
+            if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Any())
+            {
+                var pontos = _resultadoAtual.TodosOsPontos.ToList();
+                if (vertexId >= 0 && vertexId < pontos.Count)
+                {
+                    return pontos[vertexId].Z;
+                }
+            }
+            return null;
+        }
+
+        private Geometry _dynamicMeasurementGeometry = Geometry.Empty;
+        public Geometry DynamicMeasurementGeometry { get => _dynamicMeasurementGeometry; set => SetProperty(ref _dynamicMeasurementGeometry, value); }
+
+        public void SetMeasurementBand(double? startX, double? startY, double? endX, double? endY)
+        {
+            if (startX.HasValue && startY.HasValue && endX.HasValue && endY.HasValue)
+            {
+                var geom = new StreamGeometry();
+                using (var ctx = geom.Open())
+                {
+                    ctx.BeginFigure(new System.Windows.Point(startX.Value - _originX, startY.Value - _originY), false, false);
+                    ctx.LineTo(new System.Windows.Point(endX.Value - _originX, endY.Value - _originY), true, false);
+                }
+                geom.Freeze();
+                DynamicMeasurementGeometry = geom;
+            }
+            else
+            {
+                DynamicMeasurementGeometry = Geometry.Empty;
+            }
+        }
+
+        private string _textoMedicaoAtual = "";
+        public string TextoMedicaoAtual { get => _textoMedicaoAtual; set => SetProperty(ref _textoMedicaoAtual, value); }
+        
+        private string _textoInspecaoAtual = "";
+        public string TextoInspecaoAtual { get => _textoInspecaoAtual; set => SetProperty(ref _textoInspecaoAtual, value); }
+        
+        private bool _temMedicaoAtiva;
+        public bool TemMedicaoAtiva { get => _temMedicaoAtiva; set => SetProperty(ref _temMedicaoAtiva, value); }
+        
+        private bool _temInspecaoAtiva;
+        public bool TemInspecaoAtiva { get => _temInspecaoAtiva; set => SetProperty(ref _temInspecaoAtiva, value); }
+
+        public void NotificarMedicao(double dh, double di, double dz, double inclinacao, double azimute)
+        {
+            TextoMedicaoAtual = $"DH: {dh:F3}m | DI: {di:F3}m | ΔZ: {dz:F3}m | Inc: {inclinacao:F3}% | Az: {azimute:F4}°";
+            TemMedicaoAtiva = true;
+            TemInspecaoAtiva = false;
+        }
+        
+        public void LimparMedicao()
+        {
+            TemMedicaoAtiva = false;
+            TextoMedicaoAtual = "";
+        }
+        
+        public void NotificarElementoInspecionado(int? verticeId, double? x, double? y, double? z, string? descricao)
+        {
+            if (verticeId.HasValue)
+            {
+                TextoInspecaoAtual = $"ID: {verticeId} | X: {x:F3} | Y: {y:F3} | Z: {z:F3}";
+            }
+            else
+            {
+                TextoInspecaoAtual = descricao ?? "";
+            }
+            TemInspecaoAtiva = true;
+            TemMedicaoAtiva = false;
+        }
+        
+        public void LimparInspecao()
+        {
+            TemInspecaoAtiva = false;
+            TextoInspecaoAtual = "";
+        }
+
+        public bool PodeTraçarBreaklines => EstadoAtualMotor == EstadoMotor.Compensado && !IsTopologyRebuilding;
+        public string TooltipBreaklines => PodeTraçarBreaklines 
+            ? "Traçar linhas obrigatórias de quebra (MDT)" 
+            : "Compense a poligonal primeiro para gerar o MDT base";
+
+        public void NotificarAviso(string mensagem) => _messageService.MostrarAviso(mensagem, "Atenção");
+
+        private CadToolMode _modoFerramentaAtiva = CadToolMode.Inspecao;
+        public CadToolMode ModoFerramentaAtiva
+        {
+            get => _modoFerramentaAtiva;
+            set
+            {
+                if (value == CadToolMode.Breakline && !PodeTraçarBreaklines)
+                {
+                    _messageService.MostrarAviso("A malha triangular do terreno (MDT) ainda não foi gerada. É necessário compensar a poligonal antes de definir linhas obrigatórias.", "Atenção");
+                    return;
+                }
+
+                if (SetProperty(ref _modoFerramentaAtiva, value))
+                {
+                    OnPropertyChanged(nameof(EhModoInspecao));
+                    OnPropertyChanged(nameof(EhModoBreakline));
+                    OnPropertyChanged(nameof(EhModoMedicao));
+                    if (value == CadToolMode.Breakline) MostrarBreaklines = true;
+                }
+            }
+        }
+
+        public bool EhModoInspecao => ModoFerramentaAtiva == CadToolMode.Inspecao;
+        public bool EhModoBreakline => ModoFerramentaAtiva == CadToolMode.Breakline;
+        public bool EhModoMedicao => ModoFerramentaAtiva == CadToolMode.Medicao;
+
+        public ICommand MudarFerramentaCadCommand { get; }
+
 
 
         // === fÍndice Espacial ===
@@ -590,8 +740,19 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
         public BvhTree2D? EdgeSpatialIndex { get; private set; }
 
         private bool _isTopologyRebuilding;
-
-        public bool IsTopologyRebuilding { get => _isTopologyRebuilding; private set => SetProperty(ref _isTopologyRebuilding, value); }
+        public bool IsTopologyRebuilding 
+        { 
+            get => _isTopologyRebuilding; 
+            private set 
+            { 
+                if (SetProperty(ref _isTopologyRebuilding, value))
+                {
+                    OnPropertyChanged(nameof(PodeTraçarBreaklines));
+                    OnPropertyChanged(nameof(TooltipBreaklines));
+                    ((AsyncRelayCommand<Breakline>)ConsolidarBreaklineCommand)?.NotifyCanExecuteChanged();
+                }
+            } 
+        }
 
 
 
@@ -815,7 +976,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             RowEditEndingCommand              = new AsyncRelayCommand<object>(OnRowEditEndingAsync);
 
-            ConsolidarBreaklineCommand        = new AsyncRelayCommand<Breakline>(ConsolidarBreaklineAsync);
+            ConsolidarBreaklineCommand        = new AsyncRelayCommand<Breakline>(ConsolidarBreaklineAsync, _ => PodeTraçarBreaklines);
 
             DeletarElementoSelecionadoCommand = new AsyncRelayCommand(DeletarElementoSelecionadoAsync);
 
@@ -840,6 +1001,14 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
             SubirSequenciaCommand     = new RelayCommand(_ => OnSubirSequencia(),     _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
 
             DescerSequenciaCommand    = new RelayCommand(_ => OnDescerSequencia(),    _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
+            
+            MudarFerramentaCadCommand = new RelayCommand<string>(modoStr =>
+            {
+                if (Enum.TryParse<CadToolMode>(modoStr, out var modo))
+                {
+                    ModoFerramentaAtiva = modo;
+                }
+            });
 
             ProcessarCommand   = new AsyncRelayCommand(ProcessarAsync, PodeProcessar);
 
@@ -1834,15 +2003,11 @@ private async Task ProcessarAsync()
         }
 
         private async Task ConsolidarBreaklineAsync(Breakline bl)
-
         {
-
             try { ExecuteCommand(new Commands.AddBreaklineCommand(_triangulator, bl)); }
-
             catch (BreaklineConflictException ex) { WeakReferenceMessenger.Default.Send(new RollbackVetorizacaoMensagem(bl.StartVertexId, bl.EndVertexId, ex.Message)); }
-
+            catch (TopoGenteDomainException ex) { _messageService.MostrarAviso(ex.Message, "MDT Não Inicializado"); }
             await Task.CompletedTask;
-
         }
 
         private async Task DeletarElementoSelecionadoAsync() { await Task.Yield(); }
@@ -1923,6 +2088,8 @@ private async Task ProcessarAsync()
                     StaticTinGeometry = dadosMalha.tin;
                     StaticMinorContoursGeometry = dadosMalha.minor;
                     StaticMajorContoursGeometry = dadosMalha.major;
+                    StaticBreaklinesGeometry = Geometry.Empty;
+                    EdgeSpatialIndex = null;
                     StaticPointsGeometry = dadosMalha.pts;
                     TotalTriangulosMdt = dadosMalha.totalTri;
                     TotalVerticesMdt = dadosMalha.totalVerts;
@@ -1963,11 +2130,43 @@ private async Task ProcessarAsync()
                 double maxZ = mv.Length > 0 ? mv.Max(v => v.Z) : 0;
                 double desnivel = maxZ - minZ;
 
+                // Construir geometria de breaklines e índice espacial de arestas
+                var activeBreaklines = _triangulator.GetActiveBreaklines().ToArray();
+                var breaklinesGeom = new StreamGeometry();
+                BvhTree2D? edgeIndex = null;
+
+                if (activeBreaklines.Length > 0)
+                {
+                    var vertexLookup = new Dictionary<int, TerrainVertex>();
+                    foreach (var v in mv) vertexLookup[v.Id] = v;
+
+                    using (var ctx = breaklinesGeom.Open())
+                    {
+                        foreach (var bl in activeBreaklines)
+                        {
+                            if (vertexLookup.TryGetValue(bl.StartVertexId, out var v1) &&
+                                vertexLookup.TryGetValue(bl.EndVertexId, out var v2))
+                            {
+                                ctx.BeginFigure(new System.Windows.Point(v1.X - _originX, v1.Y - _originY), false, false);
+                                ctx.LineTo(new System.Windows.Point(v2.X - _originX, v2.Y - _originY), true, false);
+                            }
+                        }
+                    }
+                    breaklinesGeom.Freeze();
+                    edgeIndex = new BvhTree2D(activeBreaklines, vertexLookup);
+                }
+                else
+                {
+                    breaklinesGeom.Freeze();
+                }
+
                 Action atualizarUi = () =>
                 {
                     StaticTinGeometry = tin;
                     StaticMinorContoursGeometry = minor;
                     StaticMajorContoursGeometry = major;
+                    StaticBreaklinesGeometry = breaklinesGeom;
+                    EdgeSpatialIndex = edgeIndex;
                     TotalTriangulosMdt = totalTri;
                     TotalVerticesMdt = totalVerts;
                     CotaMinimaTerreno = minZ;
@@ -2110,6 +2309,10 @@ private async Task OnRowEditEndingAsync(object? args)
             (SubirSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
             (DescerSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+            ((AsyncRelayCommand<Breakline>)ConsolidarBreaklineCommand)?.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(PodeTraçarBreaklines));
+            OnPropertyChanged(nameof(TooltipBreaklines));
 
         }
 
