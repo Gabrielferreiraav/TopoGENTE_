@@ -74,6 +74,22 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     if (comando == "NEZ" || comando == "NE")
                     {
                         int tamanhoMinimo = comando == "NEZ" ? 5 : 4;
+
+                        // ── Detecção de linha sentinela/residual (padding de coletor de campo) ──
+                        // Critério estrutural + semântico com tolerância ε = 1e-6:
+                        // 1. Tokens insuficientes para conter nome + coordenadas, OU
+                        //    o token de nome é um número decimal (sem identificador alfanumérico válido).
+                        // 2. A soma dos módulos de todos os valores numéricos presentes < ε.
+                        // Isso garante que NEZ 0 100.0 200.0 300.0 (ponto real de nome "0") NÃO seja descartado.
+                        if (EhLinhaResiduaSentinela(partes, tamanhoMinimo, cultura))
+                        {
+                            _ultimosAvisos.Add(
+                                $"NEZ residual ignorado (linha {numeroLinha}): " +
+                                $"todos os campos zerados e sem identificador válido. " +
+                                $"Linha original: '{linha.Trim()}' ");
+                            continue;
+                        }
+
                         if (partes.Length < tamanhoMinimo)
                         {
                             throw new FormatException(
@@ -84,7 +100,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         if (!NomePontoValido(nomePonto, cultura))
                         {
                             throw new FormatException(
-                                $"{comando} exige nome de ponto não numérico antes das coordenadas (linha {numeroLinha}).");
+                                $"{comando} exige nome de ponto válido (não decimal) antes das coordenadas (linha {numeroLinha}).");
                         }
 
                         double y = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
@@ -239,17 +255,70 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             return estacoes;
         }
 
+        /// <summary>
+        /// Valida se o identificador do ponto é aceitável como nome de ponto topográfico.
+        /// Regras:
+        ///   - Não pode ser nulo ou vazio.
+        ///   - Inteiros puros são permitidos (ex: "1", "100") — consistência com AD VA numérico.
+        ///   - Decimais (ex: "0.0000", "1.5") são rejeitados — são coordenadas, não identificadores.
+        /// </summary>
         private static bool NomePontoValido(string nomePonto, System.Globalization.CultureInfo cultura)
         {
             if (string.IsNullOrWhiteSpace(nomePonto))
-            {
                 return false;
-            }
 
+            // Inteiros puros são identificadores válidos (ex: AD VA 1, AD VA 125)
+            if (long.TryParse(nomePonto, out _))
+                return true;
+
+            // Decimais (ponto ou vírgula) são coordenadas, não identificadores
             string normalizado = nomePonto.Replace(',', '.');
             return !double.TryParse(normalizado, System.Globalization.NumberStyles.Float, cultura, out _);
         }
 
+        /// <summary>
+        /// Detecta linhas sentinela/residuais geradas por coletores de campo.
+        /// Uma linha é sentinela quando:
+        ///   1. Não possui tokens suficientes para um NEZ/NE com identificador E coordenadas, OU
+        ///      o token na posição do nome é um decimal (ausência de identificador real).
+        ///   2. A soma dos módulos de todos os valores numéricos na linha é menor que ε = 1e-6.
+        /// Isso garante que `NEZ 0 100.0 200.0 300.0` (ponto real com nome "0") NÃO seja descartado.
+        /// </summary>
+        private static bool EhLinhaResiduaSentinela(string[] partes, int tamanhoMinimo, System.Globalization.CultureInfo cultura)
+        {
+            const double Epsilon = 1e-6;
+
+            bool semIdentificadorValido;
+
+            if (partes.Length < tamanhoMinimo)
+            {
+                // Tokens insuficientes: não há espaço para um nome + coordenadas completas
+                semIdentificadorValido = true;
+            }
+            else
+            {
+                // Verifica se o token de nome é um decimal (coordenada, não identificador)
+                string tokenNome = partes[1].Replace("\"", "");
+                string tokenNormalizado = tokenNome.Replace(',', '.');
+                bool nomeEhDecimal = double.TryParse(tokenNormalizado, System.Globalization.NumberStyles.Float, cultura, out _)
+                                     && !long.TryParse(tokenNome, out _);
+                semIdentificadorValido = nomeEhDecimal;
+            }
+
+            if (!semIdentificadorValido)
+                return false;
+
+            // Soma os módulos de todos os tokens numéricos presentes (exceto o comando)
+            double somaModulos = 0.0;
+            for (int i = 1; i < partes.Length; i++)
+            {
+                string t = partes[i].Replace(',', '.').Replace("\"", "");
+                if (double.TryParse(t, System.Globalization.NumberStyles.Float, cultura, out double val))
+                    somaModulos += Math.Abs(val);
+            }
+
+            return somaModulos < Epsilon;
+        }
         private static double ParseNumeroDecimal(string valor, System.Globalization.CultureInfo cultura, int numeroLinha)
         {
             if (valor.Contains(','))
