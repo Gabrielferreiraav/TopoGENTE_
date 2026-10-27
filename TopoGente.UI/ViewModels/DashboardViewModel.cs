@@ -1927,7 +1927,35 @@ private async Task ProcessarAsync()
             if (string.IsNullOrEmpty(caminho)) return;
             try
             {
-                _exportadorDxfService.SalvarDxf([.. _resultadoAtual.TodosOsPontos], caminho);
+                TerrainVertex[]? tinVertices = null;
+                TerrainTriangle[]? tinTriangulos = null;
+                Breakline[]? breaklines = null;
+                Isoline[]? curvasNivel = null;
+
+                if (EstadoAtualMotor == EstadoMotor.Compensado)
+                {
+                    var (verts, tris) = _triangulator.GetCurrentMesh();
+                    if (tris != null && tris.Length > 0)
+                    {
+                        tinVertices = verts;
+                        tinTriangulos = tris;
+                        breaklines = _triangulator.GetActiveBreaklines().ToArray();
+                        curvasNivel = Analytics.ComputeContourMap(_stepInterval, _anchorElevation).ToArray();
+                    }
+                }
+
+                var payload = new DxfExportPayload(
+                    _resultadoAtual.Poligonal,
+                    _resultadoAtual.Irradiacoes,
+                    TinVertices: tinVertices,
+                    TinTriangulos: tinTriangulos,
+                    CurvasNivel: curvasNivel,
+                    Breaklines: breaklines,
+                    EquidistanciaCurva: _stepInterval,
+                    FrequenciaCurvaMestra: _majorContourFrequency,
+                    AnchorElevation: _anchorElevation
+                );
+                _exportadorDxfService.SalvarDxf(payload, caminho);
                 _messageService.MostrarSucesso($"DXF: {caminho}", "Exportado");
             }
             catch (Exception ex) { _messageService.MostrarErro($"Erro DXF: {ex.Message}", "Erro"); }

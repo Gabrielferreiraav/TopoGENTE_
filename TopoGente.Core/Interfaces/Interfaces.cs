@@ -40,7 +40,7 @@ namespace TopoGente.Core.Interfaces
 
     public interface IExportadorDxfService
     {
-        void SalvarDxf(List<PontoCoordenada> pontos, string caminhoArquivo);
+        void SalvarDxf(DxfExportPayload payload, string caminhoArquivo);
     }
 
     public interface IExportarTxtService
