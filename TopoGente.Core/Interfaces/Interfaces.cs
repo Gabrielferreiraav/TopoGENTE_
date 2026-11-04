@@ -9,14 +9,16 @@ namespace TopoGente.Core.Interfaces
     {
         string NomeFormato { get; }
         List<Estacao> Ler(IEnumerable<string> linhas);
+        List<Estacao> Ler(IEnumerable<string> linhas, ConfiguracaoImportacao config) => Ler(linhas);
         IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos { get; }
+        IReadOnlyList<string> UltimosAvisos => Array.Empty<string>();
+        IReadOnlyList<PontoCoordenada> UltimosPontosImportados => Array.Empty<PontoCoordenada>();
     }
 
     public interface ILeituraArquivoFactory
     {
-        ResultadoLeituraArquivo ProcessarArquivoComResultado(FormatoArquivoEntrada formato, string[] linhasArquivo);
-        List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato, string[] linhasArquivo);
-
+        ResultadoLeituraArquivo ProcessarArquivoComResultado(FormatoArquivoEntrada formato, string[] linhasArquivo, ConfiguracaoImportacao? config = null);
+        List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato, string[] linhasArquivo, ConfiguracaoImportacao? config = null);
     }
 
     public interface ILevantamentoProcessor
@@ -57,7 +59,6 @@ namespace TopoGente.Core.Interfaces
             Dictionary<string, PontoCoordenada> pontosConhecidos,
             double toleranciaDeltaXY = 0.01,
             double toleranciaDeltaZ = 0.02);
-
     }
 
     public interface ITopografiaVisitor
@@ -77,17 +78,10 @@ namespace TopoGente.Core.Interfaces
         void Next();
         bool IsDone();
         Estacao CurrentItem();
-
     }
 
     public interface IClassificadorGrafo 
     {
         void ClassificarArestasGrafo(List<Estacao> todasEstacoes, MetadadosCenario metadados);
     }
-    /*
-    public interface IMalhaTriagularService
-
-    {
-        List <TrianguloTopografico> GerarMalha(List<PontoCoordenada> nuvemPontos);
-    }*/
 }

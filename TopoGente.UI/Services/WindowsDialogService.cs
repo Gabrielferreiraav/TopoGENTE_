@@ -1,4 +1,7 @@
 using Microsoft.Win32;
+using TopoGente.Core.Entities;
+using TopoGente.UI.ViewModels;
+using TopoGente.UI.Views;
 
 namespace TopoGente.UI.Services
 {
@@ -33,6 +36,25 @@ namespace TopoGente.UI.Services
             {
                 return saveDialog.FileName;
             }
+            return null;
+        }
+
+        public ConfiguracaoImportacao? ConfigurarImportacao(string caminhoArquivo, string[] linhas, FormatoArquivoEntrada formato)
+        {
+            var vm = new ImportarConfiguracaoDialogViewModel(caminhoArquivo, linhas, formato);
+            var dialog = new ImportarConfiguracaoDialogView(vm);
+
+            if (System.Windows.Application.Current?.MainWindow != null)
+            {
+                dialog.Owner = System.Windows.Application.Current.MainWindow;
+            }
+
+            var result = dialog.ShowDialog();
+            if (result == true)
+            {
+                return vm.ObterConfiguracaoFinal();
+            }
+
             return null;
         }
     }

@@ -1,4 +1,5 @@
 using System;
+using TopoGente.Core.Services;
 
 using System.Collections.Generic;
 
@@ -1112,7 +1113,9 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
                 var linhas  = await Task.Run(() => _fileService.LerLinhas(fileName));
 
-                var result  = await Task.Run(() => _leitorFactory.ProcessarArquivoComResultado(formato, linhas));
+                var config = _dialogService.ConfigurarImportacao(fileName, linhas, formato)
+                             ?? LeitorCsvEngine.DetectarConfiguracaoSugerida(linhas, formato);
+                var result  = await Task.Run(() => _leitorFactory.ProcessarArquivoComResultado(formato, linhas, config));
 
                 _estacoesEmMemoria = _organizador.UnificarEstacoes(result.Estacoes);
 
@@ -1156,7 +1159,14 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
                     .ToList();
 
-                ResultadosCaderneta.AddRange(pontos);
+                if (result.PontosImportados != null && result.PontosImportados.Count > 0)
+                {
+                    ResultadosCaderneta.AddRange(result.PontosImportados);
+                }
+                else
+                {
+                    ResultadosCaderneta.AddRange(pontos);
+                }
 
                 if (_estacoesEmMemoria.Count > 0 && Poligonais.Count > 0)
 

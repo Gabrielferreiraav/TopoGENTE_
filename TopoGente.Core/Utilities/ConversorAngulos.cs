@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
+using TopoGente.Core.Entities;
 
 namespace TopoGente.Core.Utilities
 {
@@ -16,6 +17,7 @@ namespace TopoGente.Core.Utilities
 
             return sinal * (grausAbs + (minutos / 60.0) + (segundos / 3600.0));
         }
+
         /// <summary>
         /// Converte o formato compacto "GGG.MMSS" para Graus Decimais.
         /// </summary>
@@ -26,15 +28,15 @@ namespace TopoGente.Core.Utilities
             double resto = Math.Abs(gggmmss - graus);
 
             double minutosComSegundos = resto * 100.0;
-            minutosComSegundos = Math.Round(minutosComSegundos,6);
+            minutosComSegundos = Math.Round(minutosComSegundos, 6);
             int minutos = (int)Math.Truncate(minutosComSegundos);
 
             double segundos = (minutosComSegundos - minutos) * 100.0;
-
             segundos = Math.Round(segundos, 5);
 
             return ParaDecimal(graus, minutos, segundos);
         }
+
         public static (int graus, int minutos, double segundos) ParaGMS(double decimalGraus)
         {
             int sinal = decimalGraus < 0 ? -1 : 1;
@@ -60,6 +62,7 @@ namespace TopoGente.Core.Utilities
 
             return (graus * sinal, minutos, segundos);
         }
+
         /// <summary>
         /// Converte graus decimais para radianos.
         /// </summary>
@@ -67,10 +70,33 @@ namespace TopoGente.Core.Utilities
         {
             return grausDecimal * Math.PI / 180.0;
         }
+
         public static string ParaTexto(double decimalGraus)
         {
             var (g, m, s) = ParaGMS(decimalGraus);
-            return $"{g}° {m}' {s:F2}\"";
+            return $"{g}° {m:D2}' {s:00.00}\"";
+        }
+
+        /// <summary>
+        /// Converte ângulo em Gradiados (gons, círculo de 400g) para Graus Decimais (círculo de 360°).
+        /// </summary>
+        public static double DeGradiadosParaDecimal(double gons)
+        {
+            return gons * 0.9; // 360.0 / 400.0
+        }
+
+        /// <summary>
+        /// Converte um valor numérico de entrada para Graus Decimais conforme o formato angular especificado.
+        /// </summary>
+        public static double ConverterParaDecimal(double valor, FormatoAngularEnum formato)
+        {
+            return formato switch
+            {
+                FormatoAngularEnum.SexagesimalDddMmSs => DeFormatoCompacto(valor),
+                FormatoAngularEnum.GradiadosGons => DeGradiadosParaDecimal(valor),
+                FormatoAngularEnum.GrausDecimais => valor,
+                _ => valor
+            };
         }
     }
 }

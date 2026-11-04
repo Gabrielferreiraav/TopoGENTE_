@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Interfaces;
+using TopoGente.Core.Services;
+using TopoGente.Core.Utilities;
 
 namespace TopoGente.Infrastructure.Adapters.Leitores
 {
@@ -20,17 +23,26 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
         public IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos => _ultimosPontosConhecidos;
         private readonly Dictionary<string, PontoCoordenada> _ultimosPontosConhecidos = new(StringComparer.OrdinalIgnoreCase);
 
+        public IReadOnlyList<PontoCoordenada> UltimosPontosImportados => Array.Empty<PontoCoordenada>();
+
         public List<Estacao> Ler(IEnumerable<string> linhas)
         {
+            return Ler(linhas, ConfiguracaoImportacao.PadraoFbk);
+        }
+
+        public List<Estacao> Ler(IEnumerable<string> linhas, ConfiguracaoImportacao config)
+        {
+            ArgumentNullException.ThrowIfNull(config);
+
             _ultimosAvisos.Clear();
             _ultimosPontosConhecidos.Clear();
 
             var estacoes = new List<Estacao>();
             Estacao? estacaoAtual = null;
             double alturaPrisma = 0.0;
-            var cultura = System.Globalization.CultureInfo.InvariantCulture;
             var falhas = new List<string>();
             int numeroLinha = 0;
+            bool arquivoDeclarouDecDeg = false;
 
             foreach (var linhaRaw in linhas)
             {
@@ -42,29 +54,33 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 var partes = linha.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (partes.Length == 0) continue;
 
-                string comando = partes[0].ToUpper();
+                string comando = partes[0].ToUpperInvariant();
 
                 try
                 {
-                    // ── UNIT — Validação de unidades geodésicas (Fail-Fast) ──
+                    // ── UNIT — Validação de unidades geodésicas ──
                     if (comando == "UNIT")
                     {
-                        string unidadeDistancia = partes.Length > 1 ? partes[1].ToUpper() : "";
-                        string unidadeAngular = partes.Length > 2 ? partes[2].ToUpper() : "";
+                        string unidadeDistancia = partes.Length > 1 ? partes[1].ToUpperInvariant() : "";
+                        string unidadeAngular = partes.Length > 2 ? partes[2].ToUpperInvariant() : "";
 
-                        if (unidadeDistancia != "METER" && unidadeDistancia != "METRE"
-                            && unidadeDistancia != "")
+                        if (unidadeDistancia != "METER" && unidadeDistancia != "METRE" && unidadeDistancia != "")
                         {
                             throw new NotSupportedException(
                                 $"Unidade de distância '{unidadeDistancia}' não suportada (linha {numeroLinha}). " +
                                 "Converta o arquivo para METER antes de importar.");
                         }
 
-                        if (unidadeAngular != "DECDEG" && unidadeAngular != "")
+                        if (unidadeAngular != "DECDEG" && unidadeAngular != "DMS" && unidadeAngular != "")
                         {
                             throw new NotSupportedException(
                                 $"Unidade angular '{unidadeAngular}' não suportada (linha {numeroLinha}). " +
                                 "Converta o arquivo para DECDEG antes de importar.");
+                        }
+
+                        if (unidadeAngular == "DECDEG")
+                        {
+                            arquivoDeclarouDecDeg = true;
                         }
 
                         continue;
@@ -75,13 +91,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     {
                         int tamanhoMinimo = comando == "NEZ" ? 5 : 4;
 
-                        // ── Detecção de linha sentinela/residual (padding de coletor de campo) ──
-                        // Critério estrutural + semântico com tolerância ε = 1e-6:
-                        // 1. Tokens insuficientes para conter nome + coordenadas, OU
-                        //    o token de nome é um número decimal (sem identificador alfanumérico válido).
-                        // 2. A soma dos módulos de todos os valores numéricos presentes < ε.
-                        // Isso garante que NEZ 0 100.0 200.0 300.0 (ponto real de nome "0") NÃO seja descartado.
-                        if (EhLinhaResiduaSentinela(partes, tamanhoMinimo, cultura))
+                        if (EhLinhaResiduaSentinela(partes, tamanhoMinimo, config))
                         {
                             _ultimosAvisos.Add(
                                 $"NEZ residual ignorado (linha {numeroLinha}): " +
@@ -97,17 +107,25 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         }
 
                         string nomePonto = partes[1].Replace("\"", "");
-                        if (!NomePontoValido(nomePonto, cultura))
+                        if (!NomePontoValido(nomePonto))
                         {
                             throw new FormatException(
                                 $"{comando} exige nome de ponto válido (não decimal) antes das coordenadas (linha {numeroLinha}).");
                         }
 
-                        double y = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
-                        double x = ParseNumeroDecimal(partes[3], cultura, numeroLinha);
+                        double y = ParseNumero(partes[2], config, numeroLinha);
+                        double x = ParseNumero(partes[3], config, numeroLinha);
                         double z = (comando == "NEZ" && partes.Length > 4)
-                            ? ParseNumeroDecimal(partes[4], cultura, numeroLinha)
+                            ? ParseNumero(partes[4], config, numeroLinha)
                             : 0.0;
+
+                        // Tolerância a coordenadas locais/truncadas (ex: linha 161 do 121377.FBK)
+                        if (config.Magnitude == MagnitudeCoordenadaEnum.UtmCompleta && y < 1_000_000.0)
+                        {
+                            _ultimosAvisos.Add(
+                                $"Aviso de Magnitude (linha {numeroLinha}): Ponto '{nomePonto}' possui coordenadas sem a casa de milhão (N={y:F3}, E={x:F3}). " +
+                                "Ponto registrado como apoio local.");
+                        }
 
                         if (!_ultimosPontosConhecidos.ContainsKey(nomePonto))
                         {
@@ -121,7 +139,6 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         }
                         else
                         {
-                            // Detecção de conflito geodésico (tolerância 1mm)
                             var existente = _ultimosPontosConhecidos[nomePonto];
                             double deltaX = Math.Abs(existente.X - x);
                             double deltaY = Math.Abs(existente.Y - y);
@@ -148,7 +165,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     else if (comando == "STN" && partes.Length >= 3)
                     {
                         string nome = partes[1].Replace("\"", "");
-                        double hi = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
+                        double hi = ParseNumero(partes[2], config, numeroLinha);
 
                         estacaoAtual = new Estacao
                         {
@@ -156,9 +173,9 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             AlturaInstrumento = hi
                         };
 
-                        if (_ultimosPontosConhecidos.ContainsKey(nome))
+                        if (_ultimosPontosConhecidos.TryGetValue(nome, out var coordConhecida))
                         {
-                            estacaoAtual.CoordenadaConhecida = _ultimosPontosConhecidos[nome];
+                            estacaoAtual.CoordenadaConhecida = coordConhecida;
                         }
 
                         estacoes.Add(estacaoAtual);
@@ -167,7 +184,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     // ── PRISM / PRISMA — Altura do sinal ──
                     else if ((comando == "PRISM" || comando == "PRISMA") && partes.Length >= 2)
                     {
-                        alturaPrisma = ParseNumeroDecimal(partes[1], cultura, numeroLinha);
+                        alturaPrisma = ParseNumero(partes[1], config, numeroLinha);
                     }
 
                     // ── BS — Visada de Ré (Backsight) ──
@@ -181,7 +198,10 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         }
 
                         string alvoNome = partes[1].Replace("\"", "");
-                        double angulo = ParseNumeroDecimal(partes[2], cultura, numeroLinha);
+                        double anguloRaw = ParseNumero(partes[2], config, numeroLinha);
+                        double anguloDecimal = arquivoDeclarouDecDeg
+                            ? anguloRaw
+                            : ConversorAngulos.ConverterParaDecimal(anguloRaw, config.FormatoAngular);
 
                         estacaoAtual.AdicionarVisada(new LeituraEstacaoTotal
                         {
@@ -189,7 +209,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             PontoVisado = alvoNome,
                             AlturaInstrumento = estacaoAtual.AlturaInstrumento,
                             AlturaPrisma = alturaPrisma,
-                            AnguloHorizontal = angulo,
+                            AnguloHorizontal = anguloDecimal,
                             Tipo = TipoLeitura.Irradiacao,
                             Purpose = "re",
                             Observacao = "RE (BS)"
@@ -197,7 +217,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                     }
 
                     // ── AD VA — Observação polar (ângulo + distância + zenital) ──
-                    else if (comando == "AD" && partes.Length >= 6 && partes[1] == "VA")
+                    else if (comando == "AD" && partes.Length >= 6 && partes[1].ToUpperInvariant() == "VA")
                     {
                         if (estacaoAtual == null)
                         {
@@ -207,9 +227,17 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                         }
 
                         string alvoNome = partes[2].Replace("\"", "");
-                        double angH = ParseNumeroDecimal(partes[3], cultura, numeroLinha);
-                        double dist = ParseNumeroDecimal(partes[4], cultura, numeroLinha);
-                        double angV = ParseNumeroDecimal(partes[5], cultura, numeroLinha);
+                        double angHRaw = ParseNumero(partes[3], config, numeroLinha);
+                        double dist = ParseNumero(partes[4], config, numeroLinha);
+                        double angVRaw = ParseNumero(partes[5], config, numeroLinha);
+
+                        double angHDecimal = arquivoDeclarouDecDeg
+                            ? angHRaw
+                            : ConversorAngulos.ConverterParaDecimal(angHRaw, config.FormatoAngular);
+
+                        double angVDecimal = arquivoDeclarouDecDeg
+                            ? angVRaw
+                            : ConversorAngulos.ConverterParaDecimal(angVRaw, config.FormatoAngular);
 
                         string descricao = "";
                         if (partes.Length > 6)
@@ -223,8 +251,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             PontoVisado = alvoNome,
                             AlturaInstrumento = estacaoAtual.AlturaInstrumento,
                             AlturaPrisma = alturaPrisma,
-                            AnguloHorizontal = angH,
-                            AnguloVertical = angV,
+                            AnguloHorizontal = angHDecimal,
+                            AnguloVertical = angVDecimal,
                             DistanciaInclinada = dist,
                             Observacao = descricao,
                             Tipo = TipoLeitura.Irradiacao,
@@ -234,7 +262,6 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 }
                 catch (NotSupportedException)
                 {
-                    // Exceções de validação de unidades devem propagar imediatamente (Fail-Fast)
                     throw;
                 }
                 catch (Exception ex)
@@ -248,86 +275,58 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 throw new FormatException(
                     $"{falhas.Count} linha(s) falharam no parsing do arquivo FBK. " +
                     $"Verifique se o separador decimal é ponto (.) e não vírgula (,).\n" +
-                    $"Primeiras falhas:\n" +
-                    string.Join("\n", falhas.Take(5)));
+                    string.Join("\n", falhas.Take(10)));
             }
 
             return estacoes;
         }
 
-        /// <summary>
-        /// Valida se o identificador do ponto é aceitável como nome de ponto topográfico.
-        /// Regras:
-        ///   - Não pode ser nulo ou vazio.
-        ///   - Inteiros puros são permitidos (ex: "1", "100") — consistência com AD VA numérico.
-        ///   - Decimais (ex: "0.0000", "1.5") são rejeitados — são coordenadas, não identificadores.
-        /// </summary>
-        private static bool NomePontoValido(string nomePonto, System.Globalization.CultureInfo cultura)
+        private static bool NomePontoValido(string nomePonto)
         {
             if (string.IsNullOrWhiteSpace(nomePonto))
                 return false;
 
-            // Inteiros puros são identificadores válidos (ex: AD VA 1, AD VA 125)
             if (long.TryParse(nomePonto, out _))
                 return true;
 
-            // Decimais (ponto ou vírgula) são coordenadas, não identificadores
             string normalizado = nomePonto.Replace(',', '.');
-            return !double.TryParse(normalizado, System.Globalization.NumberStyles.Float, cultura, out _);
+            if (double.TryParse(normalizado, NumberStyles.Float, CultureInfo.InvariantCulture, out _) &&
+                (normalizado.Contains('.') || normalizado.Contains(',')))
+            {
+                return false;
+            }
+
+            return true;
         }
 
-        /// <summary>
-        /// Detecta linhas sentinela/residuais geradas por coletores de campo.
-        /// Uma linha é sentinela quando:
-        ///   1. Não possui tokens suficientes para um NEZ/NE com identificador E coordenadas, OU
-        ///      o token na posição do nome é um decimal (ausência de identificador real).
-        ///   2. A soma dos módulos de todos os valores numéricos na linha é menor que ε = 1e-6.
-        /// Isso garante que `NEZ 0 100.0 200.0 300.0` (ponto real com nome "0") NÃO seja descartado.
-        /// </summary>
-        private static bool EhLinhaResiduaSentinela(string[] partes, int tamanhoMinimo, System.Globalization.CultureInfo cultura)
+        private static bool EhLinhaResiduaSentinela(string[] partes, int tamanhoMinimo, ConfiguracaoImportacao config)
         {
             const double Epsilon = 1e-6;
-
-            bool semIdentificadorValido;
-
-            if (partes.Length < tamanhoMinimo)
-            {
-                // Tokens insuficientes: não há espaço para um nome + coordenadas completas
-                semIdentificadorValido = true;
-            }
-            else
-            {
-                // Verifica se o token de nome é um decimal (coordenada, não identificador)
-                string tokenNome = partes[1].Replace("\"", "");
-                string tokenNormalizado = tokenNome.Replace(',', '.');
-                bool nomeEhDecimal = double.TryParse(tokenNormalizado, System.Globalization.NumberStyles.Float, cultura, out _)
-                                     && !long.TryParse(tokenNome, out _);
-                semIdentificadorValido = nomeEhDecimal;
-            }
+            bool semIdentificadorValido = partes.Length < tamanhoMinimo || !NomePontoValido(partes[1].Replace("\"", ""));
 
             if (!semIdentificadorValido)
                 return false;
 
-            // Soma os módulos de todos os tokens numéricos presentes (exceto o comando)
-            double somaModulos = 0.0;
+            double somaModulos = 0;
             for (int i = 1; i < partes.Length; i++)
             {
-                string t = partes[i].Replace(',', '.').Replace("\"", "");
-                if (double.TryParse(t, System.Globalization.NumberStyles.Float, cultura, out double val))
+                if (LeitorCsvEngine.ParseNumeroResiliente(partes[i].AsSpan(), config, out double val))
+                {
                     somaModulos += Math.Abs(val);
+                }
             }
 
             return somaModulos < Epsilon;
         }
-        private static double ParseNumeroDecimal(string valor, System.Globalization.CultureInfo cultura, int numeroLinha)
+
+        private static double ParseNumero(string valor, ConfiguracaoImportacao config, int numeroLinha)
         {
-            if (valor.Contains(','))
+            if (!LeitorCsvEngine.ParseNumeroResiliente(valor.AsSpan(), config, out double resultado))
             {
                 throw new FormatException(
-                    $"Valor numérico '{valor}' usa vírgula decimal ou separador de milhar não suportado (linha {numeroLinha}).");
+                    $"Valor numérico '{valor}' inválido para a configuração informada (linha {numeroLinha}).");
             }
-
-            return double.Parse(valor, System.Globalization.NumberStyles.Float, cultura);
+            return resultado;
         }
 
         private static string? MapearPurposeSugerido(string descricao)

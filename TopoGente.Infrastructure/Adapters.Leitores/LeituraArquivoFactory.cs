@@ -20,7 +20,10 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             };
         }
 
-        public TopoGente.Core.Entities.ResultadoLeituraArquivo ProcessarArquivoComResultado(FormatoArquivoEntrada formato, string[] linhasArquivo)
+        public ResultadoLeituraArquivo ProcessarArquivoComResultado(
+            FormatoArquivoEntrada formato,
+            string[] linhasArquivo,
+            ConfiguracaoImportacao? config = null)
         {
             if (linhasArquivo == null || linhasArquivo.Length == 0)
             {
@@ -38,27 +41,25 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
             if (leitor == null)
                 throw new NotSupportedException($"O formato de arquivo '{formato}' não é suportado.");
 
-            var estacoes = leitor.Ler(linhasArquivo);
+            var estacoes = config != null
+                ? leitor.Ler(linhasArquivo, config)
+                : leitor.Ler(linhasArquivo);
 
-            var avisos = new List<string>();
-            if (leitor is LeitorLandXml landXml)
-            {
-                avisos.AddRange(landXml.UltimosAvisos);
-            }
-            if (leitor is LeitorFbk fbk)
-            {
-                avisos.AddRange(fbk.UltimosAvisos);
-            }
+            var avisos = new List<string>(leitor.UltimosAvisos);
 
-            return new TopoGente.Core.Entities.ResultadoLeituraArquivo
+            return new ResultadoLeituraArquivo
             {
                 Estacoes = estacoes,
                 Avisos = avisos,
-                PontosConhecidosGlobais = leitor.UltimosPontosConhecidos
+                PontosConhecidosGlobais = leitor.UltimosPontosConhecidos,
+                PontosImportados = leitor.UltimosPontosImportados.Count > 0 ? leitor.UltimosPontosImportados : null
             };
         }
 
-        public List<Estacao> ProcessarArquivo(FormatoArquivoEntrada formato, string[] linhasArquivo)
-            => ProcessarArquivoComResultado(formato, linhasArquivo).Estacoes;
+        public List<Estacao> ProcessarArquivo(
+            FormatoArquivoEntrada formato,
+            string[] linhasArquivo,
+            ConfiguracaoImportacao? config = null)
+            => ProcessarArquivoComResultado(formato, linhasArquivo, config).Estacoes;
     }
 }
