@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -43,6 +43,8 @@ namespace TopoGente.Core.Entities
         public string? NomeReReferencia { get; set; }
 
         public List<string> SequenciaEstacoesSelecionadas { get; set; } = new();
+
+        public ParametrosTolerancia Tolerancias { get; set; } = ParametrosTolerancia.Padrao;
 
     }
 }

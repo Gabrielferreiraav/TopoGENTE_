@@ -290,6 +290,7 @@ namespace TopoGente.Core.Services
                 return new ResultadoLevantamento
                 {
                     PoligonalBruta = poligonalBrutaLocal,
+                Tolerancias = metadadosAtuais.Tolerancias ?? ParametrosTolerancia.Padrao,
                     Poligonal = poligonalBrutaLocal,
                     TipoCenario = TipoCenarioPoligonal.AbertaOrientada,
                     PoligonalFechada = false,
@@ -334,7 +335,8 @@ namespace TopoGente.Core.Services
                 AzimuteChegada = metadadosAtuais.AzimuteChegada,
                 AnguloFechamento = anguloFechamento,
                 Leituras = leiturasPoligonal,
-                PoligonalBruta = poligonalBrutaLocal
+                PoligonalBruta = poligonalBrutaLocal,
+                Tolerancias = metadadosAtuais.Tolerancias ?? ParametrosTolerancia.Padrao
             };
 
             var estrategia = _compensacaoStrategyFactory.Criar(metadadosAtuais.TipoCenario);
@@ -347,6 +349,7 @@ namespace TopoGente.Core.Services
             return new ResultadoLevantamento
             {
                 PoligonalBruta = poligonalBrutaLocal,
+                Tolerancias = metadadosAtuais.Tolerancias ?? ParametrosTolerancia.Padrao,
                 Poligonal = poligonalCompensadaLocal,
                 Alertas = alertasLocal,
                 AprovadoNorma = compensacao.AprovadoNorma,

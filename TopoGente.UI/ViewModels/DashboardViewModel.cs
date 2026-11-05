@@ -401,6 +401,187 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public RelatorioQA? RelatorioQaAtual { get => _relatorioQaAtual; private set => SetProperty(ref _relatorioQaAtual, value); }
 
+        // === Tolerâncias Customizáveis NBR 13.133 (Módulo 2) ===
+        private PresetToleranciaEnum _presetToleranciaSelecionado = PresetToleranciaEnum.ClasseIIP;
+        public PresetToleranciaEnum PresetToleranciaSelecionado
+        {
+            get => _presetToleranciaSelecionado;
+            set
+            {
+                if (SetProperty(ref _presetToleranciaSelecionado, value))
+                {
+                    AplicarPresetTolerancia(value);
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        public IReadOnlyList<PresetToleranciaEnum> PresetsToleranciaDisponiveis { get; } =
+            Enum.GetValues<PresetToleranciaEnum>();
+
+        private double _toleranciaK = 2.0;
+        public double ToleranciaK
+        {
+            get => _toleranciaK;
+            set
+            {
+                if (SetProperty(ref _toleranciaK, value))
+                {
+                    AjustarParaPresetPersonalizado();
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        private double _toleranciaSigmaA = 5.0;
+        public double ToleranciaSigmaA
+        {
+            get => _toleranciaSigmaA;
+            set
+            {
+                if (SetProperty(ref _toleranciaSigmaA, value))
+                {
+                    AjustarParaPresetPersonalizado();
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        private int _toleranciaDenominadorLinear = 5000;
+        public int ToleranciaDenominadorLinear
+        {
+            get => _toleranciaDenominadorLinear;
+            set
+            {
+                if (SetProperty(ref _toleranciaDenominadorLinear, value))
+                {
+                    AjustarParaPresetPersonalizado();
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        private double _toleranciaC = 3.0;
+        public double ToleranciaC
+        {
+            get => _toleranciaC;
+            set
+            {
+                if (SetProperty(ref _toleranciaC, value))
+                {
+                    AjustarParaPresetPersonalizado();
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        private double _toleranciaCheckDeltaXY = 0.01;
+        public double ToleranciaCheckDeltaXY
+        {
+            get => _toleranciaCheckDeltaXY;
+            set
+            {
+                if (SetProperty(ref _toleranciaCheckDeltaXY, value))
+                {
+                    AjustarParaPresetPersonalizado();
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        private double _toleranciaCheckDeltaZ = 0.02;
+        public double ToleranciaCheckDeltaZ
+        {
+            get => _toleranciaCheckDeltaZ;
+            set
+            {
+                if (SetProperty(ref _toleranciaCheckDeltaZ, value))
+                {
+                    AjustarParaPresetPersonalizado();
+                    RecalcularLaudoQa();
+                }
+            }
+        }
+
+        public ParametrosTolerancia ToleranciasAtuais => new()
+        {
+            K = _toleranciaK,
+            SigmaA = _toleranciaSigmaA,
+            DenominadorPrecisaoLinear = Math.Max(1, _toleranciaDenominadorLinear),
+            C = _toleranciaC,
+            ToleranciaCheckDeltaXY = _toleranciaCheckDeltaXY,
+            ToleranciaCheckDeltaZ = _toleranciaCheckDeltaZ,
+            Preset = _presetToleranciaSelecionado
+        };
+
+        private bool _atualizandoPresetInternamente;
+        private void AplicarPresetTolerancia(PresetToleranciaEnum preset)
+        {
+            if (preset == PresetToleranciaEnum.Personalizado) return;
+
+            _atualizandoPresetInternamente = true;
+            try
+            {
+                var basePreset = preset == PresetToleranciaEnum.ClasseIP
+                    ? ParametrosTolerancia.ClasseIP
+                    : ParametrosTolerancia.ClasseIIP;
+
+                ToleranciaK = basePreset.K;
+                ToleranciaSigmaA = basePreset.SigmaA;
+                ToleranciaDenominadorLinear = basePreset.DenominadorPrecisaoLinear;
+                ToleranciaC = basePreset.C;
+                ToleranciaCheckDeltaXY = basePreset.ToleranciaCheckDeltaXY;
+                ToleranciaCheckDeltaZ = basePreset.ToleranciaCheckDeltaZ;
+            }
+            finally
+            {
+                _atualizandoPresetInternamente = false;
+            }
+        }
+
+        private void AjustarParaPresetPersonalizado()
+        {
+            if (!_atualizandoPresetInternamente && _presetToleranciaSelecionado != PresetToleranciaEnum.Personalizado)
+            {
+                _presetToleranciaSelecionado = PresetToleranciaEnum.Personalizado;
+                OnPropertyChanged(nameof(PresetToleranciaSelecionado));
+            }
+        }
+
+        public void RecalcularLaudoQa()
+        {
+            if (_resultadoAtual == null) return;
+
+            var ptosConhecidos = _pontosConhecidosGlobais != null
+                ? new Dictionary<string, PontoCoordenada>(_pontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
+
+            var relatorio = _qaCheckService.GerarRelatorioQaChecks(
+                _estacoesEmMemoria,
+                _resultadoAtual,
+                ptosConhecidos,
+                ToleranciasAtuais);
+
+            int nEstacoes = _resultadoAtual.Poligonal?.Count ?? 0;
+            double perimetro = _resultadoAtual.Perimetro;
+
+            relatorio.ErroAngular = _resultadoAtual.ErroAngular;
+            relatorio.ErroLinear = _resultadoAtual.ErroLinear;
+            relatorio.ErroAltimetrico = _resultadoAtual.ErroFechamentoZ;
+
+            relatorio.ToleranciasAplicadas = ToleranciasAtuais;
+            relatorio.ToleranciaAngularAdmissivel = ToleranciasAtuais.CalcularToleranciaAngularGraus(nEstacoes);
+            relatorio.ToleranciaLinearAdmissivel = ToleranciasAtuais.CalcularToleranciaLinearMetros(perimetro);
+            relatorio.ToleranciaAltimetricaAdmissivel = ToleranciasAtuais.CalcularToleranciaAltimetricaMetros(perimetro);
+
+            relatorio.AngularConforme = Math.Abs(relatorio.ErroAngular) <= relatorio.ToleranciaAngularAdmissivel + 1e-4;
+            relatorio.LinearConforme = _resultadoAtual.Precisao <= ToleranciasAtuais.PrecisaoLinearMinima + 1e-6;
+            relatorio.AltimetricoConforme = Math.Abs(relatorio.ErroAltimetrico) <= relatorio.ToleranciaAltimetricaAdmissivel + 1e-4;
+
+            RelatorioQaAtual = relatorio;
+            OnPropertyChanged(nameof(RelatorioQaAtual));
+        }
+
 
 
         // === Geometrias de Renderização ===
@@ -1441,6 +1622,11 @@ private async Task ProcessarAsync()
         // 1. Extração Passiva das Entidades Logicas do Core 
 
         var sequencias = Poligonais.Select(p => p.ToEntity()).ToList();
+        foreach (var s in sequencias)
+        {
+            if (s.Metadados != null)
+                s.Metadados.Tolerancias = ToleranciasAtuais;
+        }
 
         var ptosConhecidos = new Dictionary<string, PontoCoordenada>(_pontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase);
         foreach (var e in _estacoesEmMemoria.Where(e => e.CoordenadaConhecida != null))
@@ -1476,7 +1662,7 @@ private async Task ProcessarAsync()
 
         // 3. Geração do Relat3rio de Auditoria da NBR 13.133 (QA checks)
 
-        var relatorio = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, ptosConhecidos);
+        var relatorio = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, ptosConhecidos, ToleranciasAtuais);
 
 
 
@@ -1488,6 +1674,16 @@ private async Task ProcessarAsync()
         relatorio.ErroAngular = resultado.ErroAngular;
         relatorio.ErroLinear = resultado.ErroLinear;
         relatorio.ErroAltimetrico = resultado.ErroFechamentoZ;
+
+        relatorio.ToleranciasAplicadas = ToleranciasAtuais;
+        int nEstacoes = resultado.Poligonal?.Count ?? 0;
+        relatorio.ToleranciaAngularAdmissivel = ToleranciasAtuais.CalcularToleranciaAngularGraus(nEstacoes);
+        relatorio.ToleranciaLinearAdmissivel = ToleranciasAtuais.CalcularToleranciaLinearMetros(resultado.Perimetro);
+        relatorio.ToleranciaAltimetricaAdmissivel = ToleranciasAtuais.CalcularToleranciaAltimetricaMetros(resultado.Perimetro);
+
+        relatorio.AngularConforme = Math.Abs(relatorio.ErroAngular) <= relatorio.ToleranciaAngularAdmissivel + 1e-4;
+        relatorio.LinearConforme = resultado.Precisao <= ToleranciasAtuais.PrecisaoLinearMinima + 1e-6;
+        relatorio.AltimetricoConforme = Math.Abs(relatorio.ErroAltimetrico) <= relatorio.ToleranciaAltimetricaAdmissivel + 1e-4;
 
         RelatorioQaAtual = relatorio;
 
@@ -1986,10 +2182,12 @@ private async Task ProcessarAsync()
                 sb.AppendLine($"Arquivo Base:    {NomeArquivoAtual}");
                 sb.AppendLine($"Status do Motor: {TextoStatusBar}");
                 sb.AppendLine();
-                sb.AppendLine("FECHAMENTOS E TOLERÂNCIAS:");
-                sb.AppendLine($"  - Erro Angular:     {RelatorioQaAtual.ErroAngular}");
-                sb.AppendLine($"  - Erro Linear:      {RelatorioQaAtual.ErroLinear:F4} m");
-                sb.AppendLine($"  - Erro Altimétrico: {RelatorioQaAtual.ErroAltimetrico:F4} m");
+                sb.AppendLine("FECHAMENTOS E TOLERÂNCIAS NBR 13.133:");
+                sb.AppendLine($"  - Classe Normativa: {RelatorioQaAtual.ToleranciasAplicadas.Preset}");
+                sb.AppendLine($"  - Parâmetros:       k={RelatorioQaAtual.ToleranciasAplicadas.K:F1}, σa={RelatorioQaAtual.ToleranciasAplicadas.SigmaA:F1}\", 1/P=1:{RelatorioQaAtual.ToleranciasAplicadas.DenominadorPrecisaoLinear}, c={RelatorioQaAtual.ToleranciasAplicadas.C:F1} mm/km^0.5");
+                sb.AppendLine($"  - Erro Angular:     {RelatorioQaAtual.ErroAngular:F4}° (Admissível: {RelatorioQaAtual.ToleranciaAngularAdmissivel:F4}°) | Status: {(RelatorioQaAtual.AngularConforme ? "CONFORME" : "REPROVADO")}");
+                sb.AppendLine($"  - Erro Linear:      {RelatorioQaAtual.ErroLinear:F4} m (Admissível: {RelatorioQaAtual.ToleranciaLinearAdmissivel:F4} m) | Status: {(RelatorioQaAtual.LinearConforme ? "CONFORME" : "REPROVADO")}");
+                sb.AppendLine($"  - Erro Altimétrico: {RelatorioQaAtual.ErroAltimetrico:F4} m (Admissível: {RelatorioQaAtual.ToleranciaAltimetricaAdmissivel:F4} m) | Status: {(RelatorioQaAtual.AltimetricoConforme ? "CONFORME" : "REPROVADO")}");
                 sb.AppendLine();
                 sb.AppendLine("ESTATÍSTICAS DA SUPERFÍCIE:");
                 sb.AppendLine($"  - Total de Pontos:      {TotalPontos}");

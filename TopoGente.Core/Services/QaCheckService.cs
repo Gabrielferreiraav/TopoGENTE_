@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
@@ -9,6 +9,21 @@ namespace TopoGente.Core.Services
 {
     public sealed class QaCheckService : IQaCheckService
     {
+        public RelatorioQA GerarRelatorioQaChecks(
+            List<Estacao> estacoesOrganizadas,
+            ResultadoLevantamento resultado,
+            Dictionary<string, PontoCoordenada> pontosConhecidos,
+            ParametrosTolerancia tolerancias)
+        {
+            ArgumentNullException.ThrowIfNull(tolerancias);
+            return GerarRelatorioQaChecks(
+                estacoesOrganizadas,
+                resultado,
+                pontosConhecidos,
+                tolerancias.ToleranciaCheckDeltaXY,
+                tolerancias.ToleranciaCheckDeltaZ);
+        }
+
         public RelatorioQA GerarRelatorioQaChecks(
             List<Estacao> estacoesOrganizadas,
             ResultadoLevantamento resultado,

@@ -59,6 +59,13 @@ namespace TopoGente.Core.Interfaces
             Dictionary<string, PontoCoordenada> pontosConhecidos,
             double toleranciaDeltaXY = 0.01,
             double toleranciaDeltaZ = 0.02);
+
+        RelatorioQA GerarRelatorioQaChecks(
+            List<Estacao> estacoesOrganizadas,
+            ResultadoLevantamento resultado,
+            Dictionary<string, PontoCoordenada> pontosConhecidos,
+            ParametrosTolerancia tolerancias)
+            => GerarRelatorioQaChecks(estacoesOrganizadas, resultado, pontosConhecidos, tolerancias.ToleranciaCheckDeltaXY, tolerancias.ToleranciaCheckDeltaZ);
     }
 
     public interface ITopografiaVisitor

@@ -15,6 +15,15 @@ namespace TopoGente.Core.Entities
         public double ErroAngular { get; set; }
         public double ErroLinear { get; set; }
         public double ErroAltimetrico { get; set; }
+
+        public ParametrosTolerancia ToleranciasAplicadas { get; set; } = ParametrosTolerancia.Padrao;
+        public double ToleranciaAngularAdmissivel { get; set; }
+        public double ToleranciaLinearAdmissivel { get; set; }
+        public double ToleranciaAltimetricaAdmissivel { get; set; }
+        public bool AngularConforme { get; set; } = true;
+        public bool LinearConforme { get; set; } = true;
+        public bool AltimetricoConforme { get; set; } = true;
+        public bool TodosChecksConformes => (Checks == null || Checks.TrueForAll(c => !c.ExcedeuDeltaXY && !c.ExcedeuDeltaZ)) && AngularConforme && LinearConforme && AltimetricoConforme;
     }
 
     public class EventoQACheck

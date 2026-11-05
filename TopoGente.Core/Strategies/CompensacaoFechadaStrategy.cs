@@ -25,7 +25,8 @@ namespace TopoGente.Core.Strategies
 
             int nEstacoes = entrada.Leituras.Count;
             double erroAngular = CalcularErroAngularFechada(entrada);
-            double toleranciaGraus = CalcularToleranciaAngularGraus(nEstacoes);
+            var tolerancias = entrada.Tolerancias ?? ParametrosTolerancia.Padrao;
+            double toleranciaGraus = tolerancias.CalcularToleranciaAngularGraus(nEstacoes);
 
             if (Ultrapassa(Math.Abs(erroAngular), toleranciaGraus, AngularEpsilonGraus))
             {
@@ -56,13 +57,13 @@ namespace TopoGente.Core.Strategies
             double erroLinearTotal = Math.Sqrt((erroX * erroX) + (erroY * erroY));
             double precisaoRelativa = elementos.PerimetroTotal > 0.0001 ? erroLinearTotal / elementos.PerimetroTotal : 0;
 
-            const double precisaoMinima = 1.0 / 12000.0;
+            double precisaoMinima = tolerancias.PrecisaoLinearMinima;
             if (Ultrapassa(precisaoRelativa, precisaoMinima, PrecisaoRelativaEpsilon))
             {
-                return ReprovarPorPrecisaoLinear(erroAngular, erroX, erroY, erroLinearTotal, precisaoRelativa, erroAltimetrico, entrada.PoligonalBruta);
+                return ReprovarPorPrecisaoLinear(erroAngular, erroX, erroY, erroLinearTotal, precisaoRelativa, erroAltimetrico, entrada.PoligonalBruta, tolerancias);
             }
 
-            double toleranciaAltimetrica = CalcularToleranciaAltimetrica(elementos.PerimetroTotal);
+            double toleranciaAltimetrica = tolerancias.CalcularToleranciaAltimetricaMetros(elementos.PerimetroTotal);
             if (Ultrapassa(Math.Abs(erroAltimetrico), toleranciaAltimetrica, PrecisaoRelativaEpsilon))
             {
                 return new ResultadoCompensacaoDTO
@@ -231,7 +232,8 @@ namespace TopoGente.Core.Strategies
             double erroLinearTotal,
             double precisaoRelativa,
             double erroAltimetrico,
-            List<PontoCoordenada> poligonalBruta)
+            List<PontoCoordenada> poligonalBruta,
+            ParametrosTolerancia tolerancias)
         {
             double denominadorPrecisao = precisaoRelativa > 0 ? (1.0 / precisaoRelativa) : 0.0;
             double denominadorArredondado = Math.Round(denominadorPrecisao, 0, MidpointRounding.AwayFromZero);
@@ -244,7 +246,7 @@ namespace TopoGente.Core.Strategies
                 PrecisaoRelativa = precisaoRelativa,
                 ErroAltimetrico = erroAltimetrico,
                 AprovadoNorma = false,
-                AlertaReprovacao = $"Precisão Linear (1:{denominadorArredondado}) inferior ao exigido (1:12000).",
+                AlertaReprovacao = $"Precisão Linear (1:{denominadorArredondado}) inferior ao exigido (1:{tolerancias.DenominadorPrecisaoLinear}).",
                 PoligonalCompensada = poligonalBruta
             };
         }

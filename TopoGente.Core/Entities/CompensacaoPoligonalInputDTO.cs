@@ -5,6 +5,7 @@ namespace TopoGente.Core.Entities
     public sealed record CompensacaoPoligonalInputDTO
     {
         public MetadadosCenario Metadados { get; init; } = new();
+        public ParametrosTolerancia Tolerancias { get; init; } = ParametrosTolerancia.Padrao;
 
         public PontoCoordenada PontoPartida { get; init; } = new();
         public PontoCoordenada PontoChegada { get; init; } = new(); 
