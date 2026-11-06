@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace TopoGente.Core.Entities
@@ -32,6 +32,13 @@ namespace TopoGente.Core.Entities
 
         public bool EhEsboco { get; set; }
 
-        public IReadOnlyList<string> Alertas { get; init; } = System.Array.Empty<string>();
+                public IReadOnlyList<string> Alertas { get; init; } = System.Array.Empty<string>();
+
+        /// <summary>
+        /// Laudo de discrepância da verificação de linha de base.
+        /// Preenchido quando o cenário for <see cref="TipoCenarioPoligonal.VerificacaoLinhaBase"/>
+        /// ou mediante execução do comando de verificação de linha de base.
+        /// </summary>
+        public LaudoDiscrepanciaLinhaBase? LaudoLinhaBase { get; init; }
     }
 }

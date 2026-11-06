@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using TopoGente.Core.Entities;
 
 namespace TopoGente.Core.Strategies
@@ -8,8 +8,9 @@ namespace TopoGente.Core.Strategies
         public ICompensacaoPoligonalStrategy Criar(TipoCenarioPoligonal tipoCenario)
             => tipoCenario switch
             {
-                TipoCenarioPoligonal.Enquadrada => new CompensacaoEnquadradaStrategy(),
-                TipoCenarioPoligonal.Fechada => new CompensacaoFechadaStrategy(),
+                TipoCenarioPoligonal.Enquadrada           => new CompensacaoEnquadradaStrategy(),
+                TipoCenarioPoligonal.Fechada              => new CompensacaoFechadaStrategy(),
+                TipoCenarioPoligonal.VerificacaoLinhaBase => new VerificacaoLinhaBaseStrategy(),
                 _ => throw new NotSupportedException($"Cenário '{tipoCenario}' não suportado.")
             };
     }

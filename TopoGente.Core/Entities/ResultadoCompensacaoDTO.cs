@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace TopoGente.Core.Entities
 {
@@ -13,5 +13,10 @@ namespace TopoGente.Core.Entities
         public bool AprovadoNorma { get; init; }
         public string AlertaReprovacao { get; init; } = string.Empty;
         public List<PontoCoordenada> PoligonalCompensada { get; init; } = new();
+        /// <summary>
+        /// Laudo de discrepância produzido pela <see cref="Strategies.VerificacaoLinhaBaseStrategy"/>.
+        /// Null para as demais estratégias (Bowditch / Enquadrada).
+        /// </summary>
+        public LaudoDiscrepanciaLinhaBase? LaudoLinhaBase { get; init; }
     }
 }

@@ -55,6 +55,13 @@ namespace TopoGente.UI.ViewModels
         PlantaGeral
     }
 
+    public enum ModoCalculoPoligonal
+    {
+        CompensacaoBowditch,
+        VerificacaoLinhaBase
+    }
+
+
     public partial class DashboardViewModel : ObservableObject,
 
         IRecipient<ResultadoMdtMensagem>,
@@ -1105,6 +1112,87 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
 
+        // === Modulo 3: Verificacao de Linha de Base ===
+
+        private ModoCalculoPoligonal _modoCalculo = ModoCalculoPoligonal.CompensacaoBowditch;
+        public ModoCalculoPoligonal ModoCalculo
+        {
+            get => _modoCalculo;
+            set
+            {
+                if (SetProperty(ref _modoCalculo, value))
+                {
+                    OnPropertyChanged(nameof(IsVerificacaoLinhaBaseAtiva));
+                    OnPropertyChanged(nameof(IsModoBowditchAtivo));
+                    OnPropertyChanged(nameof(IsModoLinhaBaseAtivo));
+                    OnPropertyChanged(nameof(LaudoLinhaBaseVisivel));
+
+                    if (value == ModoCalculoPoligonal.VerificacaoLinhaBase)
+                    {
+                        SugerirLinhaBasePreliminar();
+                    }
+
+                    // Apenas recalcula automaticamente se o levantamento já tiver sido compensado previamente pelo usuário
+                    if (_estacoesEmMemoria.Count > 0 && PodeProcessar() && 
+                        (EstadoAtualMotor == EstadoMotor.Compensado || EstadoAtualMotor == EstadoMotor.ReprovadoNorma))
+                    {
+                        _ = ProcessarAsync();
+                    }
+                }
+            }
+        }
+
+        public bool IsVerificacaoLinhaBaseAtiva => ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase;
+
+        public bool IsModoBowditchAtivo
+        {
+            get => ModoCalculo == ModoCalculoPoligonal.CompensacaoBowditch;
+            set
+            {
+                if (value) ModoCalculo = ModoCalculoPoligonal.CompensacaoBowditch;
+            }
+        }
+
+        public bool IsModoLinhaBaseAtivo
+        {
+            get => ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase;
+            set
+            {
+                if (value) ModoCalculo = ModoCalculoPoligonal.VerificacaoLinhaBase;
+            }
+        }
+
+        private string _pontoPartidaLinhaBase = string.Empty;
+        public string PontoPartidaLinhaBase
+        {
+            get => _pontoPartidaLinhaBase;
+            set => SetProperty(ref _pontoPartidaLinhaBase, value);
+        }
+
+        private string _pontoChegadaLinhaBase = string.Empty;
+        public string PontoChegadaLinhaBase
+        {
+            get => _pontoChegadaLinhaBase;
+            set => SetProperty(ref _pontoChegadaLinhaBase, value);
+        }
+
+        private LaudoDiscrepanciaLinhaBase? _laudoLinhaBase;
+        public LaudoDiscrepanciaLinhaBase? LaudoLinhaBase
+        {
+            get => _laudoLinhaBase;
+            set
+            {
+                if (SetProperty(ref _laudoLinhaBase, value))
+                {
+                    OnPropertyChanged(nameof(LaudoLinhaBaseVisivel));
+                }
+            }
+        }
+
+        public bool LaudoLinhaBaseVisivel => LaudoLinhaBase is not null && IsVerificacaoLinhaBaseAtiva;
+
+        public ICommand ExecutarVerificacaoLinhaBaseCommand { get; }
+
         // === Construtor ===
 
         public DashboardViewModel(
@@ -1211,6 +1299,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
             ExportarRelatorioQaCommand = new RelayCommand(_ => OnExportarRelatorioQa(), _ => RelatorioQaAtual != null);
 
             ZoomExtentsCommand = new RelayCommand(_ => ZoomExtents());
+            ExecutarVerificacaoLinhaBaseCommand = new AsyncRelayCommand(ExecutarVerificacaoLinhaBaseAsync);
 
             AplicarPresetModulo(WorkspaceModulo.Planimetria);
 
@@ -1394,6 +1483,11 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
                             Poligonais[0].UsarCoordenadaRe = false;
                             Poligonais[0].Azimute = leituraRe.AnguloHorizontal.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
                         }
+                    }
+
+                    if (ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase)
+                    {
+                        SugerirLinhaBasePreliminar();
                     }
 
                     // Geração preliminar de esboço bruto logo após importação
@@ -1637,6 +1731,20 @@ private async Task ProcessarAsync()
 
 
         var principal = sequencias.FirstOrDefault(p => p.EhPrincipal);
+        if (ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase && principal?.Metadados != null)
+        {
+            principal.Metadados.TipoCenario = TipoCenarioPoligonal.VerificacaoLinhaBase;
+            if (!string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+            {
+                principal.Metadados.NomeChegada = PontoChegadaLinhaBase;
+                if (ptosConhecidos.TryGetValue(PontoChegadaLinhaBase, out var ptChegada))
+                {
+                    principal.Metadados.ChegadaX = ptChegada.X;
+                    principal.Metadados.ChegadaY = ptChegada.Y;
+                    principal.Metadados.ChegadaZ = ptChegada.Z;
+                }
+            }
+        }
 
         
 
@@ -1669,6 +1777,7 @@ private async Task ProcessarAsync()
         // 4. Armazenamento do Estado de Cálculo e Atualização das Propriedades Reativas
 
         _resultadoAtual = resultado;
+        LaudoLinhaBase = ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase ? resultado.LaudoLinhaBase : null;
         OnPropertyChanged(nameof(TotalPontos));
 
         relatorio.ErroAngular = resultado.ErroAngular;
@@ -1926,9 +2035,9 @@ private async Task ProcessarAsync()
 
             _messageService.MostrarAviso(
 
-                $@"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{string.Join("\n", resultado.Alertas ?? [])}\n\n" +
+                $"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{string.Join("\n", resultado.Alertas ?? [])}\n\n" +
 
-                "As coordenadas calculadas são puramente brutos e improprias para uso cartográfico legal.", 
+                "As coordenadas calculadas são brutas e impróprias para uso cartográfico legal.", 
 
                 "Falha de Tolerância"
 
@@ -1949,6 +2058,7 @@ private async Task ProcessarAsync()
             // Dispara regeneração assíncrona do Modelo MDT e Curvas de Nível (Tinfour.NET)
 
             await RenderizarTinDeResultadoAsync(resultado);
+            AutodetectarLinhaBase();
 
 
 
@@ -2555,6 +2665,200 @@ private async Task OnRowEditEndingAsync(object? args)
         
 
 
+
+        // === Modulo 3: Verificacao de Linha de Base ===
+
+        public void SugerirLinhaBasePreliminar()
+        {
+            if (!string.IsNullOrWhiteSpace(PontoPartidaLinhaBase) && !string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+                return;
+
+            var principal = Poligonais.FirstOrDefault(p => p.EhPrincipal) ?? Poligonais.FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase))
+            {
+                PontoPartidaLinhaBase = principal?.Estacoes.FirstOrDefault() 
+                    ?? _estacoesEmMemoria.FirstOrDefault()?.Nome 
+                    ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+            {
+                if (!string.IsNullOrWhiteSpace(principal?.NomeRe))
+                {
+                    PontoChegadaLinhaBase = principal.NomeRe;
+                }
+                else if (_estacoesEmMemoria.Count > 0)
+                {
+                    var primeiraEstacao = _estacoesEmMemoria[0];
+                    var leituraRe = primeiraEstacao.Leituras.FirstOrDefault(l => string.Equals(l.Purpose, "re", StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrWhiteSpace(leituraRe?.PontoVisado))
+                    {
+                        PontoChegadaLinhaBase = leituraRe.PontoVisado;
+                    }
+                    else if (_pontosConhecidosGlobais != null)
+                    {
+                        var outroPontoConhecido = _pontosConhecidosGlobais.Keys.FirstOrDefault(k => !string.Equals(k, PontoPartidaLinhaBase, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrWhiteSpace(outroPontoConhecido))
+                        {
+                            PontoChegadaLinhaBase = outroPontoConhecido;
+                        }
+                    }
+                }
+            }
+        }
+
+        public void AutodetectarLinhaBase()
+        {
+            if (_resultadoAtual == null)
+            {
+                SugerirLinhaBasePreliminar();
+                return;
+            }
+
+            var poligonal = _resultadoAtual.Poligonal ?? _resultadoAtual.PoligonalBruta;
+            if (poligonal == null || poligonal.Count < 2)
+            {
+                SugerirLinhaBasePreliminar();
+                return;
+            }
+
+            var primeiro = poligonal[0];
+            var ultimo = poligonal[^1];
+
+            if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase))
+                PontoPartidaLinhaBase = primeiro.Nome ?? string.Empty;
+
+            // Se for poligonal fechada (onde primeiro == ultimo), prioriza a ré de controle conhecida
+            if (string.Equals(primeiro.Nome, ultimo.Nome, StringComparison.OrdinalIgnoreCase))
+            {
+                var principal = Poligonais.FirstOrDefault(p => p.EhPrincipal) ?? Poligonais.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(principal?.NomeRe))
+                {
+                    if (string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+                        PontoChegadaLinhaBase = principal.NomeRe;
+                    return;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+                PontoChegadaLinhaBase = ultimo.Nome ?? string.Empty;
+        }
+
+        public async Task ExecutarVerificacaoLinhaBaseAsync()
+        {
+            if (_resultadoAtual == null)
+            {
+                if (PodeProcessar())
+                {
+                    await ProcessarAsync();
+                    return;
+                }
+                _messageService.MostrarAviso("Execute o processamento da poligonal antes de verificar a linha de base.", "Dados Insuficientes");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase) || string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+            {
+                AutodetectarLinhaBase();
+                if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase) || string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+                {
+                    _messageService.MostrarAviso("Informe o ponto de partida e o ponto de chegada da linha de base.", "Dados Insuficientes");
+                    return;
+                }
+            }
+
+            var ptosConhecidos = _pontosConhecidosGlobais != null
+                ? new Dictionary<string, PontoCoordenada>(_pontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
+
+            if (_resultadoAtual.TodosOsPontos != null)
+            {
+                foreach (var p in _resultadoAtual.TodosOsPontos.Where(p => !string.IsNullOrWhiteSpace(p.Nome)))
+                {
+                    if (!ptosConhecidos.ContainsKey(p.Nome!))
+                        ptosConhecidos[p.Nome!] = p;
+                }
+            }
+
+            if (!ptosConhecidos.TryGetValue(PontoPartidaLinhaBase, out var ptPartida))
+            {
+                _messageService.MostrarAviso($"Ponto de partida '{PontoPartidaLinhaBase}' não encontrado nos pontos conhecidos.", "Ponto não localizado");
+                return;
+            }
+
+            if (!ptosConhecidos.TryGetValue(PontoChegadaLinhaBase, out var ptChegada))
+            {
+                _messageService.MostrarAviso($"Ponto de chegada '{PontoChegadaLinhaBase}' não encontrado nos pontos conhecidos.", "Ponto não localizado");
+                return;
+            }
+
+            try
+            {
+                var factory = new TopoGente.Core.Strategies.CompensacaoStrategyFactory();
+                var strategy = factory.Criar(TipoCenarioPoligonal.VerificacaoLinhaBase);
+
+                var sequencias = Poligonais.Select(p => p.ToEntity()).ToList();
+                var principal = sequencias.FirstOrDefault(p => p.EhPrincipal) ?? sequencias.FirstOrDefault();
+
+                var todasLeituras = _estacoesEmMemoria.SelectMany(e => e.Leituras).ToList();
+                var leiturasPoligonal = todasLeituras.Where(l => l.Tipo == TipoLeitura.Poligonal).ToList();
+
+                var input = new CompensacaoPoligonalInputDTO
+                { 
+                    PontoPartida = ptPartida,
+                    PontoChegada = ptChegada,
+                    Tolerancias = ToleranciasAtuais,
+                    PoligonalBruta = _resultadoAtual.PoligonalBruta != null ? _resultadoAtual.PoligonalBruta.ToList() : new List<PontoCoordenada>(),
+                    AzimuteInicial = principal?.Metadados?.AzimutePartida ?? ptPartida.AzimuteChegada,
+                    AzimuteChegada = principal?.Metadados?.AzimuteChegada,
+                    Leituras = leiturasPoligonal,
+                    Metadados = new MetadadosCenario
+                    {
+                        TipoCenario = TipoCenarioPoligonal.VerificacaoLinhaBase,
+                        PartidaX = ptPartida.X,
+                        PartidaY = ptPartida.Y,
+                        PartidaZ = ptPartida.Z,
+                        ChegadaX = ptChegada.X,
+                        ChegadaY = ptChegada.Y,
+                        ChegadaZ = ptChegada.Z,
+                        NomeChegada = ptChegada.Nome,
+                        Tolerancias = ToleranciasAtuais
+                    }
+                };
+
+                var resultado = await Task.Run(() => strategy.Compensar(input));
+
+                LaudoLinhaBase = resultado.LaudoLinhaBase;
+                ModoCalculo = ModoCalculoPoligonal.VerificacaoLinhaBase;
+
+                var laudo = resultado.LaudoLinhaBase;
+                string msgLinear = laudo != null ? laudo.ErroLinearFormatado : $"{resultado.ErroLinearTotal * 1000.0:F1} mm";
+                string msgAngular = laudo != null ? laudo.ErroAngularFormatado : $"{Math.Abs(resultado.ErroAngular) * 3600.0:F1}\"";
+                string msgPrecisao = laudo != null ? laudo.PrecisaoRelativaFormatada : "1 : 0";
+
+                if (resultado.AprovadoNorma)
+                {
+                    _messageService.MostrarSucesso(
+                        $"Linha de Base APROVADA (NBR 13.133):\n\n" +
+                        $"Base: {PontoPartidaLinhaBase} -> {PontoChegadaLinhaBase}\n" +
+                        $"Discrepância Linear: {msgLinear}\n" +
+                        $"Discrepância Angular: {msgAngular}\n" +
+                        $"Precisão: {msgPrecisao}",
+                        "Verificação de Linha de Base");
+                }
+                else
+                {
+                    _messageService.MostrarAviso(
+                        $"Linha de Base REPROVADA:\n\n{resultado.AlertaReprovacao}",
+                        "Verificação de Linha de Base");
+                }
+            }
+            catch (Exception ex)
+            {
+                _messageService.MostrarErro($"Erro na verificação de linha de base:\n{ex.Message}", "Falha");
+            }
+        }
 
         // === IDisposable ===
 

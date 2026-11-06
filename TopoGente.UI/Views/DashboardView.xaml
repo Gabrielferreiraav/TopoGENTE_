@@ -498,6 +498,52 @@
 
 
 
+                            
+                            <!-- SELETOR GLOBAL DE MODO DE CÁLCULO (MÓDULO 3) -->
+                            <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Estratégia de Cálculo Topográfico:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,6"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="Compensação Bowditch" 
+                                                     IsChecked="{Binding IsModoBowditchAtivo, Mode=TwoWay}" 
+                                                     FontWeight="SemiBold" FontSize="11" Margin="0,0,14,0" 
+                                                     ToolTip="Distribuição proporcional dos erros angular e linear nos vértices intermediários."/>
+                                        <RadioButton Content="Verificação de Linha de Base" 
+                                                     IsChecked="{Binding IsModoLinhaBaseAtivo, Mode=TwoWay}" 
+                                                     FontWeight="SemiBold" FontSize="11" Foreground="#60A5FA"
+                                                     ToolTip="Transporte analítico direto sem compensação proporcional, confrontando as coordenadas com o vértice de controle geodésico."/>
+                                    </StackPanel>
+
+                                    <!-- SUB-PAINEL DE PARÂMETROS DA LINHA DE BASE -->
+                                    <Border Visibility="{Binding IsVerificacaoLinhaBaseAtiva, Converter={StaticResource BooleanToVisibilityConverter}}" 
+                                            Background="#1E293B" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Parâmetros de Confronto da Base (Controle Geodésico)" FontWeight="Bold" FontSize="10" Foreground="#93C5FD" Margin="0,0,0,6"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Estação Partida:" FontSize="9" Foreground="#94A3B8" Margin="0,0,0,2"/>
+                                                    <TextBox Text="{Binding PontoPartidaLinhaBase, UpdateSourceTrigger=PropertyChanged}" FontSize="11" VerticalContentAlignment="Center" Padding="4,2"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Ponto Referência / Ré:" FontSize="9" Foreground="#94A3B8" Margin="0,0,0,2"/>
+                                                    <TextBox Text="{Binding PontoChegadaLinhaBase, UpdateSourceTrigger=PropertyChanged}" FontSize="11" VerticalContentAlignment="Center" Padding="4,2"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="4" VerticalAlignment="Bottom" Height="28" Padding="10,0" FontSize="11"
+                                                        Content="Re-checar" Command="{Binding ExecutarVerificacaoLinhaBaseCommand}"
+                                                        ToolTip="Recalcula as discrepâncias de linha de base com os pontos selecionados."/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- EXPANDER DE TOLERÂNCIAS NBR 13.133 -->
 
                             <Expander Header="Parâmetros de Tolerância (NBR 13.133)" 
@@ -652,9 +698,9 @@
 
 
 
-                            <!-- FECHAMENTOS E CONFORMIDADE -->
-
-                            <TextBlock Text="Erros de Fechamento e Admissíveis" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,6"/>
+                            <!-- FECHAMENTOS E CONFORMIDADE (MODO BOWDITCH) -->
+                            <StackPanel Visibility="{Binding IsModoBowditchAtivo, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="Erros de Fechamento e Admissíveis (Bowditch)" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,6"/>
 
                             <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,12">
 
@@ -815,8 +861,121 @@
                                 </Grid>
 
                             </Border>
+                            </StackPanel>
 
+                            <!-- LAUDO DE DISCREPÂNCIA DE LINHA DE BASE (MÓDULO 3) -->
+                            <StackPanel Visibility="{Binding IsVerificacaoLinhaBaseAtiva, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,12">
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="Laudo de Discrepância de Linha de Base" FontWeight="Bold" Foreground="#60A5FA"/>
+                                    <Border DockPanel.Dock="Right" CornerRadius="3" Padding="6,2" HorizontalAlignment="Right">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#064E3B"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LaudoLinhaBase.Aprovado}" Value="False">
+                                                        <Setter Property="Background" Value="#7F1D1D"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding LaudoLinhaBase}" Value="{x:Null}">
+                                                        <Setter Property="Background" Value="#334155"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontWeight="Bold" FontSize="10">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="APROVADO"/>
+                                                    <Setter Property="Foreground" Value="#34D399"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding LaudoLinhaBase.Aprovado}" Value="False">
+                                                            <Setter Property="Text" Value="REPROVADO"/>
+                                                            <Setter Property="Foreground" Value="#F87171"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding LaudoLinhaBase}" Value="{x:Null}">
+                                                            <Setter Property="Text" Value="AGUARDANDO CÁLCULO"/>
+                                                            <Setter Property="Foreground" Value="#94A3B8"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </DockPanel>
 
+                                <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="4" Padding="10">
+                                    <StackPanel>
+                                        <!-- Identificação da Base e Distância Teórica -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" FontSize="11" Foreground="#E2E8F0">
+                                                <Run Text="Vetor Base: " Foreground="#94A3B8"/>
+                                                <Run Text="{Binding LaudoLinhaBase.NomePontoPartida, Mode=OneWay, FallbackValue='--'}" FontWeight="Bold" Foreground="#38BDF8"/>
+                                                <Run Text=" → " Foreground="#64748B"/>
+                                                <Run Text="{Binding LaudoLinhaBase.NomePontoChegada, Mode=OneWay, FallbackValue='--'}" FontWeight="Bold" Foreground="#38BDF8"/>
+                                            </TextBlock>
+                                            <TextBlock Grid.Column="1" FontSize="11" Foreground="#E2E8F0">
+                                                <Run Text="Dist. Teórica: " Foreground="#94A3B8"/>
+                                                <Run Text="{Binding LaudoLinhaBase.DistanciaTeórica, Mode=OneWay, StringFormat='{}{0:F3} m', FallbackValue='--'}" FontWeight="Bold"/>
+                                            </TextBlock>
+                                        </Grid>
+
+                                        <Separator Background="#22FFFFFF" Margin="0,0,0,8"/>
+
+                                        <!-- Grid de Métricas Principais -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Erro Linear Total -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Erro Linear Total (el):" FontSize="10" Foreground="#94A3B8" Margin="0,2"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" FontSize="10" Margin="0,2">
+                                                <Run Text="{Binding LaudoLinhaBase.ErroLinearFormatado, Mode=OneWay, FallbackValue='--'}" FontWeight="Bold" Foreground="#F59E0B"/>
+                                                <Run Text=" / Tol: " Foreground="#64748B"/>
+                                                <Run Text="{Binding LaudoLinhaBase.ToleranciaLinearMm, Mode=OneWay, StringFormat='{}{0:F1} mm', FallbackValue='--'}" Foreground="#60A5FA"/>
+                                            </TextBlock>
+
+                                            <!-- Precisão Relativa -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Precisão Relativa (1/P):" FontSize="10" Foreground="#94A3B8" Margin="0,2"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" FontSize="10" FontWeight="Bold" Foreground="#38BDF8" Margin="0,2"
+                                                       Text="{Binding LaudoLinhaBase.PrecisaoRelativaFormatada, Mode=OneWay, FallbackValue='--'}"/>
+
+                                            <!-- Erro Angular -->
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Erro Angular (ea):" FontSize="10" Foreground="#94A3B8" Margin="0,2"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" FontSize="10" Margin="0,2">
+                                                <Run Text="{Binding LaudoLinhaBase.ErroAngularFormatado, Mode=OneWay, FallbackValue='--'}" FontWeight="Bold"/>
+                                                <Run Text=" / Tol: " Foreground="#64748B"/>
+                                                <Run Text="{Binding LaudoLinhaBase.ToleranciaAngularSegundos, Mode=OneWay, StringFormat='{}{0:F1}&quot;', FallbackValue='--'}" Foreground="#60A5FA"/>
+                                            </TextBlock>
+
+                                            <!-- Discrepâncias Cartesianas ΔE, ΔN, ΔZ -->
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Componentes (ΔE, ΔN):" FontSize="10" Foreground="#94A3B8" Margin="0,2"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" FontSize="10" Margin="0,2">
+                                                <Run Text="ΔE: " Foreground="#64748B"/>
+                                                <Run Text="{Binding LaudoLinhaBase.DeltaEsteMmFormatado, Mode=OneWay, FallbackValue='--'}" FontWeight="SemiBold"/>
+                                                <Run Text=" | ΔN: " Foreground="#64748B"/>
+                                                <Run Text="{Binding LaudoLinhaBase.DeltaNorteMmFormatado, Mode=OneWay, FallbackValue='--'}" FontWeight="SemiBold"/>
+                                            </TextBlock>
+
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Discrepância Cota (ΔZ):" FontSize="10" Foreground="#94A3B8" Margin="0,2"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" FontSize="10" Margin="0,2">
+                                                <Run Text="{Binding LaudoLinhaBase.DeltaZMmFormatado, Mode=OneWay, FallbackValue='--'}" FontWeight="SemiBold"/>
+                                            </TextBlock>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
 
                             <TextBlock Text="Inspeção de Checkpoints / Visadas de Checagem" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,4"/>
 

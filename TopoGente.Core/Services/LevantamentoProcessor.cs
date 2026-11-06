@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
@@ -174,7 +174,8 @@ namespace TopoGente.Core.Services
                 ErroFechamentoY = resultadoPrincipal.ErroFechamentoY,
                 ErroFechamentoZ = resultadoPrincipal.ErroFechamentoZ,
                 Perimetro = resultadoPrincipal.Perimetro,
-                TipoCenario = resultadoPrincipal.TipoCenario
+                TipoCenario = resultadoPrincipal.TipoCenario,
+                LaudoLinhaBase = resultadoPrincipal.LaudoLinhaBase
             };
         }
 
@@ -326,11 +327,33 @@ namespace TopoGente.Core.Services
                 anguloFechamento = leiturasRe.LastOrDefault()?.AnguloHorizontal ?? 0;
             }
 
+            PontoCoordenada pontoChegada = pontoPartida;
+            if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Enquadrada ||
+                metadadosAtuais.TipoCenario == TipoCenarioPoligonal.VerificacaoLinhaBase)
+            {
+                if (metadadosAtuais.ChegadaX.HasValue && metadadosAtuais.ChegadaY.HasValue && metadadosAtuais.ChegadaZ.HasValue)
+                {
+                    pontoChegada = new PontoCoordenada
+                    {
+                        Nome = metadadosAtuais.NomeChegada ?? "Chegada",
+                        X = metadadosAtuais.ChegadaX.Value,
+                        Y = metadadosAtuais.ChegadaY.Value,
+                        Z = metadadosAtuais.ChegadaZ.Value,
+                        EhPontoPoligonal = true
+                    };
+                }
+                else if (!string.IsNullOrWhiteSpace(metadadosAtuais.NomeChegada) &&
+                         pontosConhecidos.TryGetValue(metadadosAtuais.NomeChegada, out var ptConhecidoChegada))
+                {
+                    pontoChegada = ptConhecidoChegada;
+                }
+            }
+
             var entrada = new CompensacaoPoligonalInputDTO
             {
                 Metadados = metadadosAtuais,
                 PontoPartida = pontoPartida,
-                PontoChegada = pontoPartida,
+                PontoChegada = pontoChegada,
                 AzimuteInicial = pontoPartida.AzimuteChegada,
                 AzimuteChegada = metadadosAtuais.AzimuteChegada,
                 AnguloFechamento = anguloFechamento,
@@ -360,7 +383,8 @@ namespace TopoGente.Core.Services
                 ErroFechamentoY = compensacao.ErroY,
                 ErroFechamentoZ = compensacao.ErroAltimetrico,
                 Perimetro = perimetro,
-                TipoCenario = metadadosAtuais.TipoCenario
+                TipoCenario = metadadosAtuais.TipoCenario,
+                LaudoLinhaBase = compensacao.LaudoLinhaBase
             };
         }
 

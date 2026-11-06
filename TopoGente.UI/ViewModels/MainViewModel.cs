@@ -365,7 +365,7 @@ namespace TopoGente.UI.ViewModels
                 else if (!_resultadoAtual.AprovadoNorma)
                 {
                     string erros = string.Join("\n", _resultadoAtual.Alertas);
-                    _messageService.MostrarErro($"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{erros}\n\nA compensação foi abortada. As coordenadas exibidas são puramente BRUTAS e impróprias para uso final.", "Falha de Tolerância");
+                    _messageService.MostrarErro($"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{erros}\n\nA compensação foi abortada. As coordenadas exibidas são brutas e impróprias para uso final.", "Falha de Tolerância");
                 }
                 else
                 {

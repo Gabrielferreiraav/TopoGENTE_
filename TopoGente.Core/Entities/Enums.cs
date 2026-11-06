@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -34,6 +34,13 @@ namespace TopoGente.Core.Entities
         // <summary> Poligonal fechada : fechamento automático entre o último ponto e o primeiro ponto</summary>
         Fechada,
         //<summary> Poligonal aberta : sem fechamento , apenas ponto de partida e orientação inicial</summary>
-        AbertaOrientada
+        AbertaOrientada,
+        /// <summary>
+        /// Verificação de Linha de Base: transporte analítico direto entre dois pontos
+        /// de coordenadas conhecidas, sem compensação Bowditch.
+        /// Produz um <see cref="LaudoDiscrepanciaLinhaBase"/> confrontando as coordenadas
+        /// calculadas com as coordenadas teóricas do ponto de chegada.
+        /// </summary>
+        VerificacaoLinhaBase
     }
 }
