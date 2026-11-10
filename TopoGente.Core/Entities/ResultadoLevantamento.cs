@@ -1,5 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
+using TopoGente.Core.Entities.Pericia;
 
 namespace TopoGente.Core.Entities
 {
@@ -40,5 +41,10 @@ namespace TopoGente.Core.Entities
         /// ou mediante execução do comando de verificação de linha de base.
         /// </summary>
         public LaudoDiscrepanciaLinhaBase? LaudoLinhaBase { get; init; }
+
+        /// <summary>
+        /// Trilha pericial completa de auditoria topológica, lances geométricos e rateio do levantamento.
+        /// </summary>
+        public MemorialRastreabilidadePericial? Memorial { get; init; }
     }
 }

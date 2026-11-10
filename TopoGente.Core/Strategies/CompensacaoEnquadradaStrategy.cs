@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Entities.Pericia;
 using TopoGente.Core.Utilities;
 
 namespace TopoGente.Core.Strategies
@@ -19,7 +20,17 @@ namespace TopoGente.Core.Strategies
                 {
                     AprovadoNorma = false,
                     AlertaReprovacao = "Nenhuma leitura fornecida. Compensação não realizada.",
-                    PoligonalCompensada = new List<PontoCoordenada> { entrada.PontoPartida }
+                    PoligonalCompensada = new List<PontoCoordenada> { entrada.PontoPartida },
+                    Memorial = new MemorialRastreabilidadePericial
+                    {
+                        Ajustamento = new MemoriaAjustamentoDto
+                        {
+                            Tipo = TipoEstrategiaAjustamento.SemAjustamento,
+                            AngularAprovado = false,
+                            LinearAprovado = false,
+                            AltimetricoAprovado = false
+                        }
+                    }
                 };
             }
 
@@ -30,7 +41,17 @@ namespace TopoGente.Core.Strategies
                 {
                     AprovadoNorma = false,
                     AlertaReprovacao = "Poligonal enquadrada exige coordenadas de chegada (X, Y, Z).",
-                    PoligonalCompensada = new List<PontoCoordenada> { entrada.PontoPartida }
+                    PoligonalCompensada = new List<PontoCoordenada> { entrada.PontoPartida },
+                    Memorial = new MemorialRastreabilidadePericial
+                    {
+                        Ajustamento = new MemoriaAjustamentoDto
+                        {
+                            Tipo = TipoEstrategiaAjustamento.SemAjustamento,
+                            AngularAprovado = false,
+                            LinearAprovado = false,
+                            AltimetricoAprovado = false
+                        }
+                    }
                 };
             }
 
@@ -41,7 +62,17 @@ namespace TopoGente.Core.Strategies
                 {
                     AprovadoNorma = false,
                     AlertaReprovacao = "Poligonal bruta ausente. Compensação não realizada.",
-                    PoligonalCompensada = new List<PontoCoordenada> { entrada.PontoPartida }
+                    PoligonalCompensada = new List<PontoCoordenada> { entrada.PontoPartida },
+                    Memorial = new MemorialRastreabilidadePericial
+                    {
+                        Ajustamento = new MemoriaAjustamentoDto
+                        {
+                            Tipo = TipoEstrategiaAjustamento.SemAjustamento,
+                            AngularAprovado = false,
+                            LinearAprovado = false,
+                            AltimetricoAprovado = false
+                        }
+                    }
                 };
             }
 
@@ -56,6 +87,20 @@ namespace TopoGente.Core.Strategies
                 double erroYAngular = poligonalBruta[^1].Y - pontoChegada.Y;
                 double erroLinearAngular = Math.Sqrt((erroXAngular * erroXAngular) + (erroYAngular * erroYAngular));
 
+                var memorialLances = CriarMemorialLances(entrada);
+                var rateiosNulos = CriarRateioNulo(entrada);
+                var memoriaAjuste = CriarMemoriaAjustamento(
+                    TipoEstrategiaAjustamento.PoligonalEnquadrada,
+                    erroAngular,
+                    erroLinearAngular,
+                    0,
+                    0,
+                    nEstacoes,
+                    memorialLances.PerimetroTotal,
+                    tolerancias,
+                    rateiosNulos,
+                    aprovadoGeral: false);
+
                 return new ResultadoCompensacaoDTO
                 {
                     ErroAngular = erroAngular,
@@ -66,7 +111,12 @@ namespace TopoGente.Core.Strategies
                     ErroAltimetrico = 0,
                     AprovadoNorma = false,
                     AlertaReprovacao = $"Erro Angular ({erroAngular:F4}°) superou a tolerância da NBR 13.133 ({toleranciaGraus:F4}°).",
-                    PoligonalCompensada = poligonalBruta
+                    PoligonalCompensada = poligonalBruta,
+                    Memorial = new MemorialRastreabilidadePericial
+                    {
+                        Lances = memorialLances,
+                        Ajustamento = memoriaAjuste
+                    }
                 };
             }
 
@@ -83,15 +133,48 @@ namespace TopoGente.Core.Strategies
             double erroLinearTotal = Math.Sqrt((erroX * erroX) + (erroY * erroY));
             double precisaoRelativa = elementos.PerimetroTotal > 0.0001 ? erroLinearTotal / elementos.PerimetroTotal : 0;
 
-            double precisaoMinima = tolerancias.PrecisaoLinearMinima;
-            if (Ultrapassa(precisaoRelativa, precisaoMinima, PrecisaoRelativaEpsilon))
+            if (!tolerancias.AvaliarConformidadeLinear(erroLinearTotal, elementos.PerimetroTotal).AprovadoGeral)
             {
-                return ReprovarPorPrecisaoLinear(erroAngular, erroX, erroY, erroLinearTotal, precisaoRelativa, erroAltimetrico, poligonalBruta, tolerancias);
+                var memorialLances = CriarMemorialLances(entrada, elementos);
+                var rateiosNulos = CriarRateioNulo(entrada);
+                var memoriaAjuste = CriarMemoriaAjustamento(
+                    TipoEstrategiaAjustamento.PoligonalEnquadrada,
+                    erroAngular,
+                    erroLinearTotal,
+                    erroAltimetrico,
+                    precisaoRelativa,
+                    nEstacoes,
+                    elementos.PerimetroTotal,
+                    tolerancias,
+                    rateiosNulos,
+                    aprovadoGeral: false);
+
+                var dtoReprovado = ReprovarPorPrecisaoLinear(erroAngular, erroX, erroY, erroLinearTotal, precisaoRelativa, erroAltimetrico, poligonalBruta, tolerancias);
+                dtoReprovado.Memorial = new MemorialRastreabilidadePericial
+                {
+                    Lances = memorialLances,
+                    Ajustamento = memoriaAjuste
+                };
+                return dtoReprovado;
             }
 
             double toleranciaAltimetrica = tolerancias.CalcularToleranciaAltimetricaMetros(elementos.PerimetroTotal);
             if (Ultrapassa(Math.Abs(erroAltimetrico), toleranciaAltimetrica, PrecisaoRelativaEpsilon))
             {
+                var memorialLances = CriarMemorialLances(entrada, elementos);
+                var rateiosNulos = CriarRateioNulo(entrada);
+                var memoriaAjuste = CriarMemoriaAjustamento(
+                    TipoEstrategiaAjustamento.PoligonalEnquadrada,
+                    erroAngular,
+                    erroLinearTotal,
+                    erroAltimetrico,
+                    precisaoRelativa,
+                    nEstacoes,
+                    elementos.PerimetroTotal,
+                    tolerancias,
+                    rateiosNulos,
+                    aprovadoGeral: false);
+
                 return new ResultadoCompensacaoDTO
                 {
                     ErroAngular = erroAngular,
@@ -102,11 +185,29 @@ namespace TopoGente.Core.Strategies
                     ErroAltimetrico = erroAltimetrico,
                     AprovadoNorma = false,
                     AlertaReprovacao = $"Erro Altimétrico ({Math.Abs(erroAltimetrico):F4} m) superou a tolerância da NBR 13.133 ({toleranciaAltimetrica:F4} m).",
-                    PoligonalCompensada = poligonalBruta
+                    PoligonalCompensada = poligonalBruta,
+                    Memorial = new MemorialRastreabilidadePericial
+                    {
+                        Lances = memorialLances,
+                        Ajustamento = memoriaAjuste
+                    }
                 };
             }
 
             var poligonalCompensada = ConstruirPoligonalCompensada(entrada, azimutesCompensados, elementos, erroX, erroY, erroAltimetrico);
+            var memorialLancesAprovado = CriarMemorialLances(entrada, elementos);
+            var rateiosAprovados = CriarRateioVertices(entrada, poligonalCompensada, elementos);
+            var memoriaAjusteAprovado = CriarMemoriaAjustamento(
+                TipoEstrategiaAjustamento.PoligonalEnquadrada,
+                erroAngular,
+                erroLinearTotal,
+                erroAltimetrico,
+                precisaoRelativa,
+                nEstacoes,
+                elementos.PerimetroTotal,
+                tolerancias,
+                rateiosAprovados,
+                aprovadoGeral: true);
 
             return new ResultadoCompensacaoDTO
             {
@@ -118,7 +219,12 @@ namespace TopoGente.Core.Strategies
                 ErroAltimetrico = erroAltimetrico,
                 AprovadoNorma = true,
                 AlertaReprovacao = string.Empty,
-                PoligonalCompensada = poligonalCompensada
+                PoligonalCompensada = poligonalCompensada,
+                Memorial = new MemorialRastreabilidadePericial
+                {
+                    Lances = memorialLancesAprovado,
+                    Ajustamento = memoriaAjusteAprovado
+                }
             };
         }
 
@@ -306,11 +412,188 @@ namespace TopoGente.Core.Strategies
             };
         }
 
-        private static double CalcularToleranciaAngularGraus(int nEstacoes)
-            => ((3 * PrecisaoEquipamentoSegundos * Math.Sqrt(nEstacoes)) + 10) / 3600.0;
+        private static MemorialLancesDto CriarMemorialLances(
+            CompensacaoPoligonalInputDTO entrada,
+            ElementosPoligonal? elementos = null)
+        {
+            var lances = new List<PassoLanceGeometricoDto>();
+            var poligonalBruta = entrada.PoligonalBruta;
+            if (poligonalBruta == null || poligonalBruta.Count < 2 || entrada.Leituras == null)
+            {
+                return new MemorialLancesDto();
+            }
 
-        private static double CalcularToleranciaAltimetrica(double perimetroTotal)
-            => 0.15 * Math.Sqrt(perimetroTotal / 1000.0);
+            double perimetroTotal = 0;
+
+            for (int i = 0; i < entrada.Leituras.Count; i++)
+            {
+                var leitura = entrada.Leituras[i];
+                var verticeOrigem = poligonalBruta[i];
+                var verticeVante = poligonalBruta[i + 1];
+
+                double dh = elementos?.DistanciasHorizontais[i]
+                    ?? GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                double dn = elementos?.Desniveis[i]
+                    ?? GeometriaTopograficaHelper.CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical, leitura.AlturaInstrumento, leitura.AlturaPrisma);
+
+                perimetroTotal += dh;
+
+                string pontoRe = (i == 0)
+                    ? (entrada.Metadados?.NomeRe ?? "RÉ")
+                    : poligonalBruta[i - 1].Nome;
+
+                double azimuteRe = (i == 0)
+                    ? GeometriaTopograficaHelper.Normalizar360(entrada.AzimuteInicial + 180.0)
+                    : GeometriaTopograficaHelper.Normalizar360(poligonalBruta[i].AzimuteChegada + 180.0);
+
+                double azimuteVante = verticeVante.AzimuteChegada;
+
+                lances.Add(new PassoLanceGeometricoDto
+                {
+                    OrdemLance = i + 1,
+                    EstacaoOrigem = verticeOrigem.Nome,
+                    PontoRe = pontoRe,
+                    EstacaoVante = verticeVante.Nome,
+
+                    AnguloHzGraus = leitura.AnguloHorizontal,
+                    AnguloVGraus = leitura.AnguloVertical,
+                    DistanciaInclinada = leitura.DistanciaInclinada,
+                    AlturaInstrumento = leitura.AlturaInstrumento,
+                    AlturaAlvo = leitura.AlturaPrisma,
+
+                    DistanciaHorizontal = dh,
+                    DeltaZ = dn,
+
+                    AzimuteReGraus = azimuteRe,
+                    AzimuteVanteGraus = azimuteVante,
+
+                    DeltaEBruto = verticeVante.X - verticeOrigem.X,
+                    DeltaNBruto = verticeVante.Y - verticeOrigem.Y,
+
+                    CoordenadaEBruta = verticeVante.X,
+                    CoordenadaNBruta = verticeVante.Y,
+                    CoordenadaZBruta = verticeVante.Z
+                });
+            }
+
+            return new MemorialLancesDto
+            {
+                Lances = lances,
+                PerimetroTotal = perimetroTotal
+            };
+        }
+
+        private static IReadOnlyList<MemoriaRateioVerticeDto> CriarRateioVertices(
+            CompensacaoPoligonalInputDTO entrada,
+            List<PontoCoordenada> poligonalCompensada,
+            ElementosPoligonal elementos)
+        {
+            var rateios = new List<MemoriaRateioVerticeDto>();
+            var poligonalBruta = entrada.PoligonalBruta;
+
+            rateios.Add(new MemoriaRateioVerticeDto
+            {
+                NomeVertice = entrada.PontoPartida.Nome,
+                DistanciaAcumulada = 0.0,
+                CorrecaoEMilimetros = 0.0,
+                CorrecaoNMilimetros = 0.0,
+                CorrecaoZMilimetros = 0.0,
+                CoordenadaECompensada = entrada.PontoPartida.X,
+                CoordenadaNCompensada = entrada.PontoPartida.Y,
+                CoordenadaZCompensada = entrada.PontoPartida.Z
+            });
+
+            double distAcumulada = 0.0;
+            for (int i = 0; i < entrada.Leituras.Count; i++)
+            {
+                distAcumulada += elementos.DistanciasHorizontais[i];
+                var pComp = poligonalCompensada[i + 1];
+                var pBruto = (poligonalBruta != null && i + 1 < poligonalBruta.Count) ? poligonalBruta[i + 1] : pComp;
+
+                double dE_mm = (pComp.X - pBruto.X) * 1000.0;
+                double dN_mm = (pComp.Y - pBruto.Y) * 1000.0;
+                double dZ_mm = (pComp.Z - pBruto.Z) * 1000.0;
+
+                rateios.Add(new MemoriaRateioVerticeDto
+                {
+                    NomeVertice = pComp.Nome,
+                    DistanciaAcumulada = distAcumulada,
+                    CorrecaoEMilimetros = dE_mm,
+                    CorrecaoNMilimetros = dN_mm,
+                    CorrecaoZMilimetros = dZ_mm,
+                    DeslocamentoTotalEMilimetros = dE_mm,
+                    DeslocamentoTotalNMilimetros = dN_mm,
+                    DeslocamentoTotalZMilimetros = dZ_mm,
+                    CoordenadaECompensada = pComp.X,
+                    CoordenadaNCompensada = pComp.Y,
+                    CoordenadaZCompensada = pComp.Z
+                });
+            }
+
+            return rateios;
+        }
+
+        private static IReadOnlyList<MemoriaRateioVerticeDto> CriarRateioNulo(CompensacaoPoligonalInputDTO entrada)
+        {
+            var rateios = new List<MemoriaRateioVerticeDto>();
+            if (entrada.PoligonalBruta == null) return rateios;
+
+            foreach (var p in entrada.PoligonalBruta)
+            {
+                rateios.Add(new MemoriaRateioVerticeDto
+                {
+                    NomeVertice = p.Nome,
+                    DistanciaAcumulada = 0,
+                    CorrecaoEMilimetros = 0,
+                    CorrecaoNMilimetros = 0,
+                    CorrecaoZMilimetros = 0,
+                    CoordenadaECompensada = p.X,
+                    CoordenadaNCompensada = p.Y,
+                    CoordenadaZCompensada = p.Z
+                });
+            }
+            return rateios;
+        }
+
+        private static MemoriaAjustamentoDto CriarMemoriaAjustamento(
+            TipoEstrategiaAjustamento tipo,
+            double erroAngular,
+            double erroLinearTotal,
+            double erroAltimetrico,
+            double precisaoRelativa,
+            int nEstacoes,
+            double perimetroTotal,
+            ParametrosTolerancia tolerancias,
+            IReadOnlyList<MemoriaRateioVerticeDto> rateios,
+            bool aprovadoGeral)
+        {
+            double tolAngularSegundos = tolerancias.CalcularToleranciaAngularSegundos(nEstacoes);
+            double tolLinearM = tolerancias.CalcularToleranciaLinearMetros(perimetroTotal);
+            double tolAltimetricaM = tolerancias.CalcularToleranciaAltimetricaMetros(perimetroTotal);
+
+            bool angularOk = Math.Abs(erroAngular) <= tolerancias.CalcularToleranciaAngularGraus(nEstacoes) + AngularEpsilonGraus;
+            bool linearOk = tolerancias.AvaliarConformidadeLinear(erroLinearTotal, perimetroTotal).AprovadoGeral;
+            bool altimetricoOk = Math.Abs(erroAltimetrico) <= tolAltimetricaM + PrecisaoRelativaEpsilon;
+
+            return new MemoriaAjustamentoDto
+            {
+                Tipo = aprovadoGeral ? tipo : TipoEstrategiaAjustamento.SemAjustamento,
+                ErroFechamentoAngularSegundos = Math.Abs(erroAngular) * 3600.0,
+                ToleranciaAngularSegundos = tolAngularSegundos,
+                AngularAprovado = angularOk,
+
+                ErroFechamentoLinearMetros = erroLinearTotal,
+                ToleranciaLinearMetros = tolLinearM,
+                PrecisaoRelativaObtida = precisaoRelativa,
+                LinearAprovado = linearOk,
+
+                ErroAltimetricoMetros = erroAltimetrico,
+                ToleranciaAltimetricaMetros = tolAltimetricaM,
+                AltimetricoAprovado = altimetricoOk,
+
+                RateioVertices = rateios
+            };
+        }
 
         private static bool Ultrapassa(double valor, double limite, double epsilon)
             => valor > limite + epsilon;

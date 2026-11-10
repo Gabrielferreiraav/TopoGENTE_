@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Entities.Pericia;
 using TopoGente.Core.Utilities;
 
 namespace TopoGente.Core.Strategies
@@ -122,7 +123,30 @@ namespace TopoGente.Core.Strategies
                 MotivoReprovacao          = motivoReprovacao
             };
 
-            // ── 10. DTO de resultado (poligonal = transporte bruto, sem rateio) ───
+            // ── 10. Instrumentação Pericial In-Flight ─────────────────────────────
+            var memorialLances = CriarMemorialLances(entrada, poligonalTransportada, perimetroTotal);
+            var rateioVertices = CriarRateioLinhaBase(poligonalTransportada, entrada.Leituras);
+            var memoriaAjustamento = new MemoriaAjustamentoDto
+            {
+                Tipo = TipoEstrategiaAjustamento.VerificacaoLinhaBase,
+                ErroFechamentoAngularSegundos = erroAngularSegundos,
+                ToleranciaAngularSegundos = toleranciaAngularSegundos,
+                AngularAprovado = aprovadoAngular,
+
+                ErroFechamentoLinearMetros = erroLinearTotalM,
+                ToleranciaLinearMetros = toleranciaLinearMm / 1000.0,
+                PrecisaoRelativaObtida = precisaoRelativa,
+                LinearAprovado = aprovadoLinear,
+
+                ErroAltimetricoMetros = deltaZ,
+                ToleranciaAltimetricaMetros = tolerancias.CalcularToleranciaAltimetricaMetros(perimetroTotal),
+                AltimetricoAprovado = Math.Abs(deltaZ) <= tolerancias.CalcularToleranciaAltimetricaMetros(perimetroTotal) + EpsilonLinear,
+
+                RateioVertices = rateioVertices,
+                LaudoLinhaBase = laudo
+            };
+
+            // ── 11. DTO de resultado (poligonal = transporte bruto, sem rateio) ───
             return new ResultadoCompensacaoDTO
             {
                 ErroAngular         = diferencaAngularGraus,
@@ -134,7 +158,12 @@ namespace TopoGente.Core.Strategies
                 AprovadoNorma       = aprovado,
                 AlertaReprovacao    = motivoReprovacao,
                 PoligonalCompensada = poligonalTransportada,
-                LaudoLinhaBase      = laudo
+                LaudoLinhaBase      = laudo,
+                Memorial            = new MemorialRastreabilidadePericial
+                {
+                    Lances = memorialLances,
+                    Ajustamento = memoriaAjustamento
+                }
             };
         }
 
@@ -198,6 +227,115 @@ namespace TopoGente.Core.Strategies
             return (pontos, perimetroTotal);
         }
 
+        private static MemorialLancesDto CriarMemorialLances(
+            CompensacaoPoligonalInputDTO entrada,
+            List<PontoCoordenada> pontosTransportados,
+            double perimetroTotal)
+        {
+            var lances = new List<PassoLanceGeometricoDto>();
+            if (entrada.Leituras == null || pontosTransportados == null || pontosTransportados.Count < 2)
+            {
+                return new MemorialLancesDto();
+            }
+
+            for (int i = 0; i < entrada.Leituras.Count; i++)
+            {
+                var leitura = entrada.Leituras[i];
+                var origem = pontosTransportados[i];
+                var vante = pontosTransportados[i + 1];
+
+                double dh = GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                double dn = GeometriaTopograficaHelper.CalcularDesnivel(leitura.DistanciaInclinada, leitura.AnguloVertical, leitura.AlturaInstrumento, leitura.AlturaPrisma);
+
+                string pontoRe = (i == 0)
+                    ? (entrada.Metadados?.NomeRe ?? "RÉ")
+                    : pontosTransportados[i - 1].Nome;
+
+                double azimuteRe = (i == 0)
+                    ? GeometriaTopograficaHelper.Normalizar360(entrada.AzimuteInicial + 180.0)
+                    : GeometriaTopograficaHelper.Normalizar360(origem.AzimuteChegada + 180.0);
+
+                lances.Add(new PassoLanceGeometricoDto
+                {
+                    OrdemLance = i + 1,
+                    EstacaoOrigem = origem.Nome,
+                    PontoRe = pontoRe,
+                    EstacaoVante = vante.Nome,
+
+                    AnguloHzGraus = leitura.AnguloHorizontal,
+                    AnguloVGraus = leitura.AnguloVertical,
+                    DistanciaInclinada = leitura.DistanciaInclinada,
+                    AlturaInstrumento = leitura.AlturaInstrumento,
+                    AlturaAlvo = leitura.AlturaPrisma,
+
+                    DistanciaHorizontal = dh,
+                    DeltaZ = dn,
+
+                    AzimuteReGraus = azimuteRe,
+                    AzimuteVanteGraus = vante.AzimuteChegada,
+
+                    DeltaEBruto = vante.X - origem.X,
+                    DeltaNBruto = vante.Y - origem.Y,
+
+                    CoordenadaEBruta = vante.X,
+                    CoordenadaNBruta = vante.Y,
+                    CoordenadaZBruta = vante.Z
+                });
+            }
+
+            return new MemorialLancesDto
+            {
+                Lances = lances,
+                PerimetroTotal = perimetroTotal
+            };
+        }
+
+        private static IReadOnlyList<MemoriaRateioVerticeDto> CriarRateioLinhaBase(
+            List<PontoCoordenada> pontosTransportados,
+            List<LeituraEstacaoTotal> leituras)
+        {
+            var rateios = new List<MemoriaRateioVerticeDto>();
+            if (pontosTransportados == null || pontosTransportados.Count == 0)
+            {
+                return rateios;
+            }
+
+            double distAcumulada = 0.0;
+            rateios.Add(new MemoriaRateioVerticeDto
+            {
+                NomeVertice = pontosTransportados[0].Nome,
+                DistanciaAcumulada = 0.0,
+                CorrecaoEMilimetros = 0.0,
+                CorrecaoNMilimetros = 0.0,
+                CorrecaoZMilimetros = 0.0,
+                CoordenadaECompensada = pontosTransportados[0].X,
+                CoordenadaNCompensada = pontosTransportados[0].Y,
+                CoordenadaZCompensada = pontosTransportados[0].Z
+            });
+
+            for (int i = 0; i < leituras.Count && (i + 1) < pontosTransportados.Count; i++)
+            {
+                var leitura = leituras[i];
+                double dh = GeometriaTopograficaHelper.CalcularDistanciaHorizontal(leitura.DistanciaInclinada, leitura.AnguloVertical);
+                distAcumulada += dh;
+                var pt = pontosTransportados[i + 1];
+
+                rateios.Add(new MemoriaRateioVerticeDto
+                {
+                    NomeVertice = pt.Nome,
+                    DistanciaAcumulada = distAcumulada,
+                    CorrecaoEMilimetros = 0.0,
+                    CorrecaoNMilimetros = 0.0,
+                    CorrecaoZMilimetros = 0.0,
+                    CoordenadaECompensada = pt.X,
+                    CoordenadaNCompensada = pt.Y,
+                    CoordenadaZCompensada = pt.Z
+                });
+            }
+
+            return rateios;
+        }
+
         /// <summary>Resolve o ponto de chegada teórico a partir dos metadados do input.</summary>
         private static PontoCoordenada? ResolverPontoChegada(CompensacaoPoligonalInputDTO entrada)
         {
@@ -233,7 +371,17 @@ namespace TopoGente.Core.Strategies
             {
                 AprovadoNorma       = false,
                 AlertaReprovacao    = mensagem,
-                PoligonalCompensada = new List<PontoCoordenada> { pontoPartida }
+                PoligonalCompensada = new List<PontoCoordenada> { pontoPartida },
+                Memorial            = new MemorialRastreabilidadePericial
+                {
+                    Ajustamento = new MemoriaAjustamentoDto
+                    {
+                        Tipo = TipoEstrategiaAjustamento.SemAjustamento,
+                        AngularAprovado = false,
+                        LinearAprovado = false,
+                        AltimetricoAprovado = false
+                    }
+                }
             };
     }
 }

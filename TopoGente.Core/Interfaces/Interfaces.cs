@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Entities.Pericia;
 
 namespace TopoGente.Core.Interfaces
 {
@@ -13,6 +14,7 @@ namespace TopoGente.Core.Interfaces
         IReadOnlyDictionary<string, PontoCoordenada> UltimosPontosConhecidos { get; }
         IReadOnlyList<string> UltimosAvisos => Array.Empty<string>();
         IReadOnlyList<PontoCoordenada> UltimosPontosImportados => Array.Empty<PontoCoordenada>();
+        IReadOnlyList<RegistroSentinelaDescartadaDto> UltimasSentinelasDescartadas => Array.Empty<RegistroSentinelaDescartadaDto>();
     }
 
     public interface ILeituraArquivoFactory
@@ -37,7 +39,12 @@ namespace TopoGente.Core.Interfaces
     {
         List<Estacao> UnificarEstacoes(List<Estacao> todasEstacoes);
         List<LeituraEstacaoTotal> OrganizarPorVante(List<Estacao> todasEstacoes, string nomeEstacaoPartida);
-
+        TrilhaTopologicaDto ConstruirTrilhaTopologica(
+            List<Estacao> estacoesBrutas,
+            List<Estacao> estacoesUnificadas,
+            MetadadosCenario? metadados,
+            IReadOnlyDictionary<string, PontoCoordenada>? pontosConhecidos,
+            IReadOnlyList<RegistroSentinelaDescartadaDto>? sentinelas);
     }
 
     public interface IExportadorDxfService
@@ -66,6 +73,14 @@ namespace TopoGente.Core.Interfaces
             Dictionary<string, PontoCoordenada> pontosConhecidos,
             ParametrosTolerancia tolerancias)
             => GerarRelatorioQaChecks(estacoesOrganizadas, resultado, pontosConhecidos, tolerancias.ToleranciaCheckDeltaXY, tolerancias.ToleranciaCheckDeltaZ);
+    }
+
+    public interface IFormatadorMemorialPericialService
+    {
+        string FormatarCapitulo1TrilhaTopologica(TrilhaTopologicaDto trilha);
+        string FormatarCapitulo2MemorialLances(MemorialLancesDto lances);
+        string FormatarCapitulo3Ajustamento(MemoriaAjustamentoDto ajustamento);
+        string FormatarMemorialCompleto(MemorialRastreabilidadePericial memorial);
     }
 
     public interface ITopografiaVisitor

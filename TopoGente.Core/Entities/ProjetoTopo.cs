@@ -1,11 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TopoGente.Core.Entities
 {
+    public class PreferenciasExibicaoDTO
+    {
+        public string UnidadeLinear { get; set; } = "Milimetros";
+        public string UnidadeAngular { get; set; } = "Segundos";
+    }
+
     public class ProjetoTopo
     {
-        public string Versao { get; set; } = "1.0";
+        public string Versao { get; set; } = "2.0";
         public DateTime DataSalvamento { get; set; } = DateTime.Now;
 
         public double StartX { get; set; }
@@ -15,6 +21,10 @@ namespace TopoGente.Core.Entities
         public List<Estacao> Estacoes { get; set; } = new List<Estacao>();
 
         public RelatorioQA? RelatorioQA { get; set; }
+
+        public ParametrosTolerancia? Tolerancias { get; set; }
+
+        public PreferenciasExibicaoDTO? PreferenciasExibicao { get; set; }
 
         /// <summary>Metadados do cenário escolhido pelo usuário.</summary>
         public MetadadosCenario? Metadados { get; set; }

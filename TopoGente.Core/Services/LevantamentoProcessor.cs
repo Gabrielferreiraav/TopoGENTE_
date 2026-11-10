@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Entities.Pericia;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Strategies;
 using TopoGente.Core.Utilities;
@@ -13,13 +14,18 @@ namespace TopoGente.Core.Services
     {
         private readonly IClassificadorGrafo _classificadorGrafo;
         private readonly CompensacaoStrategyFactory _compensacaoStrategyFactory;
+        private readonly IOrganizarCaminhamento _organizador;
 
         private const double ToleranciaFechamento = 0.05; // 5 cm por km
 
-        public LevantamentoProcessor(IClassificadorGrafo classificadorGrafo, CompensacaoStrategyFactory compensacaoStrategyFactory)
+        public LevantamentoProcessor(
+            IClassificadorGrafo classificadorGrafo,
+            CompensacaoStrategyFactory compensacaoStrategyFactory,
+            IOrganizarCaminhamento? organizador = null)
         {
             _classificadorGrafo = classificadorGrafo;
             _compensacaoStrategyFactory = compensacaoStrategyFactory;
+            _organizador = organizador ?? new OrganizarCaminhamento();
         }
 
         /// <summary>
@@ -173,9 +179,14 @@ namespace TopoGente.Core.Services
                 ErroFechamentoX = resultadoPrincipal.ErroFechamentoX,
                 ErroFechamentoY = resultadoPrincipal.ErroFechamentoY,
                 ErroFechamentoZ = resultadoPrincipal.ErroFechamentoZ,
+                ErroFechamentoLinearXY = resultadoPrincipal.ErroFechamentoLinearXY,
+                PrecisaoBruta = resultadoPrincipal.PrecisaoBruta,
                 Perimetro = resultadoPrincipal.Perimetro,
                 TipoCenario = resultadoPrincipal.TipoCenario,
-                LaudoLinhaBase = resultadoPrincipal.LaudoLinhaBase
+                PoligonalFechada = resultadoPrincipal.PoligonalFechada,
+                Tolerancias = resultadoPrincipal.Tolerancias,
+                LaudoLinhaBase = resultadoPrincipal.LaudoLinhaBase,
+                Memorial = resultadoPrincipal.Memorial
             };
         }
 
@@ -288,10 +299,84 @@ namespace TopoGente.Core.Services
 
             if (metadadosAtuais.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
             {
+                var lancesAberta = new List<PassoLanceGeometricoDto>();
+                for (int i = 0; i < leiturasPoligonal.Count && i + 1 < poligonalBrutaLocal.Count; i++)
+                {
+                    var l = leiturasPoligonal[i];
+                    var orig = poligonalBrutaLocal[i];
+                    var vant = poligonalBrutaLocal[i + 1];
+                    double dh = GeometriaTopograficaHelper.CalcularDistanciaHorizontal(l.DistanciaInclinada, l.AnguloVertical);
+                    double dn = GeometriaTopograficaHelper.CalcularDesnivel(l.DistanciaInclinada, l.AnguloVertical, l.AlturaInstrumento, l.AlturaPrisma);
+                    string pRe = i == 0 ? (metadadosAtuais.NomeRe ?? "RÉ") : poligonalBrutaLocal[i - 1].Nome;
+                    double azRe = i == 0 ? GeometriaTopograficaHelper.Normalizar360(azimuteInicial + 180) : GeometriaTopograficaHelper.Normalizar360(orig.AzimuteChegada + 180);
+
+                    lancesAberta.Add(new PassoLanceGeometricoDto
+                    {
+                        OrdemLance = i + 1,
+                        EstacaoOrigem = orig.Nome,
+                        PontoRe = pRe,
+                        EstacaoVante = vant.Nome,
+                        AnguloHzGraus = l.AnguloHorizontal,
+                        AnguloVGraus = l.AnguloVertical,
+                        DistanciaInclinada = l.DistanciaInclinada,
+                        AlturaInstrumento = l.AlturaInstrumento,
+                        AlturaAlvo = l.AlturaPrisma,
+                        DistanciaHorizontal = dh,
+                        DeltaZ = dn,
+                        AzimuteReGraus = azRe,
+                        AzimuteVanteGraus = vant.AzimuteChegada,
+                        DeltaEBruto = vant.X - orig.X,
+                        DeltaNBruto = vant.Y - orig.Y,
+                        CoordenadaEBruta = vant.X,
+                        CoordenadaNBruta = vant.Y,
+                        CoordenadaZBruta = vant.Z
+                    });
+                }
+
+                var rateiosAberta = new List<MemoriaRateioVerticeDto>();
+                double distAcum = 0;
+                foreach (var pt in poligonalBrutaLocal)
+                {
+                    rateiosAberta.Add(new MemoriaRateioVerticeDto
+                    {
+                        NomeVertice = pt.Nome,
+                        DistanciaAcumulada = distAcum,
+                        CorrecaoEMilimetros = 0,
+                        CorrecaoNMilimetros = 0,
+                        CorrecaoZMilimetros = 0,
+                        CoordenadaECompensada = pt.X,
+                        CoordenadaNCompensada = pt.Y,
+                        CoordenadaZCompensada = pt.Z
+                    });
+                }
+
+                var memorialAberta = new MemorialRastreabilidadePericial
+                {
+                    TrilhaTopologica = _organizador.ConstruirTrilhaTopologica(
+                        todasEstacoes,
+                        todasEstacoes,
+                        metadadosAtuais,
+                        pontosConhecidos,
+                        metadadosAtuais.SentinelasDescartadas),
+                    Lances = new MemorialLancesDto
+                    {
+                        Lances = lancesAberta,
+                        PerimetroTotal = perimetro
+                    },
+                    Ajustamento = new MemoriaAjustamentoDto
+                    {
+                        Tipo = TipoEstrategiaAjustamento.SemAjustamento,
+                        AngularAprovado = true,
+                        LinearAprovado = true,
+                        AltimetricoAprovado = true,
+                        RateioVertices = rateiosAberta
+                    }
+                };
+
                 return new ResultadoLevantamento
                 {
                     PoligonalBruta = poligonalBrutaLocal,
-                Tolerancias = metadadosAtuais.Tolerancias ?? ParametrosTolerancia.Padrao,
+                    Tolerancias = metadadosAtuais.Tolerancias ?? ParametrosTolerancia.Padrao,
                     Poligonal = poligonalBrutaLocal,
                     TipoCenario = TipoCenarioPoligonal.AbertaOrientada,
                     PoligonalFechada = false,
@@ -302,7 +387,8 @@ namespace TopoGente.Core.Services
                     ErroFechamentoLinearXY = 0,
                     PrecisaoBruta = 0,
                     ErroLinear = 0,
-                    Precisao = 0
+                    Precisao = 0,
+                    Memorial = memorialAberta
                 };
             }
 
@@ -369,11 +455,26 @@ namespace TopoGente.Core.Services
             var alertasLocal = new List<string>();
             if (!compensacao.AprovadoNorma) alertasLocal.Add(compensacao.AlertaReprovacao);
 
+            var trilha = _organizador.ConstruirTrilhaTopologica(
+                todasEstacoes,
+                todasEstacoes,
+                metadadosAtuais,
+                pontosConhecidos,
+                metadadosAtuais.SentinelasDescartadas);
+
+            var memorialCompleto = new MemorialRastreabilidadePericial
+            {
+                TrilhaTopologica = trilha,
+                Lances = compensacao.Memorial?.Lances ?? new MemorialLancesDto(),
+                Ajustamento = compensacao.Memorial?.Ajustamento ?? new MemoriaAjustamentoDto()
+            };
+
             return new ResultadoLevantamento
             {
                 PoligonalBruta = poligonalBrutaLocal,
                 Tolerancias = metadadosAtuais.Tolerancias ?? ParametrosTolerancia.Padrao,
                 Poligonal = poligonalCompensadaLocal,
+                PoligonalFechada = metadadosAtuais.TipoCenario == TipoCenarioPoligonal.Fechada,
                 Alertas = alertasLocal,
                 AprovadoNorma = compensacao.AprovadoNorma,
                 ErroAngular = compensacao.ErroAngular,
@@ -382,9 +483,12 @@ namespace TopoGente.Core.Services
                 ErroFechamentoX = compensacao.ErroX,
                 ErroFechamentoY = compensacao.ErroY,
                 ErroFechamentoZ = compensacao.ErroAltimetrico,
+                ErroFechamentoLinearXY = compensacao.ErroLinearTotal,
+                PrecisaoBruta = compensacao.PrecisaoRelativa,
                 Perimetro = perimetro,
                 TipoCenario = metadadosAtuais.TipoCenario,
-                LaudoLinhaBase = compensacao.LaudoLinhaBase
+                LaudoLinhaBase = compensacao.LaudoLinhaBase,
+                Memorial = memorialCompleto
             };
         }
 
