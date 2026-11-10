@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using TopoGente.Core.Entities;
+using TopoGente.Core.Entities.Pericia;
 using TopoGente.Core.Interfaces;
 using TopoGente.Core.Services;
 using TopoGente.Core.Utilities;
@@ -25,6 +26,9 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
         public IReadOnlyList<PontoCoordenada> UltimosPontosImportados => Array.Empty<PontoCoordenada>();
 
+        public IReadOnlyList<RegistroSentinelaDescartadaDto> UltimasSentinelasDescartadas => _ultimasSentinelasDescartadas;
+        private readonly List<RegistroSentinelaDescartadaDto> _ultimasSentinelasDescartadas = new();
+
         public List<Estacao> Ler(IEnumerable<string> linhas)
         {
             return Ler(linhas, ConfiguracaoImportacao.PadraoFbk);
@@ -36,6 +40,7 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
             _ultimosAvisos.Clear();
             _ultimosPontosConhecidos.Clear();
+            _ultimasSentinelasDescartadas.Clear();
 
             var estacoes = new List<Estacao>();
             Estacao? estacaoAtual = null;
@@ -93,6 +98,13 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
 
                         if (EhLinhaResiduaSentinela(partes, tamanhoMinimo, config))
                         {
+                            _ultimasSentinelasDescartadas.Add(new RegistroSentinelaDescartadaDto
+                            {
+                                LinhaArquivo = numeroLinha,
+                                ConteudoBruto = linha.Trim(),
+                                MotivoDescarte = "Identificador ausente ou não-numérico com coordenadas nulas (< 1e-6 m)"
+                            });
+
                             _ultimosAvisos.Add(
                                 $"NEZ residual ignorado (linha {numeroLinha}): " +
                                 $"todos os campos zerados e sem identificador válido. " +
@@ -212,7 +224,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             AnguloHorizontal = anguloDecimal,
                             Tipo = TipoLeitura.Irradiacao,
                             Purpose = "re",
-                            Observacao = "RE (BS)"
+                            Observacao = "RE (BS)",
+                            OrdemArquivo = numeroLinha
                         });
                     }
 
@@ -256,7 +269,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                             DistanciaInclinada = dist,
                             Observacao = descricao,
                             Tipo = TipoLeitura.Irradiacao,
-                            Purpose = MapearPurposeSugerido(descricao)
+                            Purpose = MapearPurposeSugerido(descricao),
+                            OrdemArquivo = numeroLinha
                         });
                     }
                 }

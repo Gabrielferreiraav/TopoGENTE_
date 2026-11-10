@@ -52,7 +52,8 @@ namespace TopoGente.Infrastructure.Adapters.Leitores
                 Estacoes = estacoes,
                 Avisos = avisos,
                 PontosConhecidosGlobais = leitor.UltimosPontosConhecidos,
-                PontosImportados = leitor.UltimosPontosImportados.Count > 0 ? leitor.UltimosPontosImportados : null
+                PontosImportados = leitor.UltimosPontosImportados.Count > 0 ? leitor.UltimosPontosImportados : null,
+                SentinelasDescartadas = leitor.UltimasSentinelasDescartadas
             };
         }
 
