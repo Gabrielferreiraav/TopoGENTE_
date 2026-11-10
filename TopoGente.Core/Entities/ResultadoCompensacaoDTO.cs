@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using TopoGente.Core.Entities.Pericia;
 
 namespace TopoGente.Core.Entities
 {
@@ -18,5 +19,10 @@ namespace TopoGente.Core.Entities
         /// Null para as demais estratégias (Bowditch / Enquadrada).
         /// </summary>
         public LaudoDiscrepanciaLinhaBase? LaudoLinhaBase { get; init; }
+
+        /// <summary>
+        /// Trilha pericial detalhada de lances e rateio proporcional gerada pela estratégia de cálculo.
+        /// </summary>
+        public MemorialRastreabilidadePericial? Memorial { get; set; }
     }
 }
