@@ -9,6 +9,7 @@
              xmlns:domain="clr-namespace:TopoGente.Core.Domain;assembly=TopoGente.Core"
 
              xmlns:viewmodels="clr-namespace:TopoGente.UI.ViewModels"
+             xmlns:converters="clr-namespace:TopoGente.UI.Converters"
 
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
 
@@ -27,6 +28,40 @@
     <UserControl.Resources>
 
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:PresetToleranciaInfoConverter x:Key="PresetToleranciaInfoConverter"/>
+        <converters:ModoAvaliacaoLinearInfoConverter x:Key="ModoAvaliacaoLinearInfoConverter"/>
+        <converters:PresetToleranciaDisplayNameConverter x:Key="PresetToleranciaDisplayNameConverter"/>
+        <converters:ModoAvaliacaoLinearDisplayNameConverter x:Key="ModoAvaliacaoLinearDisplayNameConverter"/>
+
+        <!-- Template de ToolTip para Preset da NBR 13.133 -->
+        <DataTemplate x:Key="PresetTooltipTemplate">
+            <Border Background="#252526" BorderBrush="#007ACC" BorderThickness="1" CornerRadius="4" Padding="10" MaxWidth="460">
+                <StackPanel>
+                    <TextBlock Text="{Binding Titulo}" FontWeight="Bold" FontSize="12" Foreground="#4EC9B0" Margin="0,0,0,3" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding ParametrosResumo}" FontSize="10" Foreground="#9CDCFE" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <Separator Background="#3E3E42" Margin="0,0,0,6"/>
+                    <TextBlock Text="O QUE É ESTA CLASSE:" FontWeight="SemiBold" FontSize="10" Foreground="#DCDCDC" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding Descricao}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,6" LineHeight="15"/>
+                    <TextBlock Text="TIPOS DE LEVANTAMENTO EM QUE É UTILIZADA:" FontWeight="SemiBold" FontSize="10" Foreground="#DCDCDC" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding Aplicacoes}" FontSize="11" Foreground="#D7BA7D" TextWrapping="Wrap" LineHeight="15"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- Template de ToolTip para Modo de Julgamento Linear -->
+        <DataTemplate x:Key="ModoLinearTooltipTemplate">
+            <Border Background="#252526" BorderBrush="#007ACC" BorderThickness="1" CornerRadius="4" Padding="10" MaxWidth="460">
+                <StackPanel>
+                    <TextBlock Text="{Binding Titulo}" FontWeight="Bold" FontSize="12" Foreground="#4EC9B0" Margin="0,0,0,3" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding RegraMatematica}" FontSize="10" Foreground="#9CDCFE" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <Separator Background="#3E3E42" Margin="0,0,0,6"/>
+                    <TextBlock Text="O QUE É ESTE MODO:" FontWeight="SemiBold" FontSize="10" Foreground="#DCDCDC" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding Descricao}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,6" LineHeight="15"/>
+                    <TextBlock Text="QUANDO É UTILIZADO:" FontWeight="SemiBold" FontSize="10" Foreground="#DCDCDC" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding Aplicacoes}" FontSize="11" Foreground="#D7BA7D" TextWrapping="Wrap" LineHeight="15"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
 
     </UserControl.Resources>
 
@@ -558,22 +593,75 @@
 
                                 <StackPanel Margin="8">
 
-                                    <TextBlock Text="Preset Normativo:" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Preset Normativo NBR 13.133:" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,2"/>
 
                                     <ComboBox ItemsSource="{Binding PresetsToleranciaDisponiveis}" 
                                               SelectedItem="{Binding PresetToleranciaSelecionado, Mode=TwoWay}" 
-                                              Margin="0,0,0,8">
+                                              ToolTipService.InitialShowDelay="100"
+                                              ToolTipService.ShowDuration="30000"
+                                              ToolTipService.BetweenShowDelay="50"
+                                              Margin="0,0,0,6">
                                         <ComboBox.ToolTip>
-                                            <ToolTip MaxWidth="340">
-                                                <StackPanel>
-                                                    <TextBlock Text="Presets Normativos (NBR 13.133)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                    <TextBlock Text="Selecione a classe de precisão do levantamento:" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                                    <TextBlock Text="• Classe I P: Poligonais principais de alta precisão (k=2,0, &#x3C3;a=2'', 1/P=1:10.000, c=1,5 mm, dXY=10 mm, dZ=15 mm)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                    <TextBlock Text="• Classe II P: Poligonais secundárias e topográficas convencionais (k=2,0, &#x3C3;a=5'', 1/P=1:5.000, c=3,0 mm, dXY=10 mm, dZ=20 mm)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                    <TextBlock Text="• Personalizado: Libera a edição irrestrita de todos os parâmetros." TextWrapping="Wrap"/>
-                                                </StackPanel>
+                                            <ToolTip Background="Transparent" BorderThickness="0" Padding="0">
+                                                <ContentControl Content="{Binding PresetToleranciaSelecionado, Converter={StaticResource PresetToleranciaInfoConverter}}"
+                                                                ContentTemplate="{StaticResource PresetTooltipTemplate}"/>
                                             </ToolTip>
                                         </ComboBox.ToolTip>
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={StaticResource PresetToleranciaDisplayNameConverter}}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="100"/>
+                                                <Setter Property="ToolTipService.ShowDuration" Value="30000"/>
+                                                <Setter Property="ToolTipService.BetweenShowDelay" Value="50"/>
+                                                <Setter Property="ToolTip">
+                                                    <Setter.Value>
+                                                        <ToolTip Background="Transparent" BorderThickness="0" Padding="0">
+                                                            <ContentControl Content="{Binding Converter={StaticResource PresetToleranciaInfoConverter}}"
+                                                                            ContentTemplate="{StaticResource PresetTooltipTemplate}"/>
+                                                        </ToolTip>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                    </ComboBox>
+
+                                    <TextBlock Text="Modo de Julgamento Linear:" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" Margin="0,0,0,2"/>
+                                    <ComboBox ItemsSource="{Binding ModosAvaliacaoLinearDisponiveis}" 
+                                              SelectedItem="{Binding ModoAvaliacaoLinearSelecionado, Mode=TwoWay}" 
+                                              ToolTipService.InitialShowDelay="100"
+                                              ToolTipService.ShowDuration="30000"
+                                              ToolTipService.BetweenShowDelay="50"
+                                              Margin="0,0,0,8">
+                                        <ComboBox.ToolTip>
+                                            <ToolTip Background="Transparent" BorderThickness="0" Padding="0">
+                                                <ContentControl Content="{Binding ModoAvaliacaoLinearSelecionado, Converter={StaticResource ModoAvaliacaoLinearInfoConverter}}"
+                                                                ContentTemplate="{StaticResource ModoLinearTooltipTemplate}"/>
+                                            </ToolTip>
+                                        </ComboBox.ToolTip>
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={StaticResource ModoAvaliacaoLinearDisplayNameConverter}}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="100"/>
+                                                <Setter Property="ToolTipService.ShowDuration" Value="30000"/>
+                                                <Setter Property="ToolTipService.BetweenShowDelay" Value="50"/>
+                                                <Setter Property="ToolTip">
+                                                    <Setter.Value>
+                                                        <ToolTip Background="Transparent" BorderThickness="0" Padding="0">
+                                                            <ContentControl Content="{Binding Converter={StaticResource ModoAvaliacaoLinearInfoConverter}}"
+                                                                            ContentTemplate="{StaticResource ModoLinearTooltipTemplate}"/>
+                                                        </ToolTip>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
                                     </ComboBox>
 
                                     <Grid Margin="0,0,0,4">
@@ -585,69 +673,91 @@
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
-                                        <!-- k -->
+                                        <!-- Coef. b e Centragem Ca -->
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,4">
+                                            <TextBlock Text="Coef. b (''):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding ToleranciaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                <TextBox.ToolTip>
+                                                    <ToolTip MaxWidth="320">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Coeficiente Angular da NBR 13.133 (b)" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="Constante angular da classe (Ta = b &#183; &#x221A;n + Ca):" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                                                            <TextBlock Text="• I P: 6'' | II P: 15'' | III P: 30'' | IV P: 60'' | V P: 180''" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </ToolTip>
+                                                </TextBox.ToolTip>
+                                            </TextBox>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,4">
+                                            <TextBlock Text="Centragem Ca (''):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding ToleranciaTermoCentragemCa, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                <TextBox.ToolTip>
+                                                    <ToolTip MaxWidth="320">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Termo Aditivo de Centragem (Ca)" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="Recomendado na NBR 13.133 para poligonais de lances curtos (&lt; 50 m) em áreas urbanas (10'' a 15'')." TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </ToolTip>
+                                                </TextBox.ToolTip>
+                                            </TextBox>
+                                        </StackPanel>
+
+                                        <!-- k e sigmaA -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,4,4">
                                             <TextBlock Text="Fator k:" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
                                                     <ToolTip MaxWidth="320">
                                                         <StackPanel>
                                                             <TextBlock Text="Fator de Segurança Angular (k)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="Multiplicador estatístico da dispersão de erros acidentais na curva de Gauss:" TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="• k = 2,0: Nível de confiança de 95% prescrito pela NBR 13.133 (Ta = k &#183; &#x3C3;a &#183; &#x221A;n)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="• k = 3,0: Nível de confiança de 99,7% (critério conservador clássico)." TextWrapping="Wrap"/>
+                                                            <TextBlock Text="• k = 2,0: Nível de confiança 95% (NBR 13.133)." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
                                             </TextBox>
                                         </StackPanel>
 
-                                        <!-- sigmaA -->
-                                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,4">
-                                            <TextBlock Text="Desvio &#x3C3;a (segundos):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,0,0,4">
+                                            <TextBlock Text="Desvio &#x3C3;a (''):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaSigmaA, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
                                                     <ToolTip MaxWidth="320">
                                                         <StackPanel>
-                                                            <TextBlock Text="Desvio Padrão Nominal Angular (&#x3C3;a)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="Precisão angular nominal do goniômetro da estação total em segundos de arco (''), conforme datasheet do fabricante (ex: 2'', 5'' ou 7'')." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="Determina a taxa de propagação do erro angular admissível em função do número de estações n." TextWrapping="Wrap"/>
+                                                            <TextBlock Text="Desvio Padrão Nominal Angular (&#x3C3;a = b / k)" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="Precisão nominal da estação total." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
                                             </TextBox>
                                         </StackPanel>
 
-                                        <!-- 1/P -->
-                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,4,4">
+                                        <!-- 1/P e d Linear -->
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,4,4">
                                             <TextBlock Text="Denom. Linear (P):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaDenominadorLinear, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
                                                     <ToolTip MaxWidth="320">
                                                         <StackPanel>
                                                             <TextBlock Text="Precisão Linear Relativa Mínima (1/P)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="Denominador P da relação de fechamento linear relativo (1:P)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="• Exemplo P = 10.000: Erro linear admissível máximo de 1 metro a cada 10 km de perímetro desenvolvido (el &#x2264; &#x3A3;D / P)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="• Classe I P: 10.000 | Classe II P: 5.000" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="Denominador P da relação de fechamento linear relativo (1:P)." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
                                             </TextBox>
                                         </StackPanel>
 
-                                        <!-- c -->
-                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,0,0,4">
-                                            <TextBlock Text="Coef. c (mm):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-                                            <TextBox Text="{Binding ToleranciaC, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="4,0,0,4">
+                                            <TextBlock Text="Coef. d (m/&#x221A;km):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding ToleranciaDLinear, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
                                                     <ToolTip MaxWidth="320">
                                                         <StackPanel>
-                                                            <TextBlock Text="Coeficiente Altimétrico (c)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="Coeficiente de erro altimétrico admissível em milímetros por raiz do quilômetro (mm/&#x221A;km)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="Fórmula NBR 13.133: Tz = (c / 1000) &#183; &#x221A;K, onde K é o perímetro total em km." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="• Classe I: 1,5 mm | Classe II: 3,0 mm" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="Coeficiente Linear TP (d)" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="Tolerância Linear Absoluta NBR 13.133: TP = c + d&#183;&#x221A;L (onde L está em km)." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
@@ -655,30 +765,28 @@
                                         </StackPanel>
 
                                         <!-- Check XY e Z -->
-                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,4,0">
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,4,0">
                                             <TextBlock Text="Check dXY (m):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaCheckDeltaXY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
                                                     <ToolTip MaxWidth="320">
                                                         <StackPanel>
                                                             <TextBlock Text="Tolerância Planar de Verificação (Check dXY)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="Discrepância horizontal máxima permitida (em metros) entre coordenadas calculadas e conhecidas de marcos homólogos de amarração ou ré." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="&#x394;XY = &#x221A;(&#x394;E&#178; + &#x394;N&#178;). Padrão normativo: 0,010 m (10 mm)." TextWrapping="Wrap"/>
+                                                            <TextBlock Text="Discrepância horizontal máxima permitida entre coordenadas conhecidas e calculadas." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
                                             </TextBox>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="4,0,0,0">
+                                        <StackPanel Grid.Row="3" Grid.Column="1" Margin="4,0,0,0">
                                             <TextBlock Text="Check dZ (m):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaCheckDeltaZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
                                                     <ToolTip MaxWidth="320">
                                                         <StackPanel>
                                                             <TextBlock Text="Tolerância Altimétrica de Verificação (Check dZ)" FontWeight="Bold" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="Discrepância vertical máxima permitida (em metros) na checagem de RNs e vértices conhecidos (|&#x394;Z|)." TextWrapping="Wrap" Margin="0,0,0,2"/>
-                                                            <TextBlock Text="• Classe I P: 0,015 m (15 mm) | Classe II P: 0,020 m (20 mm)" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="Discrepância vertical máxima permitida." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
@@ -700,7 +808,19 @@
 
                             <!-- FECHAMENTOS E CONFORMIDADE (MODO BOWDITCH) -->
                             <StackPanel Visibility="{Binding IsModoBowditchAtivo, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Erros de Fechamento e Admissíveis (Bowditch)" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}" Margin="0,0,0,6"/>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock Text="Fechamentos &amp; Tolerâncias" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource MahApps.Brushes.ThemeForeground}"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="Linear:" FontSize="10" VerticalAlignment="Center" Margin="0,0,3,0" Foreground="#94A3B8"/>
+                                    <ComboBox ItemsSource="{Binding UnidadesLinearesDisponiveis}" 
+                                              SelectedItem="{Binding UnidadeLinearSelecionada, Mode=TwoWay}"
+                                              FontSize="10" Height="22" Width="68" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Angular:" FontSize="10" VerticalAlignment="Center" Margin="0,0,3,0" Foreground="#94A3B8"/>
+                                    <ComboBox ItemsSource="{Binding UnidadesAngularesDisponiveis}" 
+                                              SelectedItem="{Binding UnidadeAngularSelecionada, Mode=TwoWay}"
+                                              FontSize="10" Height="22" Width="78"/>
+                                </StackPanel>
+                            </DockPanel>
 
                             <Border Background="{DynamicResource MahApps.Brushes.ThemeBackground}" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,12">
 
@@ -732,13 +852,13 @@
 
                                     <TextBlock Text="Angular:" Grid.Row="0" Grid.Column="0" Margin="0,2,0,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
 
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,2">
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,2" ToolTip="{Binding TooltipErroAngular}">
 
-                                        <Run Text="{Binding RelatorioQaAtual.ErroAngular, Mode=OneWay, StringFormat='{}{0:F4}°'}"/>
+                                        <Run Text="{Binding ErroAngularFormatado, Mode=OneWay}"/>
 
                                         <Run Text=" / Tol: " Foreground="#94A3B8"/>
 
-                                        <Run Text="{Binding RelatorioQaAtual.ToleranciaAngularAdmissivel, Mode=OneWay, StringFormat='{}{0:F4}°'}" Foreground="#60A5FA"/>
+                                        <Run Text="{Binding ToleranciaAngularFormatada, Mode=OneWay}" Foreground="#60A5FA"/>
 
                                     </TextBlock>
 
@@ -772,17 +892,17 @@
 
 
 
-                                    <!-- Linear -->
+                                    <!-- Linear (Planimétrico) -->
 
                                     <TextBlock Text="Linear (Plani):" Grid.Row="1" Grid.Column="0" Margin="0,2,0,2" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
 
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,2">
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,2" ToolTip="{Binding TooltipErroLinear}">
 
-                                        <Run Text="{Binding RelatorioQaAtual.ErroLinear, Mode=OneWay, StringFormat='{}{0:F4} m'}"/>
+                                        <Run Text="{Binding ErroLinearAbsolutoFormatado, Mode=OneWay}"/>
 
                                         <Run Text=" / Tol: " Foreground="#94A3B8"/>
 
-                                        <Run Text="{Binding RelatorioQaAtual.ToleranciaLinearAdmissivel, Mode=OneWay, StringFormat='{}{0:F4} m'}" Foreground="#60A5FA"/>
+                                        <Run Text="{Binding ToleranciaLinearAbsolutaFormatada, Mode=OneWay}" Foreground="#60A5FA"/>
 
                                     </TextBlock>
 

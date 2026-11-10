@@ -1,2164 +1,4708 @@
+using TopoGente.Core.Entities.Pericia;
 using System;
+
 using TopoGente.Core.Services;
+
+using TopoGente.PresentationCore.Units;
+
+
 
 using System.Collections.Generic;
 
+
+
 using System.Collections.ObjectModel;
+
 using System.ComponentModel;
+
 using System.Windows.Data;
+
+
 
 using System.Linq;
 
+
+
 using System.Threading.Tasks;
+
+
 
 using System.Windows.Input;
 
+
+
 using System.Windows.Media;
+
+
 
 using CommunityToolkit.Mvvm.ComponentModel;
 
+
+
 using CommunityToolkit.Mvvm.Input;
+
+
 
 using CommunityToolkit.Mvvm.Messaging;
 
+
+
 using TopoGente.Core.Entities;
+
+
 
 using TopoGente.Core.Domain;
 
+
+
 using TopoGente.Core.Interfaces;
+
+
 
 using TopoGENTE.Domain.ValueObjects;
 
+
+
 using TopoGENTE.Domain.Ports;
+
+
 
 using TopoGENTE.Domain.Exceptions;
 
+
+
 using TopoGente.UI.Messages;
+
+
 
 using TopoGente.UI.CadInteraction;
 
+
+
 using TopoGente.UI.Services;
 
+
+
 using TopoGente.UI.Spatial;
+
+
 
 using TopoGente.UI.Collections;
 
 
 
+
+
+
+
 namespace TopoGente.UI.ViewModels
+
 {
+
     public enum WorkspaceModulo
+
     {
+
         Planimetria,
+
         ModelagemMdt,
+
         Altimetria,
+
         PlantaGeral
+
     }
 
+
+
     public enum ModoCalculoPoligonal
+
     {
+
         CompensacaoBowditch,
+
         VerificacaoLinhaBase
+
     }
+
+
+
 
 
     public partial class DashboardViewModel : ObservableObject,
 
+
+
         IRecipient<ResultadoMdtMensagem>,
+
+
 
         IRecipient<TopologyChangedMessage>,
 
+
+
         ICadCanvasContext,
+
+
 
         IDisposable
 
+
+
     {
+
+
 
         // === Dependências (Portas Hexagonais) ===
 
+
+
         private readonly Func<ITerrainTriangulator> _triangulatorFactory;
+
 #pragma warning disable IDE0044 // O campo não pode ser readonly devido à invalidação de estado do Módulo 3
+
         private ITerrainTriangulator _triangulator;
+
 #pragma warning restore IDE0044
 
+
+
         private readonly Func<ITopographicAnalytics> _analyticsFactory;
+
         private readonly ITopographicAnalytics _analytics;
+
         private ITopographicAnalytics Analytics => (_triangulator as ITopographicAnalytics) ?? _analytics;
+
+
 
         private readonly ILeituraArquivoFactory _leitorFactory;
 
+
+
         private readonly IOrganizarCaminhamento _organizador;
+
+
 
         private readonly ILevantamentoProcessor _processador;
 
+
+
         private readonly IQaCheckService _qaCheckService;
+
+
 
         private readonly IClassificadorGrafo _classificadorGrafo;
 
+
+
         private readonly IArquivoProjetoService _projetoService;
+
+
 
         private readonly IExportarTxtService _exportarTxtService;
 
+
+
         private readonly IExportadorDxfService _exportadorDxfService;
+
+
 
         private readonly IDialogService _dialogService;
 
+
+
         private readonly IFileService _fileService;
 
+
+
         private readonly IMessageService _messageService;
+        private readonly IFormatadorMemorialPericialService _formatadorMemorialPericial;
+
+
 
         private readonly System.Windows.Threading.Dispatcher _dispatcher;
+
+
 
         private bool _disposed;
 
 
 
+
+
+
+
         // === Estado de Domínio ===
 
+
+
         private List<Estacao> _estacoesEmMemoria = [];
+        private IReadOnlyList<RegistroSentinelaDescartadaDto> _ultimasSentinelasDescartadas = Array.Empty<RegistroSentinelaDescartadaDto>();
+
+
 
         private ResultadoLevantamento? _resultadoAtual;
 
 
 
+
+
+
+
         // =========================================================================
+
+
 
 // 1. ESTADO REATIVO DO MOTOR (Alinhado com as Triggers do XAML)
 
+
+
 // =========================================================================
+
+
 
 private EstadoMotor _estadoAtualMotor = EstadoMotor.Bruto;
 
+
+
 public EstadoMotor EstadoAtualMotor
+
+
 
 {
 
+
+
     get => _estadoAtualMotor;
+
+
 
     private set
 
+
+
     {
+
+
 
         // SetProperty dispara o PropertyChanged para atualização síncrona
 
+
+
         if (SetProperty(ref _estadoAtualMotor, value))
+
+
 
         {
 
+
+
             OnPropertyChanged(nameof(TextoStatusBar));
+
+
 
             NotifyCommandStates(); // Invalida o CanExecute de exportações e cálculos
 
+
+
         }
+
+
 
     }
 
+
+
 }
+
+
+
+
 
 
 
 // Texto reativo consumido pelo TextBlock da StatusBar no WPF
 
+
+
 public string TextoStatusBar => EstadoAtualMotor switch
+
+
 
 {
 
+
+
     EstadoMotor.Bruto      => "Bruto – Aguardando Processamento",
+
+
 
     EstadoMotor.Calculando => "Calculando...",
 
-    EstadoMotor.Compensado => " Compensado (NBR 13.133 Atendida)",
 
-    EstadoMotor.ReprovadoNorma => " Erro de Tolerância (NBR Reprovada)",
+
+    EstadoMotor.Compensado => "Compensado (NBR 13.133 Atendida)",
+
+
+
+    EstadoMotor.ReprovadoNorma => "Erro de Tolerância (NBR Reprovada)",
+
+
 
     _                      => string.Empty
+
+
 
 };
 
 
 
+
+
+
+
 // =========================================================================
+
+
 
 // GEOMETRIAS DO DRAFT (Camada de Esboço e Vetor de Erro)
 
+
+
 // =========================================================================
+
+
 
 private Geometry _staticDraftGeometry = Geometry.Empty;
 
+
+
 public Geometry StaticDraftGeometry 
+
+
 
 { 
 
+
+
     get => _staticDraftGeometry; 
+
+
 
     set => SetProperty(ref _staticDraftGeometry, value); 
 
+
+
 }
+
+
+
+
 
 
 
 private Geometry _staticPoligonalCompensadaGeometry = Geometry.Empty;
 
+
+
 public Geometry StaticPoligonalCompensadaGeometry
+
+
 
 {
 
+
+
     get => _staticPoligonalCompensadaGeometry;
+
+
 
     set => SetProperty(ref _staticPoligonalCompensadaGeometry, value);
 
+
+
 }
+
+
+
+
 
 
 
 private Geometry _staticErrorVectorGeometry = Geometry.Empty;
 
+
+
 public Geometry StaticErrorVectorGeometry 
+
+
 
 { 
 
+
+
     get => _staticErrorVectorGeometry; 
+
+
 
     set => SetProperty(ref _staticErrorVectorGeometry, value); 
 
+
+
 }
 
 
 
+
+
+
+
 // =========================================================================
+
+
 
 // 3. OPCOES DE VISIBILIDADE DAS CAMADAS CAD 
 
+
+
 // =========================================================================
+
 // 3. WORKSPACES CONTEXTUAIS E OPCOES DE VISIBILIDADE DAS CAMADAS CAD 
+
 // =========================================================================
+
+
 
 private WorkspaceModulo _moduloAtivo = WorkspaceModulo.Planimetria;
+
 public WorkspaceModulo ModuloAtivo
+
 {
+
     get => _moduloAtivo;
+
     set
+
     {
+
         if (SetProperty(ref _moduloAtivo, value))
+
         {
+
             AplicarPresetModulo(value);
+
             OnPropertyChanged(nameof(EhModuloPlanimetria));
+
             OnPropertyChanged(nameof(EhModuloMdt));
+
             OnPropertyChanged(nameof(EhModuloAltimetria));
+
             OnPropertyChanged(nameof(EhModuloPlantaGeral));
+
         }
+
     }
+
 }
 
+
+
 public bool EhModuloPlanimetria => ModuloAtivo == WorkspaceModulo.Planimetria;
+
 public bool EhModuloMdt => ModuloAtivo == WorkspaceModulo.ModelagemMdt;
+
 public bool EhModuloAltimetria => ModuloAtivo == WorkspaceModulo.Altimetria;
+
 public bool EhModuloPlantaGeral => ModuloAtivo == WorkspaceModulo.PlantaGeral;
+
+
 
 public IRelayCommand<WorkspaceModulo> MudarModuloCommand { get; }
 
+
+
 public void MudarModulo(WorkspaceModulo modulo)
+
 {
+
     ModuloAtivo = modulo;
+
 }
+
+
 
 public void AplicarPresetModulo(WorkspaceModulo modulo)
+
 {
+
     switch (modulo)
+
     {
+
         case WorkspaceModulo.Planimetria:
+
             MostrarPoligonalCompensada = true;
+
             MostrarEsbocoBruto = true;
+
             MostrarPontos = true;
+
             MostrarTin = false;
+
             MostrarBreaklines = false;
+
             MostrarCurvasMestras = false;
+
             MostrarCurvasSecundarias = false;
+
             break;
+
+
 
         case WorkspaceModulo.ModelagemMdt:
+
             MostrarTin = true;
+
             MostrarBreaklines = true;
+
             MostrarPontos = true;
+
             MostrarPoligonalCompensada = false;
+
             MostrarEsbocoBruto = false;
+
             MostrarCurvasMestras = false;
+
             MostrarCurvasSecundarias = false;
+
             break;
+
+
 
         case WorkspaceModulo.Altimetria:
+
             MostrarCurvasMestras = true;
+
             MostrarCurvasSecundarias = true;
+
             MostrarPoligonalCompensada = true;
+
             MostrarPontos = false;
+
             MostrarTin = false;
+
             MostrarEsbocoBruto = false;
+
             MostrarBreaklines = false;
+
             break;
 
+
+
         case WorkspaceModulo.PlantaGeral:
+
             MostrarPoligonalCompensada = true;
+
             MostrarPontos = true;
+
             MostrarCurvasMestras = true;
+
             MostrarCurvasSecundarias = true;
+
             MostrarBreaklines = true;
+
             MostrarEsbocoBruto = false;
+
             MostrarTin = false;
+
             break;
+
     }
+
 }
+
+
 
 // === Propriedades Informativas de Superfície (MDT / Altimetria / Planta Geral) ===
 
+
+
 private int _totalTriangulosMdt;
+
 public int TotalTriangulosMdt
+
 {
+
     get => _totalTriangulosMdt;
+
     set => SetProperty(ref _totalTriangulosMdt, value);
+
 }
+
+
 
 private int _totalVerticesMdt;
+
 public int TotalVerticesMdt
+
 {
+
     get => _totalVerticesMdt;
+
     set => SetProperty(ref _totalVerticesMdt, value);
+
 }
+
+
 
 private double _cotaMinimaTerreno;
+
 public double CotaMinimaTerreno
+
 {
+
     get => _cotaMinimaTerreno;
+
     set => SetProperty(ref _cotaMinimaTerreno, value);
+
 }
+
+
 
 private double _cotaMaximaTerreno;
+
 public double CotaMaximaTerreno
+
 {
+
     get => _cotaMaximaTerreno;
+
     set => SetProperty(ref _cotaMaximaTerreno, value);
+
 }
 
+
+
 private double _desnivelTerreno;
+
 public double DesnivelTerreno
+
 {
+
     get => _desnivelTerreno;
+
     set => SetProperty(ref _desnivelTerreno, value);
+
 }
+
+
 
 public int TotalPontos => _resultadoAtual?.TodosOsPontos.Count() ?? 0;
 
+
+
 // === Camadas de Visibilidade CAD ===
 
+
+
 private bool _mostrarEsbocoBruto = true;
+
 public bool MostrarEsbocoBruto { get => _mostrarEsbocoBruto; set => SetProperty(ref _mostrarEsbocoBruto, value); }
 
+
+
 private bool _mostrarPoligonalCompensada = true;
+
 public bool MostrarPoligonalCompensada { get => _mostrarPoligonalCompensada; set => SetProperty(ref _mostrarPoligonalCompensada, value); }
 
+
+
 private bool _mostrarPontos = true;
+
 public bool MostrarPontos { get => _mostrarPontos; set => SetProperty(ref _mostrarPontos, value); }
 
+
+
 private bool _mostrarTin;
+
 public bool MostrarTin { get => _mostrarTin; set => SetProperty(ref _mostrarTin, value); }
 
+
+
 private bool _mostrarBreaklines;
+
 public bool MostrarBreaklines { get => _mostrarBreaklines; set => SetProperty(ref _mostrarBreaklines, value); }
 
+
+
 private bool _mostrarCurvasMestras;
+
 public bool MostrarCurvasMestras { get => _mostrarCurvasMestras; set => SetProperty(ref _mostrarCurvasMestras, value); }
 
+
+
 private bool _mostrarCurvasSecundarias;
+
 public bool MostrarCurvasSecundarias { get => _mostrarCurvasSecundarias; set => SetProperty(ref _mostrarCurvasSecundarias, value); }
 
 
 
+
+
+
+
 // =========================================================================
 
-//  COLECAO TABULAR DE DIAGN"STICO (QA Checks NBR 13.133)
+
+
+//  COLECAO TABULAR DE DIAGNoSTICO (QA Checks NBR 13.133)
+
+
 
 // =========================================================================
+
+
 
 public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
 
+
+
+
+
         private string _nomeArquivoAtual = "Sem Título";
+
+
 
         public string NomeArquivoAtual { get => _nomeArquivoAtual; private set => SetProperty(ref _nomeArquivoAtual, value); }
 
 
 
+
+
+
+
         private bool _projetoModificado;
+
+
 
         public bool ProjetoModificado
 
+
+
         {
+
+
 
             get => _projetoModificado;
 
+
+
             private set { if (SetProperty(ref _projetoModificado, value)) OnPropertyChanged(nameof(TituloJanela)); }
+
+
 
         }
 
+
+
         public string TituloJanela =>
+
             $"TopoGENTE - Plataforma de Processamento Gráfico{(NomeArquivoAtual == "Sem Título" || string.IsNullOrWhiteSpace(NomeArquivoAtual) ? "" : $" - {NomeArquivoAtual}")}{(ProjetoModificado ? "*" : "")}";
+
+
+
 
 
         private RelatorioQA? _relatorioQaAtual;
 
-        public RelatorioQA? RelatorioQaAtual { get => _relatorioQaAtual; private set => SetProperty(ref _relatorioQaAtual, value); }
+
+
+        public RelatorioQA? RelatorioQaAtual
+        {
+            get => _relatorioQaAtual;
+            private set
+            {
+                if (SetProperty(ref _relatorioQaAtual, value))
+                {
+                    OnPropertyChanged(nameof(MemorialPericial));
+                }
+            }
+        }
+
+        public MemorialRastreabilidadePericial? MemorialPericial => RelatorioQaAtual?.MemorialRastreabilidade;
+
+
+
+        // === Preferências de Unidades de Medida (SI puro no Core, visualização adaptável) ===
+
+        private UnidadeLinearEnum _unidadeLinearSelecionada = UnidadeLinearEnum.Milimetros;
+
+        public UnidadeLinearEnum UnidadeLinearSelecionada
+
+        {
+
+            get => _unidadeLinearSelecionada;
+
+            set
+
+            {
+
+                if (SetProperty(ref _unidadeLinearSelecionada, value))
+
+                {
+
+                    NotificarPropriedadesFormatadas();
+
+                }
+
+            }
+
+        }
+
+        public IReadOnlyList<UnidadeLinearEnum> UnidadesLinearesDisponiveis { get; } = Enum.GetValues<UnidadeLinearEnum>();
+
+
+
+        private UnidadeAngularEnum _unidadeAngularSelecionada = UnidadeAngularEnum.Segundos;
+
+        public UnidadeAngularEnum UnidadeAngularSelecionada
+
+        {
+
+            get => _unidadeAngularSelecionada;
+
+            set
+
+            {
+
+                if (SetProperty(ref _unidadeAngularSelecionada, value))
+
+                {
+
+                    NotificarPropriedadesFormatadas();
+
+                }
+
+            }
+
+        }
+
+        public IReadOnlyList<UnidadeAngularEnum> UnidadesAngularesDisponiveis { get; } = Enum.GetValues<UnidadeAngularEnum>();
+
+
 
         // === Tolerâncias Customizáveis NBR 13.133 (Módulo 2) ===
+
         private PresetToleranciaEnum _presetToleranciaSelecionado = PresetToleranciaEnum.ClasseIIP;
+
         public PresetToleranciaEnum PresetToleranciaSelecionado
+
         {
+
             get => _presetToleranciaSelecionado;
+
             set
+
             {
+
                 if (SetProperty(ref _presetToleranciaSelecionado, value))
+
                 {
+
                     AplicarPresetTolerancia(value);
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
+
+
 
         public IReadOnlyList<PresetToleranciaEnum> PresetsToleranciaDisponiveis { get; } =
+
             Enum.GetValues<PresetToleranciaEnum>();
 
-        private double _toleranciaK = 2.0;
-        public double ToleranciaK
+
+
+        private double _toleranciaB = 15.0;
+
+        public double ToleranciaB
+
         {
-            get => _toleranciaK;
+
+            get => _toleranciaB;
+
             set
+
             {
-                if (SetProperty(ref _toleranciaK, value))
+
+                if (SetProperty(ref _toleranciaB, value))
+
                 {
-                    AjustarParaPresetPersonalizado();
+
+                    if (!_atualizandoPresetInternamente)
+
+                    {
+
+                        _toleranciaSigmaA = _toleranciaB / Math.Max(0.1, _toleranciaK);
+
+                        OnPropertyChanged(nameof(ToleranciaSigmaA));
+
+                        AjustarParaPresetPersonalizado();
+
+                    }
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
 
-        private double _toleranciaSigmaA = 5.0;
-        public double ToleranciaSigmaA
+
+
+        private double _toleranciaK = 2.0;
+
+        public double ToleranciaK
+
         {
-            get => _toleranciaSigmaA;
+
+            get => _toleranciaK;
+
             set
+
             {
-                if (SetProperty(ref _toleranciaSigmaA, value))
+
+                if (SetProperty(ref _toleranciaK, value))
+
                 {
-                    AjustarParaPresetPersonalizado();
+
+                    if (!_atualizandoPresetInternamente)
+
+                    {
+
+                        _toleranciaSigmaA = _toleranciaB / Math.Max(0.1, _toleranciaK);
+
+                        OnPropertyChanged(nameof(ToleranciaSigmaA));
+
+                        AjustarParaPresetPersonalizado();
+
+                    }
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
+
+
+
+        private double _toleranciaSigmaA = 7.5;
+
+        public double ToleranciaSigmaA
+
+        {
+
+            get => _toleranciaSigmaA;
+
+            set
+
+            {
+
+                if (SetProperty(ref _toleranciaSigmaA, value))
+
+                {
+
+                    if (!_atualizandoPresetInternamente)
+
+                    {
+
+                        _toleranciaB = _toleranciaK * _toleranciaSigmaA;
+
+                        OnPropertyChanged(nameof(ToleranciaB));
+
+                        AjustarParaPresetPersonalizado();
+
+                    }
+
+                    RecalcularLaudoQa();
+
+                }
+
+            }
+
+        }
+
+
+
+        private double _toleranciaTermoCentragemCa = 0.0;
+
+        public double ToleranciaTermoCentragemCa
+
+        {
+
+            get => _toleranciaTermoCentragemCa;
+
+            set
+
+            {
+
+                if (SetProperty(ref _toleranciaTermoCentragemCa, value))
+
+                {
+
+                    AjustarParaPresetPersonalizado();
+
+                    RecalcularLaudoQa();
+
+                }
+
+            }
+
+        }
+
+
 
         private int _toleranciaDenominadorLinear = 5000;
+
         public int ToleranciaDenominadorLinear
+
         {
+
             get => _toleranciaDenominadorLinear;
+
             set
+
             {
+
                 if (SetProperty(ref _toleranciaDenominadorLinear, value))
+
                 {
+
                     AjustarParaPresetPersonalizado();
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
+
+
 
         private double _toleranciaC = 3.0;
+
         public double ToleranciaC
+
         {
+
             get => _toleranciaC;
+
             set
+
             {
+
                 if (SetProperty(ref _toleranciaC, value))
+
                 {
+
                     AjustarParaPresetPersonalizado();
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
+
+
 
         private double _toleranciaCheckDeltaXY = 0.01;
+
         public double ToleranciaCheckDeltaXY
+
         {
+
             get => _toleranciaCheckDeltaXY;
+
             set
+
             {
+
                 if (SetProperty(ref _toleranciaCheckDeltaXY, value))
+
                 {
+
                     AjustarParaPresetPersonalizado();
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
+
+
 
         private double _toleranciaCheckDeltaZ = 0.02;
+
         public double ToleranciaCheckDeltaZ
+
         {
+
             get => _toleranciaCheckDeltaZ;
+
             set
+
             {
+
                 if (SetProperty(ref _toleranciaCheckDeltaZ, value))
+
                 {
+
                     AjustarParaPresetPersonalizado();
+
                     RecalcularLaudoQa();
+
                 }
+
             }
+
         }
+
+
+
+        private double _toleranciaCLinear = 0.0030;
+
+        public double ToleranciaCLinear
+
+        {
+
+            get => _toleranciaCLinear;
+
+            set
+
+            {
+
+                if (SetProperty(ref _toleranciaCLinear, value))
+
+                {
+
+                    AjustarParaPresetPersonalizado();
+
+                    RecalcularLaudoQa();
+
+                }
+
+            }
+
+        }
+
+
+
+        private double _toleranciaDLinear = 0.30;
+
+        public double ToleranciaDLinear
+
+        {
+
+            get => _toleranciaDLinear;
+
+            set
+
+            {
+
+                if (SetProperty(ref _toleranciaDLinear, value))
+
+                {
+
+                    AjustarParaPresetPersonalizado();
+
+                    RecalcularLaudoQa();
+
+                }
+
+            }
+
+        }
+
+
+
+        private ModoAvaliacaoLinearEnum _modoAvaliacaoLinearSelecionado = ModoAvaliacaoLinearEnum.AmbosRigorosoNBR;
+
+        public ModoAvaliacaoLinearEnum ModoAvaliacaoLinearSelecionado
+
+        {
+
+            get => _modoAvaliacaoLinearSelecionado;
+
+            set
+
+            {
+
+                if (SetProperty(ref _modoAvaliacaoLinearSelecionado, value))
+
+                {
+
+                    RecalcularLaudoQa();
+
+                }
+
+            }
+
+        }
+
+        public IReadOnlyList<ModoAvaliacaoLinearEnum> ModosAvaliacaoLinearDisponiveis { get; } =
+
+            Enum.GetValues<ModoAvaliacaoLinearEnum>();
+
+
 
         public ParametrosTolerancia ToleranciasAtuais => new()
+
         {
-            K = _toleranciaK,
+
+            FactorK = _toleranciaK,
+
+            CoeficienteAngularB = _toleranciaB,
+
             SigmaA = _toleranciaSigmaA,
+
+            TermoCentragemCa = _toleranciaTermoCentragemCa,
+
             DenominadorPrecisaoLinear = Math.Max(1, _toleranciaDenominadorLinear),
+
+            ErroLinearConstanteC = _toleranciaCLinear,
+
+            CoeficienteLinearD = _toleranciaDLinear,
+
             C = _toleranciaC,
+
+            ModoAvaliacaoLinear = _modoAvaliacaoLinearSelecionado,
+
             ToleranciaCheckDeltaXY = _toleranciaCheckDeltaXY,
+
             ToleranciaCheckDeltaZ = _toleranciaCheckDeltaZ,
+
             Preset = _presetToleranciaSelecionado
+
         };
 
+
+
         private bool _atualizandoPresetInternamente;
+
         private void AplicarPresetTolerancia(PresetToleranciaEnum preset)
+
         {
+
             if (preset == PresetToleranciaEnum.Personalizado) return;
 
-            _atualizandoPresetInternamente = true;
-            try
-            {
-                var basePreset = preset == PresetToleranciaEnum.ClasseIP
-                    ? ParametrosTolerancia.ClasseIP
-                    : ParametrosTolerancia.ClasseIIP;
 
-                ToleranciaK = basePreset.K;
-                ToleranciaSigmaA = basePreset.SigmaA;
-                ToleranciaDenominadorLinear = basePreset.DenominadorPrecisaoLinear;
-                ToleranciaC = basePreset.C;
-                ToleranciaCheckDeltaXY = basePreset.ToleranciaCheckDeltaXY;
-                ToleranciaCheckDeltaZ = basePreset.ToleranciaCheckDeltaZ;
-            }
-            finally
+
+            _atualizandoPresetInternamente = true;
+
+            try
+
             {
-                _atualizandoPresetInternamente = false;
+
+                var basePreset = preset switch
+
+                {
+
+                    PresetToleranciaEnum.ClasseIP => ParametrosTolerancia.ClasseIP,
+
+                    PresetToleranciaEnum.ClasseIIP => ParametrosTolerancia.ClasseIIP,
+
+                    PresetToleranciaEnum.ClasseIIIP => ParametrosTolerancia.ClasseIIIP,
+
+                    PresetToleranciaEnum.ClasseIVP => ParametrosTolerancia.ClasseIVP,
+
+                    PresetToleranciaEnum.ClasseVP => ParametrosTolerancia.ClasseVP,
+
+                    _ => ParametrosTolerancia.ClasseIIP
+
+                };
+
+
+
+                ToleranciaK = basePreset.FactorK;
+
+                ToleranciaB = basePreset.CoeficienteAngularB;
+
+                ToleranciaSigmaA = basePreset.SigmaA;
+
+                ToleranciaTermoCentragemCa = basePreset.TermoCentragemCa;
+
+                ToleranciaDenominadorLinear = basePreset.DenominadorPrecisaoLinear;
+
+                ToleranciaCLinear = basePreset.ErroLinearConstanteC;
+
+                ToleranciaDLinear = basePreset.CoeficienteLinearD;
+
+                ToleranciaC = basePreset.C;
+
+                ToleranciaCheckDeltaXY = basePreset.ToleranciaCheckDeltaXY;
+
+                ToleranciaCheckDeltaZ = basePreset.ToleranciaCheckDeltaZ;
+
+                ModoAvaliacaoLinearSelecionado = basePreset.ModoAvaliacaoLinear;
+
             }
+
+            finally
+
+            {
+
+                _atualizandoPresetInternamente = false;
+
+            }
+
         }
+
+
 
         private void AjustarParaPresetPersonalizado()
+
         {
+
             if (!_atualizandoPresetInternamente && _presetToleranciaSelecionado != PresetToleranciaEnum.Personalizado)
+
             {
+
                 _presetToleranciaSelecionado = PresetToleranciaEnum.Personalizado;
+
                 OnPropertyChanged(nameof(PresetToleranciaSelecionado));
+
             }
+
         }
+
+
 
         public void RecalcularLaudoQa()
+
         {
+
             if (_resultadoAtual == null) return;
 
+
+
             var ptosConhecidos = _pontosConhecidosGlobais != null
+
                 ? new Dictionary<string, PontoCoordenada>(_pontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase)
+
                 : new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
 
+
+
             var relatorio = _qaCheckService.GerarRelatorioQaChecks(
+
                 _estacoesEmMemoria,
+
                 _resultadoAtual,
+
                 ptosConhecidos,
+
                 ToleranciasAtuais);
 
-            int nEstacoes = _resultadoAtual.Poligonal?.Count ?? 0;
-            double perimetro = _resultadoAtual.Perimetro;
 
-            relatorio.ErroAngular = _resultadoAtual.ErroAngular;
-            relatorio.ErroLinear = _resultadoAtual.ErroLinear;
-            relatorio.ErroAltimetrico = _resultadoAtual.ErroFechamentoZ;
-
-            relatorio.ToleranciasAplicadas = ToleranciasAtuais;
-            relatorio.ToleranciaAngularAdmissivel = ToleranciasAtuais.CalcularToleranciaAngularGraus(nEstacoes);
-            relatorio.ToleranciaLinearAdmissivel = ToleranciasAtuais.CalcularToleranciaLinearMetros(perimetro);
-            relatorio.ToleranciaAltimetricaAdmissivel = ToleranciasAtuais.CalcularToleranciaAltimetricaMetros(perimetro);
-
-            relatorio.AngularConforme = Math.Abs(relatorio.ErroAngular) <= relatorio.ToleranciaAngularAdmissivel + 1e-4;
-            relatorio.LinearConforme = _resultadoAtual.Precisao <= ToleranciasAtuais.PrecisaoLinearMinima + 1e-6;
-            relatorio.AltimetricoConforme = Math.Abs(relatorio.ErroAltimetrico) <= relatorio.ToleranciaAltimetricaAdmissivel + 1e-4;
 
             RelatorioQaAtual = relatorio;
+
             OnPropertyChanged(nameof(RelatorioQaAtual));
+
+            NotificarPropriedadesFormatadas();
+
         }
+
+
+
+        private void NotificarPropriedadesFormatadas()
+
+        {
+
+            OnPropertyChanged(nameof(ErroLinearFormatado));
+
+            OnPropertyChanged(nameof(ToleranciaLinearFormatada));
+
+            OnPropertyChanged(nameof(ErroLinearAbsolutoFormatado));
+
+            OnPropertyChanged(nameof(ToleranciaLinearAbsolutaFormatada));
+
+            OnPropertyChanged(nameof(ErroAngularFormatado));
+
+            OnPropertyChanged(nameof(ToleranciaAngularFormatada));
+
+            OnPropertyChanged(nameof(TooltipErroLinear));
+
+            OnPropertyChanged(nameof(TooltipToleranciaLinear));
+
+            OnPropertyChanged(nameof(TooltipErroAngular));
+
+            OnPropertyChanged(nameof(TooltipToleranciaAngular));
+
+        }
+
+
+
+        // === Propriedades Formatadas Dinamicamente com Unidade e Tooltip ===
+
+        public string ErroLinearFormatado =>
+
+            FormatadorUnidades.FormatarLinear(_resultadoAtual?.ErroLinear ?? 0.0, UnidadeLinearSelecionada);
+
+
+
+        public string ToleranciaLinearFormatada =>
+
+            FormatadorUnidades.FormatarLinear(RelatorioQaAtual?.ToleranciaLinearAdmissivel ?? 0.0, UnidadeLinearSelecionada);
+
+
+
+        public string ErroLinearAbsolutoFormatado =>
+
+            FormatadorUnidades.FormatarLinear(_resultadoAtual?.ErroLinear ?? 0.0, UnidadeLinearSelecionada);
+
+
+
+        public string ToleranciaLinearAbsolutaFormatada =>
+
+            FormatadorUnidades.FormatarLinear(RelatorioQaAtual?.ToleranciaLinearAbsolutaMetros ?? 0.0, UnidadeLinearSelecionada);
+
+
+
+        public string ErroAngularFormatado =>
+
+            FormatadorUnidades.FormatarAngular(_resultadoAtual?.ErroAngular ?? 0.0, UnidadeAngularSelecionada);
+
+
+
+        public string ToleranciaAngularFormatada =>
+
+            FormatadorUnidades.FormatarAngular(RelatorioQaAtual?.ToleranciaAngularAdmissivel ?? 0.0, UnidadeAngularSelecionada);
+
+
+
+        public string TooltipErroLinear =>
+
+            FormatadorUnidades.GerarTooltipLinearCompleto(_resultadoAtual?.ErroLinear ?? 0.0);
+
+
+
+        public string TooltipToleranciaLinear =>
+
+            FormatadorUnidades.GerarTooltipLinearCompleto(RelatorioQaAtual?.ToleranciaLinearAbsolutaMetros ?? 0.0);
+
+
+
+        public string TooltipErroAngular =>
+
+            FormatadorUnidades.GerarTooltipAngularCompleto(_resultadoAtual?.ErroAngular ?? 0.0);
+
+
+
+        public string TooltipToleranciaAngular =>
+
+            FormatadorUnidades.GerarTooltipAngularCompleto(RelatorioQaAtual?.ToleranciaAngularAdmissivel ?? 0.0);
+
+
+
+
 
 
 
         // === Geometrias de Renderização ===
 
+
+
         private Geometry _staticTinGeometry = Geometry.Empty;
+
+
 
         public Geometry StaticTinGeometry { get => _staticTinGeometry; set => SetProperty(ref _staticTinGeometry, value); }
 
+
+
         private Geometry _staticMajorContoursGeometry = Geometry.Empty;
+
+
 
         public Geometry StaticMajorContoursGeometry { get => _staticMajorContoursGeometry; set => SetProperty(ref _staticMajorContoursGeometry, value); }
 
+
+
         private Geometry _staticMinorContoursGeometry = Geometry.Empty;
+
+
 
         public Geometry StaticMinorContoursGeometry { get => _staticMinorContoursGeometry; set => SetProperty(ref _staticMinorContoursGeometry, value); }
 
+
+
         private Geometry _staticBreaklinesGeometry = Geometry.Empty;
+
+
 
         public Geometry StaticBreaklinesGeometry { get => _staticBreaklinesGeometry; set => SetProperty(ref _staticBreaklinesGeometry, value); }
 
+
+
         private Geometry _staticPointsGeometry = Geometry.Empty;
+
+
 
         public Geometry StaticPointsGeometry { get => _staticPointsGeometry; set => SetProperty(ref _staticPointsGeometry, value); }
 
 
 
+
+
+
+
         // === Camadas (Etapa 5) ===
+
+
 
         private bool _exibirTin = true;
 
+
+
         public bool ExibirTin { get => _exibirTin; set => SetProperty(ref _exibirTin, value); }
+
+
 
         private bool _exibirCurvasMenores = true;
 
+
+
         public bool ExibirCurvasMenores { get => _exibirCurvasMenores; set => SetProperty(ref _exibirCurvasMenores, value); }
+
+
 
         private bool _exibirCurvasMestras = true;
 
+
+
         public bool ExibirCurvasMestras { get => _exibirCurvasMestras; set => SetProperty(ref _exibirCurvasMestras, value); }
+
+
 
         private bool _exibirBreaklines = true;
 
+
+
         public bool ExibirBreaklines { get => _exibirBreaklines; set => SetProperty(ref _exibirBreaklines, value); }
 
+
+
         private bool _exibirPontos = true;
+
+
 
         public bool ExibirPontos { get => _exibirPontos; set => SetProperty(ref _exibirPontos, value); }
 
 
 
+
+
+
+
         // === Câmera e Viewport CAD ===
+
+
 
         private Matrix _cameraMatrix = Matrix.Identity;
 
+
+
         public Matrix CameraMatrix { get => _cameraMatrix; set => SetProperty(ref _cameraMatrix, value); }
 
+
+
         private double _viewportWidth = 800;
+
         private double _viewportHeight = 600;
 
+
+
         // Origem Flutuante (Floating Origin Pattern para coordenadas geodésicas/UTM de grande magnitude)
+
         private double _originX = 0;
+
         private double _originY = 0;
+
         public double OriginX => _originX;
+
         public double OriginY => _originY;
 
+
+
         public void AtualizarDimensoesViewport(double width, double height)
+
         {
+
             if (width > 10 && height > 10)
+
             {
+
                 _viewportWidth = width;
+
                 _viewportHeight = height;
+
             }
+
         }
 
+
+
         public void ZoomExtents(IEnumerable<PontoCoordenada>? pontos = null)
+
         {
+
             var pts = pontos?.ToList() 
+
                 ?? _resultadoAtual?.TodosOsPontos?.ToList() 
+
                 ?? _resultadoAtual?.Poligonal?.ToList()
+
                 ?? _resultadoAtual?.PoligonalBruta?.ToList();
+
+
 
             if (pts == null || pts.Count == 0) return;
 
+
+
             // Se a origem do levantamento ainda não foi calibrada, define-a a partir do ponto mínimo
+
             if (_originX == 0 && _originY == 0 && (Math.Abs(pts[0].X) > 1000 || Math.Abs(pts[0].Y) > 1000))
+
             {
+
                 _originX = pts.Min(p => p.X);
+
                 _originY = pts.Min(p => p.Y);
+
             }
 
+
+
             double minX = pts.Min(p => p.X) - _originX;
+
             double maxX = pts.Max(p => p.X) - _originX;
+
             double minY = pts.Min(p => p.Y) - _originY;
+
             double maxY = pts.Max(p => p.Y) - _originY;
 
+
+
             double deltaX = maxX - minX;
+
             double deltaY = maxY - minY;
 
+
+
             if (deltaX < 1.0) deltaX = 1.0;
+
             if (deltaY < 1.0) deltaY = 1.0;
 
+
+
             double w = _viewportWidth > 50 ? _viewportWidth : 800;
+
             double h = _viewportHeight > 50 ? _viewportHeight : 600;
 
+
+
             double scaleX = w / deltaX;
+
             double scaleY = h / deltaY;
+
             double scale = Math.Min(scaleX, scaleY) * 0.90; // 10% margem de segurança
 
+
+
             double centerX = (minX + maxX) / 2.0;
+
             double centerY = (minY + maxY) / 2.0;
 
+
+
             double offsetX = (w / 2.0) - (centerX * scale);
+
             double offsetY = (h / 2.0) + (centerY * scale);
 
+
+
             CameraMatrix = new Matrix(scale, 0, 0, -scale, offsetX, offsetY);
+
         }
+
+
 
         public void AplicarPan(double dx, double dy)
+
         {
+
             var m = CameraMatrix;
+
             CameraMatrix = new Matrix(m.M11, m.M12, m.M21, m.M22, m.OffsetX + dx, m.OffsetY + dy);
+
             SetSnapMarker(SnapMarkerX, SnapMarkerY);
+
         }
 
+
+
         public void AplicarZoom(double factor, double mousePixelX, double mousePixelY)
+
         {
+
             var m = CameraMatrix;
+
             double det = m.M11 * m.M22 - m.M12 * m.M21;
+
             double currentScale = Math.Sqrt(Math.Abs(det));
+
             double newScale = currentScale * factor;
+
+
 
             if (newScale < 1e-5 || newScale > 1e6) return;
 
+
+
             double newOffsetX = mousePixelX * (1.0 - factor) + m.OffsetX * factor;
+
             double newOffsetY = mousePixelY * (1.0 - factor) + m.OffsetY * factor;
 
+
+
             CameraMatrix = new Matrix(m.M11 * factor, m.M12 * factor, m.M21 * factor, m.M22 * factor, newOffsetX, newOffsetY);
+
             SetSnapMarker(SnapMarkerX, SnapMarkerY);
+
         }
+
+
 
         public ICommand ZoomExtentsCommand { get; }
 
+
+
         public System.Windows.Point GetModelCoordinates(System.Windows.Point screenPoint)
+
         {
+
             Matrix inv = CameraMatrix;
+
             if (!inv.HasInverse) return screenPoint;
+
             inv.Invert();
+
             var local = inv.Transform(screenPoint);
+
             return new System.Windows.Point(local.X + _originX, local.Y + _originY);
+
         }
+
+
 
         public void SetRubberBand(double? startX, double? startY, double? endX, double? endY)
+
         {
+
             RubberBandStartX = startX; RubberBandStartY = startY;
+
             RubberBandEndX = endX; RubberBandEndY = endY;
 
+
+
             if (startX.HasValue && startY.HasValue && endX.HasValue && endY.HasValue)
+
             {
+
                 var geom = new StreamGeometry();
+
                 using (var ctx = geom.Open())
+
                 {
+
                     ctx.BeginFigure(new System.Windows.Point(startX.Value - _originX, startY.Value - _originY), false, false);
+
                     ctx.LineTo(new System.Windows.Point(endX.Value - _originX, endY.Value - _originY), true, false);
+
                 }
+
                 geom.Freeze();
+
                 DynamicRubberBandGeometry = geom;
+
             }
+
             else DynamicRubberBandGeometry = Geometry.Empty;
 
+
+
         }
+
+
 
         public double? RubberBandStartX { get; private set; }
 
+
+
         public double? RubberBandStartY { get; private set; }
+
+
 
         public double? RubberBandEndX { get; private set; }
 
+
+
         public double? RubberBandEndY { get; private set; }
+
+
 
         private Geometry _dynamicRubberBandGeometry = Geometry.Empty;
 
+
+
         public Geometry DynamicRubberBandGeometry { get => _dynamicRubberBandGeometry; set => SetProperty(ref _dynamicRubberBandGeometry, value); }
+
+
 
         public double? SnapMarkerX { get; private set; }
 
+
+
         public double? SnapMarkerY { get; private set; }
+
+
 
         private Geometry _snapMarkerGeometry = Geometry.Empty;
 
+
+
         public Geometry SnapMarkerGeometry { get => _snapMarkerGeometry; set => SetProperty(ref _snapMarkerGeometry, value); }
 
+
+
         public void SetSnapMarker(double? x, double? y)
+
         {
+
             SnapMarkerX = x;
+
             SnapMarkerY = y;
 
+
+
             if (x.HasValue && y.HasValue)
+
             {
+
                 double det = CameraMatrix.M11 * CameraMatrix.M22 - CameraMatrix.M12 * CameraMatrix.M21;
+
                 double escala = Math.Sqrt(Math.Abs(det));
+
                 if (escala < 1e-9) escala = 1.0;
+
                 
+
                 double halfSize = (10.0 / escala) / 2.0;
+
                 double centerX = x.Value - _originX;
+
                 double centerY = y.Value - _originY;
 
+
+
                 var geom = new RectangleGeometry(new System.Windows.Rect(centerX - halfSize, centerY - halfSize, halfSize * 2, halfSize * 2));
+
                 geom.Freeze();
+
                 SnapMarkerGeometry = geom;
+
             }
+
             else
+
             {
+
                 SnapMarkerGeometry = Geometry.Empty;
+
             }
+
         }
+
+
 
         public double? GetElevation(int vertexId)
+
         {
+
             if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Any())
+
             {
+
                 var pontos = _resultadoAtual.TodosOsPontos.ToList();
+
                 if (vertexId >= 0 && vertexId < pontos.Count)
+
                 {
+
                     return pontos[vertexId].Z;
+
                 }
+
             }
+
             return null;
+
         }
+
+
 
         private Geometry _dynamicMeasurementGeometry = Geometry.Empty;
+
         public Geometry DynamicMeasurementGeometry { get => _dynamicMeasurementGeometry; set => SetProperty(ref _dynamicMeasurementGeometry, value); }
 
+
+
         public void SetMeasurementBand(double? startX, double? startY, double? endX, double? endY)
+
         {
+
             if (startX.HasValue && startY.HasValue && endX.HasValue && endY.HasValue)
+
             {
+
                 var geom = new StreamGeometry();
+
                 using (var ctx = geom.Open())
+
                 {
+
                     ctx.BeginFigure(new System.Windows.Point(startX.Value - _originX, startY.Value - _originY), false, false);
+
                     ctx.LineTo(new System.Windows.Point(endX.Value - _originX, endY.Value - _originY), true, false);
+
                 }
+
                 geom.Freeze();
+
                 DynamicMeasurementGeometry = geom;
+
             }
+
             else
+
             {
+
                 DynamicMeasurementGeometry = Geometry.Empty;
+
             }
+
         }
+
+
 
         private string _textoMedicaoAtual = "";
+
         public string TextoMedicaoAtual { get => _textoMedicaoAtual; set => SetProperty(ref _textoMedicaoAtual, value); }
+
         
+
         private string _textoInspecaoAtual = "";
+
         public string TextoInspecaoAtual { get => _textoInspecaoAtual; set => SetProperty(ref _textoInspecaoAtual, value); }
+
         
+
         private bool _temMedicaoAtiva;
+
         public bool TemMedicaoAtiva { get => _temMedicaoAtiva; set => SetProperty(ref _temMedicaoAtiva, value); }
+
         
+
         private bool _temInspecaoAtiva;
+
         public bool TemInspecaoAtiva { get => _temInspecaoAtiva; set => SetProperty(ref _temInspecaoAtiva, value); }
 
+
+
         public void NotificarMedicao(double dh, double di, double dz, double inclinacao, double azimute)
+
         {
+
             TextoMedicaoAtual = $"DH: {dh:F3}m | DI: {di:F3}m | ΔZ: {dz:F3}m | Inc: {inclinacao:F3}% | Az: {azimute:F4}°";
+
             TemMedicaoAtiva = true;
+
             TemInspecaoAtiva = false;
-        }
-        
-        public void LimparMedicao()
-        {
-            TemMedicaoAtiva = false;
-            TextoMedicaoAtual = "";
-        }
-        
-        public void NotificarElementoInspecionado(int? verticeId, double? x, double? y, double? z, string? descricao)
-        {
-            if (verticeId.HasValue)
-            {
-                TextoInspecaoAtual = $"ID: {verticeId} | X: {x:F3} | Y: {y:F3} | Z: {z:F3}";
-            }
-            else
-            {
-                TextoInspecaoAtual = descricao ?? "";
-            }
-            TemInspecaoAtiva = true;
-            TemMedicaoAtiva = false;
-        }
-        
-        public void LimparInspecao()
-        {
-            TemInspecaoAtiva = false;
-            TextoInspecaoAtual = "";
+
         }
 
+        
+
+        public void LimparMedicao()
+
+        {
+
+            TemMedicaoAtiva = false;
+
+            TextoMedicaoAtual = "";
+
+        }
+
+        
+
+        public void NotificarElementoInspecionado(int? verticeId, double? x, double? y, double? z, string? descricao)
+
+        {
+
+            if (verticeId.HasValue)
+
+            {
+
+                TextoInspecaoAtual = $"ID: {verticeId} | X: {x:F3} | Y: {y:F3} | Z: {z:F3}";
+
+            }
+
+            else
+
+            {
+
+                TextoInspecaoAtual = descricao ?? "";
+
+            }
+
+            TemInspecaoAtiva = true;
+
+            TemMedicaoAtiva = false;
+
+        }
+
+        
+
+        public void LimparInspecao()
+
+        {
+
+            TemInspecaoAtiva = false;
+
+            TextoInspecaoAtual = "";
+
+        }
+
+
+
         public bool PodeTraçarBreaklines => EstadoAtualMotor == EstadoMotor.Compensado && !IsTopologyRebuilding;
+
         public string TooltipBreaklines => PodeTraçarBreaklines 
+
             ? "Traçar linhas obrigatórias de quebra (MDT)" 
+
             : "Compense a poligonal primeiro para gerar o MDT base";
+
+
 
         public void NotificarAviso(string mensagem) => _messageService.MostrarAviso(mensagem, "Atenção");
 
+
+
         private CadToolMode _modoFerramentaAtiva = CadToolMode.Inspecao;
+
         public CadToolMode ModoFerramentaAtiva
+
         {
+
             get => _modoFerramentaAtiva;
+
             set
+
             {
+
                 if (value == CadToolMode.Breakline && !PodeTraçarBreaklines)
+
                 {
+
                     _messageService.MostrarAviso("A malha triangular do terreno (MDT) ainda não foi gerada. É necessário compensar a poligonal antes de definir linhas obrigatórias.", "Atenção");
+
                     return;
+
                 }
+
+
 
                 if (SetProperty(ref _modoFerramentaAtiva, value))
+
                 {
+
                     OnPropertyChanged(nameof(EhModoInspecao));
+
                     OnPropertyChanged(nameof(EhModoBreakline));
+
                     OnPropertyChanged(nameof(EhModoMedicao));
+
                     if (value == CadToolMode.Breakline) MostrarBreaklines = true;
+
                 }
+
             }
+
         }
 
+
+
         public bool EhModoInspecao => ModoFerramentaAtiva == CadToolMode.Inspecao;
+
         public bool EhModoBreakline => ModoFerramentaAtiva == CadToolMode.Breakline;
+
         public bool EhModoMedicao => ModoFerramentaAtiva == CadToolMode.Medicao;
+
+
 
         public ICommand MudarFerramentaCadCommand { get; }
 
 
 
+
+
+
+
         // === fÍndice Espacial ===
+
+
 
         public KdTree2D? SpatialIndex { get; private set; }
 
+
+
         public BvhTree2D? EdgeSpatialIndex { get; private set; }
 
+
+
         private bool _isTopologyRebuilding;
+
         public bool IsTopologyRebuilding 
+
         { 
+
             get => _isTopologyRebuilding; 
+
             private set 
+
             { 
+
                 if (SetProperty(ref _isTopologyRebuilding, value))
+
                 {
+
                     OnPropertyChanged(nameof(PodeTraçarBreaklines));
+
                     OnPropertyChanged(nameof(TooltipBreaklines));
+
                     ((AsyncRelayCommand<Breakline>)ConsolidarBreaklineCommand)?.NotifyCanExecuteChanged();
+
                 }
+
             } 
+
         }
+
+
+
+
 
 
 
         // === Coleffues ===
 
+
+
         public BulkObservableCollection<LeituraViewModel> Visadas { get; } = [];
+
         public ICollectionView VisadasView { get; }
 
+
+
         public ObservableCollection<EstacaoCaminhamentoItemViewModel> EstacoesCaminhamento { get; } = [];
+
         private Dictionary<string, PontoCoordenada> _pontosConhecidosGlobais = new(StringComparer.OrdinalIgnoreCase);
+
+
 
                 public BulkObservableCollection<PontoCoordenada> ResultadosCaderneta { get; } = [];
 
+
+
         public ObservableCollection<SequenciaPoligonalViewModel> Poligonais { get; } = [];
+
+
 
         private SequenciaPoligonalViewModel? _poligonalSelecionada;
 
+
+
         public SequenciaPoligonalViewModel? PoligonalSelecionada
+
+
 
         {
 
+
+
             get => _poligonalSelecionada;
+
+
 
             set { if (SetProperty(ref _poligonalSelecionada, value)) NotifyCommandStates(); }
 
+
+
         }
+
+
 
         public ObservableCollection<string> EstacoesDisponiveis { get; } = [];
 
+
+
         private string? _estacaoDisponivelSelecionada;
+
+
 
         public string? EstacaoDisponivelSelecionada { get => _estacaoDisponivelSelecionada; set => SetProperty(ref _estacaoDisponivelSelecionada, value); }
 
+
+
         private string? _estacaoSequenciaSelecionada;
+
+
 
         public string? EstacaoSequenciaSelecionada { get => _estacaoSequenciaSelecionada; set => SetProperty(ref _estacaoSequenciaSelecionada, value); }
 
+
+
         private int _formatoArquivoIndex = 0;
+
+
 
         public int FormatoArquivoIndex { get => _formatoArquivoIndex; set => SetProperty(ref _formatoArquivoIndex, value); }
 
 
 
+
+
+
+
         // === Parâmetros TIN ===
 
+
+
         private double _stepInterval = 1.0;
+
         public double StepInterval
+
         {
+
             get => _stepInterval;
+
             set
+
             {
+
                 if (value > 0.05 && SetProperty(ref _stepInterval, value))
+
                 {
+
                     if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Any() && !IsTopologyRebuilding)
+
                     {
+
                         IsTopologyRebuilding = true;
+
                         Task.Run(() =>
+
                         {
+
                             try
+
                             {
+
                                 ProcessarGeometriasAtuais();
+
                             }
+
                             finally
+
                             {
+
                                 RunOnUiThread(() => IsTopologyRebuilding = false);
+
                             }
+
                         });
+
                     }
+
                 }
+
             }
+
         }
+
+
 
         public ObservableCollection<double> EquidistanciasDisponiveis { get; } = [0.25, 0.5, 1.0, 2.0, 5.0];
 
+
+
         private readonly double _anchorElevation = 100.0;
+
         public double AnchorElevation => _anchorElevation;
 
+
+
         private readonly int _majorContourFrequency = 5;
+
         public int MajorContourFrequency => _majorContourFrequency;
+
+
+
+
 
 
 
         // === Undo/Redo ===
 
+
+
         private readonly Stack<Commands.IUndoableCommand> _undoStack = new();
+
+
 
         private readonly Stack<Commands.IUndoableCommand> _redoStack = new();
 
+
+
         public ICommand UndoCommand { get; }
+
+
 
         public ICommand RedoCommand { get; }
 
+
+
         public void ExecuteCommand(Commands.IUndoableCommand command)
 
+
+
         {
+
+
 
             command.Execute();
 
+
+
             _undoStack.Push(command);
+
+
 
             _redoStack.Clear();
 
+
+
             NotifyUndoRedo();
 
+
+
         }
+
+
 
         public void Undo()
 
+
+
         {
+
+
 
             if (_undoStack.Count > 0) { var c = _undoStack.Pop(); c.Undo(); _redoStack.Push(c); NotifyUndoRedo(); }
 
+
+
         }
+
+
 
         public void Redo()
 
+
+
         {
+
+
 
             if (_redoStack.Count > 0) { var c = _redoStack.Pop(); c.Execute(); _undoStack.Push(c); NotifyUndoRedo(); }
 
+
+
         }
+
+
 
         private void NotifyUndoRedo()
 
+
+
         {
+
+
 
             (UndoCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
+
+
             (RedoCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
+
+
         }
+
+
+
+
 
 
 
         // === Commands ===
 
+
+
         public ICommand ImportarCadernetaCommand { get; }
+
+
 
         public ICommand AbrirProjetoCommand { get; }
 
+
+
         public ICommand SalvarProjetoCommand { get; }
+
+
 
         public ICommand AdicionarPoligonalCommand { get; }
 
+
+
         public ICommand RemoverPoligonalCommand { get; }
+
+
 
         public ICommand AdicionarSequenciaCommand { get; }
 
+
+
         public ICommand RemoverSequenciaCommand { get; }
+
+
 
         public ICommand SubirSequenciaCommand { get; }
 
+
+
         public ICommand DescerSequenciaCommand { get; }
+
+
 
         public ICommand ProcessarCommand { get; }
 
+
+
         public ICommand ExportarTxtCommand { get; }
 
+
+
         public ICommand ExportarDxfCommand { get; }
+
         public ICommand RecalcularMalhaCommand { get; }
+
         public ICommand ExportarRelatorioQaCommand { get; }
+
+
 
         public ICommand ConsolidarBreaklineCommand { get; }
 
+
+
         public ICommand DeletarElementoSelecionadoCommand { get; }
+
+
 
         public ICommand RowEditEndingCommand { get; }
 
 
 
+
+
+
+
         // === Modulo 3: Verificacao de Linha de Base ===
 
+
+
         private ModoCalculoPoligonal _modoCalculo = ModoCalculoPoligonal.CompensacaoBowditch;
+
         public ModoCalculoPoligonal ModoCalculo
+
         {
+
             get => _modoCalculo;
+
             set
+
             {
+
                 if (SetProperty(ref _modoCalculo, value))
+
                 {
+
                     OnPropertyChanged(nameof(IsVerificacaoLinhaBaseAtiva));
+
                     OnPropertyChanged(nameof(IsModoBowditchAtivo));
+
                     OnPropertyChanged(nameof(IsModoLinhaBaseAtivo));
+
                     OnPropertyChanged(nameof(LaudoLinhaBaseVisivel));
 
+
+
                     if (value == ModoCalculoPoligonal.VerificacaoLinhaBase)
+
                     {
+
                         SugerirLinhaBasePreliminar();
+
                     }
 
+
+
                     // Apenas recalcula automaticamente se o levantamento já tiver sido compensado previamente pelo usuário
+
                     if (_estacoesEmMemoria.Count > 0 && PodeProcessar() && 
+
                         (EstadoAtualMotor == EstadoMotor.Compensado || EstadoAtualMotor == EstadoMotor.ReprovadoNorma))
+
                     {
+
                         _ = ProcessarAsync();
+
                     }
+
                 }
+
             }
+
         }
+
+
 
         public bool IsVerificacaoLinhaBaseAtiva => ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase;
 
+
+
         public bool IsModoBowditchAtivo
+
         {
+
             get => ModoCalculo == ModoCalculoPoligonal.CompensacaoBowditch;
+
             set
+
             {
+
                 if (value) ModoCalculo = ModoCalculoPoligonal.CompensacaoBowditch;
+
             }
+
         }
+
+
 
         public bool IsModoLinhaBaseAtivo
+
         {
+
             get => ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase;
+
             set
+
             {
+
                 if (value) ModoCalculo = ModoCalculoPoligonal.VerificacaoLinhaBase;
+
             }
+
         }
+
+
 
         private string _pontoPartidaLinhaBase = string.Empty;
+
         public string PontoPartidaLinhaBase
+
         {
+
             get => _pontoPartidaLinhaBase;
+
             set => SetProperty(ref _pontoPartidaLinhaBase, value);
+
         }
+
+
 
         private string _pontoChegadaLinhaBase = string.Empty;
+
         public string PontoChegadaLinhaBase
+
         {
+
             get => _pontoChegadaLinhaBase;
+
             set => SetProperty(ref _pontoChegadaLinhaBase, value);
+
         }
 
+
+
         private LaudoDiscrepanciaLinhaBase? _laudoLinhaBase;
+
         public LaudoDiscrepanciaLinhaBase? LaudoLinhaBase
+
         {
+
             get => _laudoLinhaBase;
+
             set
+
             {
+
                 if (SetProperty(ref _laudoLinhaBase, value))
+
                 {
+
                     OnPropertyChanged(nameof(LaudoLinhaBaseVisivel));
+
                 }
+
             }
+
         }
+
+
 
         public bool LaudoLinhaBaseVisivel => LaudoLinhaBase is not null && IsVerificacaoLinhaBaseAtiva;
 
+
+
         public ICommand ExecutarVerificacaoLinhaBaseCommand { get; }
+
+
 
         // === Construtor ===
 
+
+
         public DashboardViewModel(
+
+
 
             Func<ITerrainTriangulator> triangulatorFactory,
 
+
+
             Func<ITopographicAnalytics> analyticsFactory,
+
+
 
             ILeituraArquivoFactory leitorFactory,
 
+
+
             IOrganizarCaminhamento organizador,
+
+
 
             ILevantamentoProcessor processador,
 
+
+
             IQaCheckService qaCheckService,
+
+
 
             IClassificadorGrafo classificadorGrafo,
 
+
+
             IArquivoProjetoService projetoService,
+
+
 
             IExportarTxtService exportarTxtService,
 
+
+
             IExportadorDxfService exportadorDxfService,
+
+
 
             IDialogService dialogService,
 
+
+
             IFileService fileService,
 
-            IMessageService messageService)
+
+
+            IMessageService messageService,
+            IFormatadorMemorialPericialService? formatadorMemorialPericial = null)
+
+
 
         {
+
+
 
             _triangulatorFactory = triangulatorFactory; _analyticsFactory = analyticsFactory; _triangulator = _triangulatorFactory(); _analytics = (_triangulator as ITopographicAnalytics) ?? _analyticsFactory();
 
+
+
             _leitorFactory = leitorFactory; _organizador = organizador;
+
+
 
             _processador = processador; _qaCheckService = qaCheckService;
 
+
+
             _classificadorGrafo = classificadorGrafo; _projetoService = projetoService;
+
+
 
             _exportarTxtService = exportarTxtService; _exportadorDxfService = exportadorDxfService;
 
+
+
             _dialogService = dialogService; _fileService = fileService; _messageService = messageService;
+            _formatadorMemorialPericial = formatadorMemorialPericial ?? new FormatadorMemorialPericialService();
+
+
 
             _dispatcher = System.Windows.Threading.Dispatcher.FromThread(System.Threading.Thread.CurrentThread)
+
                        ?? System.Windows.Threading.Dispatcher.CurrentDispatcher;
+
+
 
             WeakReferenceMessenger.Default.Register<ResultadoMdtMensagem>(this);
 
+
+
             WeakReferenceMessenger.Default.Register<TopologyChangedMessage>(this);
+
+
 
             RowEditEndingCommand              = new AsyncRelayCommand<object>(OnRowEditEndingAsync);
 
+
+
             ConsolidarBreaklineCommand        = new AsyncRelayCommand<Breakline>(ConsolidarBreaklineAsync, _ => PodeTraçarBreaklines);
+
+
 
             DeletarElementoSelecionadoCommand = new AsyncRelayCommand(DeletarElementoSelecionadoAsync);
 
+
+
             UndoCommand = new RelayCommand(_ => Undo(), _ => _undoStack.Count > 0);
+
+
 
             RedoCommand = new RelayCommand(_ => Redo(), _ => _redoStack.Count > 0);
 
+
+
             ImportarCadernetaCommand = new AsyncRelayCommand(ImportarCadernetaAsync);
+
+
 
             AbrirProjetoCommand      = new AsyncRelayCommand(AbrirProjetoAsync);
 
+
+
             SalvarProjetoCommand     = new AsyncRelayCommand(SalvarProjetoAsync);
+
+
 
             AdicionarPoligonalCommand = new RelayCommand(_ => OnAdicionarPoligonal());
 
+
+
             RemoverPoligonalCommand   = new RelayCommand(_ => OnRemoverPoligonal(),   _ => PoligonalSelecionada?.EhPrincipal == false);
+
+
 
             AdicionarSequenciaCommand = new RelayCommand(_ => OnAdicionarSequencia(), _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoDisponivelSelecionada));
 
+
+
             RemoverSequenciaCommand   = new RelayCommand(_ => OnRemoverSequencia(),   _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
+
+
 
             SubirSequenciaCommand     = new RelayCommand(_ => OnSubirSequencia(),     _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
 
+
+
             DescerSequenciaCommand    = new RelayCommand(_ => OnDescerSequencia(),    _ => PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada));
+
             
+
             MudarFerramentaCadCommand = new RelayCommand<string>(modoStr =>
+
             {
+
                 if (Enum.TryParse<CadToolMode>(modoStr, out var modo))
+
                 {
+
                     ModoFerramentaAtiva = modo;
+
                 }
+
             });
+
+
 
             ProcessarCommand   = new AsyncRelayCommand(ProcessarAsync, PodeProcessar);
 
+
+
             ExportarTxtCommand = new RelayCommand(_ => OnExportarTxt(), _ => _resultadoAtual?.TodosOsPontos.Any() == true && EstadoAtualMotor == EstadoMotor.Compensado);
+
+
 
             ExportarDxfCommand = new RelayCommand(_ => OnExportarDxf(), _ => _resultadoAtual?.TodosOsPontos.Any() == true && EstadoAtualMotor == EstadoMotor.Compensado);
 
+
+
             MudarModuloCommand = new RelayCommand<WorkspaceModulo>(MudarModulo);
 
+
+
             RecalcularMalhaCommand = new AsyncRelayCommand(async () =>
+
             {
+
                 if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Any())
+
                 {
+
                     await RenderizarTinDeResultadoAsync(_resultadoAtual);
+
                 }
+
             }, () => _resultadoAtual?.TodosOsPontos.Any() == true && !IsTopologyRebuilding);
+
+
 
             ExportarRelatorioQaCommand = new RelayCommand(_ => OnExportarRelatorioQa(), _ => RelatorioQaAtual != null);
 
+
+
             ZoomExtentsCommand = new RelayCommand(_ => ZoomExtents());
+
             ExecutarVerificacaoLinhaBaseCommand = new AsyncRelayCommand(ExecutarVerificacaoLinhaBaseAsync);
+
+
 
             AplicarPresetModulo(WorkspaceModulo.Planimetria);
 
+
+
             var principal = new SequenciaPoligonalViewModel { Nome = "Poligonal Principal", EhPrincipal = true };
+
+
 
             principal.PropertyChanged += (_, _) => ((AsyncRelayCommand)ProcessarCommand).NotifyCanExecuteChanged();
 
+
+
             Poligonais.Add(principal);
+
+
 
             PoligonalSelecionada = principal;
 
+
+
             VisadasView = CollectionViewSource.GetDefaultView(Visadas);
+
             if (VisadasView.GroupDescriptions != null)
+
             {
+
                 VisadasView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LeituraViewModel.IdentificadorSessao)));
+
             }
+
         }
+
+
 
         private void RunOnUiThread(Action action, System.Windows.Threading.DispatcherPriority priority = System.Windows.Threading.DispatcherPriority.Normal)
+
         {
+
             if (_dispatcher == null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+
             {
+
                 action();
+
                 return;
+
             }
 
+
+
             if (_dispatcher.CheckAccess())
+
             {
+
                 action();
+
             }
+
             else
+
             {
+
                 _dispatcher.BeginInvoke(action, priority);
+
             }
+
         }
+
+
 
         private async Task RunOnUiThreadAsync(Action action, System.Windows.Threading.DispatcherPriority priority = System.Windows.Threading.DispatcherPriority.Normal)
+
         {
+
             if (_dispatcher == null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+
             {
+
                 action();
+
                 return;
+
             }
 
+
+
             if (_dispatcher.CheckAccess())
+
             {
+
                 action();
+
             }
+
             else
+
             {
+
                 await _dispatcher.InvokeAsync(action, priority);
+
             }
+
         }
+
+
+
+
 
 
 
         // === ETAPA 1 - Importação ===
 
+
+
         private async Task ImportarCadernetaAsync()
+
+
 
         {
 
+
+
             var fileName = _dialogService.SelecionarArquivoAbertura(
+
+
 
                 "Arquivos Topográficos (*.txt;*.csv;*.fbk;*.xml)|*.txt;*.csv;*.fbk;*.xml|Todos (*.*)|*.*",
 
+
+
                 "Selecione a Caderneta de Campo");
+
+
 
             if (string.IsNullOrEmpty(fileName)) return;
 
+
+
             try
+
+
 
             {
 
+
+
                 var extension = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+
                 if (extension == ".fbk") FormatoArquivoIndex = 1;
+
                 else if (extension == ".xml" || extension == ".landxml") FormatoArquivoIndex = 2;
+
                 else FormatoArquivoIndex = 0;
+
+
 
                 var formato = FormatoArquivoIndex switch { 1 => FormatoArquivoEntrada.Fbk, 2 => FormatoArquivoEntrada.LandXml, _ => FormatoArquivoEntrada.CsvPadrao };
 
+
+
                 var linhas  = await Task.Run(() => _fileService.LerLinhas(fileName));
 
+
+
                 var config = _dialogService.ConfigurarImportacao(fileName, linhas, formato)
+
                              ?? LeitorCsvEngine.DetectarConfiguracaoSugerida(linhas, formato);
+
                 var result  = await Task.Run(() => _leitorFactory.ProcessarArquivoComResultado(formato, linhas, config));
 
+
+
                 _estacoesEmMemoria = _organizador.UnificarEstacoes(result.Estacoes);
+                _ultimasSentinelasDescartadas = result.SentinelasDescartadas;
+
+
 
                 InvalidarResultado();
 
+
+
                 AtualizarListaEstacoes();
+
+
 
                 SugerirSequenciaPoligonalPorVante();
 
+
+
                 ResultadosCaderneta.Clear();
+
+
 
                 Visadas.Clear();
 
 
 
+
+
+
+
                 var leituras = new List<LeituraViewModel>();
+
+
 
                 foreach (var est in _estacoesEmMemoria)
 
+
+
                 {
+
+
 
                     foreach (var l in est.Leituras)
 
+
+
                     {
+
+
 
                         leituras.Add(new LeituraViewModel(l) { AlturaInstrumento = est.AlturaInstrumento, NumeroSessao = est.NumeroSessao });
 
+
+
                     }
 
+
+
                 }
+
+
 
                 Visadas.AddRange(leituras);
 
 
 
+
+
+
+
                 var pontos = _estacoesEmMemoria
+
+
 
                     .SelectMany(e => e.Leituras
 
+
+
                         .Select(l => new PontoCoordenada { Nome = l.PontoVisado ?? string.Empty }))
+
+
 
                     .ToList();
 
+
+
                 if (result.PontosImportados != null && result.PontosImportados.Count > 0)
+
                 {
+
                     ResultadosCaderneta.AddRange(result.PontosImportados);
+
                 }
+
                 else
+
                 {
+
                     ResultadosCaderneta.AddRange(pontos);
+
                 }
+
+
 
                 if (_estacoesEmMemoria.Count > 0 && Poligonais.Count > 0)
 
+
+
                 {
+
+
 
                     var pe = _estacoesEmMemoria[0];
 
+
+
                     if (pe.CoordenadaConhecida != null)
 
+
+
                     {
+
+
 
                         Poligonais[0].PartidaX = pe.CoordenadaConhecida.X.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
 
+
+
                         Poligonais[0].PartidaY = pe.CoordenadaConhecida.Y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+
+
 
                         Poligonais[0].PartidaZ = pe.CoordenadaConhecida.Z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
 
+
+
                     }
+
+
 
                     _pontosConhecidosGlobais = new Dictionary<string, PontoCoordenada>(result.PontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase);
 
+
+
                     // Auto-preenchimento da Ré e Azimute a partir da leitura de Ré (BS)
+
                     var leituraRe = pe.Leituras
+
                         .FirstOrDefault(l => string.Equals(l.Purpose, "re", StringComparison.OrdinalIgnoreCase));
+
                     if (leituraRe != null)
+
                     {
+
                         Poligonais[0].NomeRe = leituraRe.PontoVisado ?? string.Empty;
 
+
+
                         if (pe.CoordenadaConhecida != null &&
+
                             _pontosConhecidosGlobais.TryGetValue(leituraRe.PontoVisado ?? "", out var pontoRe) &&
+
                             pontoRe != null)
+
                         {
+
                             Poligonais[0].UsarCoordenadaRe = true;
+
                             Poligonais[0].ReX = pontoRe.X.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+
                             Poligonais[0].ReY = pontoRe.Y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+
                             Poligonais[0].ReZ = pontoRe.Z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
 
+
+
                             var az = TopoGente.Core.Utilities.GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(
+
                                 pe.CoordenadaConhecida.X, pe.CoordenadaConhecida.Y, pontoRe.X, pontoRe.Y);
+
                             Poligonais[0].Azimute = az.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+
                         }
+
                         else if (leituraRe.AnguloHorizontal != 0)
+
                         {
+
                             Poligonais[0].UsarCoordenadaRe = false;
+
                             Poligonais[0].Azimute = leituraRe.AnguloHorizontal.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+
                         }
+
                     }
+
+
 
                     if (ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase)
+
                     {
+
                         SugerirLinhaBasePreliminar();
+
                     }
+
+
 
                     // Geração preliminar de esboço bruto logo após importação
+
                     try
+
                     {
+
                         var seqs = Poligonais.Select(p => p.ToEntity()).ToList();
+
                         var esboco = _processador.GerarEsbocoBruto(seqs, _estacoesEmMemoria);
+
                         var todosPontosEsboco = esboco.TodosOsPontos.ToList();
+
                         if (todosPontosEsboco.Count > 0)
+
                         {
+
                             _originX = todosPontosEsboco.Min(p => p.X);
+
                             _originY = todosPontosEsboco.Min(p => p.Y);
+
                         }
+
+
 
                         if (esboco.PoligonalBruta?.Count >= 2)
+
                         {
+
                             var draft = new StreamGeometry();
+
                             using (var ctx = draft.Open())
+
                             {
+
                                 var pts = esboco.PoligonalBruta;
+
                                 bool coincidentes = pts.Count >= 3 &&
+
                                     Math.Abs(pts[0].X - pts[^1].X) < 1e-3 &&
+
                                     Math.Abs(pts[0].Y - pts[^1].Y) < 1e-3;
+
                                 bool isClosed = pts.Count >= 3 && (coincidentes || esboco.PoligonalFechada || esboco.TipoCenario == TipoCenarioPoligonal.Fechada);
+
                                 int count = (coincidentes && isClosed) ? pts.Count - 1 : pts.Count;
+
                                 ctx.BeginFigure(new System.Windows.Point(pts[0].X - _originX, pts[0].Y - _originY), false, isClosed);
+
                                 for (int i = 1; i < count; i++)
+
                                     ctx.LineTo(new System.Windows.Point(pts[i].X - _originX, pts[i].Y - _originY), true, false);
+
                             }
+
                             draft.Freeze();
+
                             StaticDraftGeometry = draft;
 
+
+
                             if (todosPontosEsboco.Any())
+
                             {
+
                                 var ptsGeom = new StreamGeometry();
+
                                 using (var ctx = ptsGeom.Open())
+
                                 {
+
                                     foreach (var p in todosPontosEsboco)
+
                                     {
+
                                         double px = p.X - _originX;
+
                                         double py = p.Y - _originY;
+
                                         ctx.BeginFigure(new System.Windows.Point(px - 0.75, py), false, false);
+
                                         ctx.LineTo(new System.Windows.Point(px + 0.75, py), true, false);
+
                                         ctx.BeginFigure(new System.Windows.Point(px, py - 0.75), false, false);
+
                                         ctx.LineTo(new System.Windows.Point(px, py + 0.75), true, false);
+
                                     }
+
                                 }
+
                                 ptsGeom.Freeze();
+
                                 StaticPointsGeometry = ptsGeom;
+
                                 SpatialIndex = new KdTree2D([.. todosPontosEsboco.Select((p, i) => new KdNode(p.X, p.Y, i))]);
+
                             }
 
+
+
                             ZoomExtents(todosPontosEsboco);
+
                         }
+
                     }
+
                     catch { }
+
+
 
                 }
 
+
+
                 NomeArquivoAtual = System.IO.Path.GetFileName(fileName);
+
+
 
                 ProjetoModificado = true;
 
+
+
             }
+
+
 
             catch (Exception ex) { _messageService.MostrarErro($"Erro ao ler arquivo:\n\n{ex.Message}", "Erro de Leitura"); }
 
+
+
         }
+
+
+
+
 
 
 
         private void AtualizarListaEstacoes()
 
+
+
         {
+
+
 
             EstacoesDisponiveis.Clear();
 
+
+
             foreach (var n in _estacoesEmMemoria.Select(e => e.Nome).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+
+
 
                 EstacoesDisponiveis.Add(n!);
 
+
+
         }
+
+
+
+
 
 
 
         private void SugerirSequenciaPoligonalPorVante()
 
+
+
         {
+
+
 
             if (_estacoesEmMemoria.Count == 0 || Poligonais.Count == 0) return;
 
+
+
             var nomes     = _estacoesEmMemoria.Select(e => e.Nome).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+
 
             var seq       = new List<string>();
 
+
+
             var visitadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+
 
             string? cur   = _estacoesEmMemoria[0].Nome;
 
+
+
             while (!string.IsNullOrWhiteSpace(cur) && visitadas.Add(cur))
+
+
 
             {
 
+
+
                 seq.Add(cur);
+
+
 
                 var est    = _estacoesEmMemoria.FirstOrDefault(e => string.Equals(e.Nome, cur, StringComparison.OrdinalIgnoreCase));
 
+
+
                 var vante  = est?.Leituras.FirstOrDefault(l => string.Equals((l.Purpose ?? "").Trim(), "vante", StringComparison.OrdinalIgnoreCase));
+
+
 
                 if (vante == null || string.IsNullOrWhiteSpace(vante.PontoVisado)) break;
 
+
+
                 var prox = vante.PontoVisado.Trim();
+
+
 
                 if (visitadas.Contains(prox) || !nomes.Contains(prox)) { seq.Add(prox); break; }
 
+
+
                 cur = prox;
+
+
 
             }
 
+
+
             if (seq.Count > 1) { Poligonais[0].Estacoes.Clear(); foreach (var n in seq) Poligonais[0].Estacoes.Add(n); }
 
+
+
         }
+
+
+
+
 
 
 
         // === ETAPA 2 - Poligonais ===
 
+
+
         private void OnAdicionarPoligonal()
 
+
+
         {
+
+
 
             var sec = new SequenciaPoligonalViewModel { Nome = $"Ramal Secundario {Poligonais.Count}" };
 
+
+
             sec.PropertyChanged += (_, _) => ((AsyncRelayCommand)ProcessarCommand).NotifyCanExecuteChanged();
+
+
 
             Poligonais.Add(sec); PoligonalSelecionada = sec;
 
+
+
         }
+
+
 
         private void OnRemoverPoligonal()
 
+
+
         {
+
+
 
             if (PoligonalSelecionada?.EhPrincipal == false) { Poligonais.Remove(PoligonalSelecionada); PoligonalSelecionada = Poligonais.FirstOrDefault(); InvalidarResultado(); }
 
+
+
         }
+
+
 
         private void OnAdicionarSequencia()
 
+
+
         {
+
+
 
             if (PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoDisponivelSelecionada))
 
+
+
             { PoligonalSelecionada.Estacoes.Add(EstacaoDisponivelSelecionada!); InvalidarResultado(); }
 
+
+
         }
+
+
 
         private void OnRemoverSequencia()
 
+
+
         {
+
+
 
             if (PoligonalSelecionada != null && !string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada))
 
+
+
             { PoligonalSelecionada.Estacoes.Remove(EstacaoSequenciaSelecionada!); InvalidarResultado(); }
 
+
+
         }
+
+
 
         private void OnSubirSequencia()
 
+
+
         {
 
+
+
             if (PoligonalSelecionada == null || string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada)) return;
+
+
 
             var i = PoligonalSelecionada.Estacoes.IndexOf(EstacaoSequenciaSelecionada!); if (i > 0) PoligonalSelecionada.Estacoes.Move(i, i - 1);
 
+
+
         }
+
+
 
         private void OnDescerSequencia()
 
+
+
         {
+
+
 
             if (PoligonalSelecionada == null || string.IsNullOrWhiteSpace(EstacaoSequenciaSelecionada)) return;
 
+
+
             var i = PoligonalSelecionada.Estacoes.IndexOf(EstacaoSequenciaSelecionada!);
+
+
 
             if (i >= 0 && i < PoligonalSelecionada.Estacoes.Count - 1) PoligonalSelecionada.Estacoes.Move(i, i + 1);
 
+
+
         }
+
+
+
+
 
 
 
         // === ETAPA 3 - Processamento e Tolerâncias ===
 
+
+
 private bool PodeProcessar() => 
+
+
 
     _estacoesEmMemoria.Count > 0 && 
 
+
+
     Poligonais.Count > 0 && 
 
+
+
     Poligonais.All(p => p.Estacoes.Count > 0) && 
+
+
 
     EstadoAtualMotor != EstadoMotor.Calculando;
 
 
 
+
+
+
+
 private async Task ProcessarAsync()
 
+
+
 {
+
+
 
     if (!PodeProcessar()) return;
 
 
 
+
+
+
+
     // Transição Reativa I: Bloqueia interface e acende StatusBar em Amarelo/Laranja
 
+
+
     EstadoAtualMotor = EstadoMotor.Calculando;
+
+
 
     AvisosDiagnostico.Clear(); // Apaga o laudo anterior preventivamente
 
 
 
+
+
+
+
     try
+
+
 
     {
 
+
+
         // 1. Extração Passiva das Entidades Logicas do Core 
 
+
+
         var sequencias = Poligonais.Select(p => p.ToEntity()).ToList();
+
         foreach (var s in sequencias)
+
         {
+
             if (s.Metadados != null)
+
                 s.Metadados.Tolerancias = ToleranciasAtuais;
+                s.Metadados.SentinelasDescartadas = _ultimasSentinelasDescartadas;
+
         }
 
+
+
         var ptosConhecidos = new Dictionary<string, PontoCoordenada>(_pontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase);
+
         foreach (var e in _estacoesEmMemoria.Where(e => e.CoordenadaConhecida != null))
+
         {
+
             ptosConhecidos[e.Nome] = e.CoordenadaConhecida!;
+
         }
+
+
+
+
 
 
 
         var principal = sequencias.FirstOrDefault(p => p.EhPrincipal);
+
         if (ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase && principal?.Metadados != null)
+
         {
+
             principal.Metadados.TipoCenario = TipoCenarioPoligonal.VerificacaoLinhaBase;
+
             if (!string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
             {
+
                 principal.Metadados.NomeChegada = PontoChegadaLinhaBase;
+
                 if (ptosConhecidos.TryGetValue(PontoChegadaLinhaBase, out var ptChegada))
+
                 {
+
                     principal.Metadados.ChegadaX = ptChegada.X;
+
                     principal.Metadados.ChegadaY = ptChegada.Y;
+
                     principal.Metadados.ChegadaZ = ptChegada.Z;
+
                 }
+
             }
+
         }
+
+
 
         
 
+
+
         // 2. Processamento Geodésico em Thread Pool Secundária (Desafoga a Thread STA)
+
+
 
         var resultado = await Task.Run(() =>
 
+
+
         {
+
+
 
             if (principal != null)
 
+
+
             {
+
+
 
                 _classificadorGrafo.ClassificarArestasGrafo(_estacoesEmMemoria, principal.Metadados);
 
+
+
             }
+
+
 
             return _processador.Processar(sequencias, _estacoesEmMemoria, ptosConhecidos);
 
+
+
         });
+
+
+
+
 
 
 
         // 3. Geração do Relat3rio de Auditoria da NBR 13.133 (QA checks)
 
+
+
         var relatorio = _qaCheckService.GerarRelatorioQaChecks(_estacoesEmMemoria, resultado, ptosConhecidos, ToleranciasAtuais);
+
+
+
+
 
 
 
         // 4. Armazenamento do Estado de Cálculo e Atualização das Propriedades Reativas
 
+
+
         _resultadoAtual = resultado;
+
         LaudoLinhaBase = ModoCalculo == ModoCalculoPoligonal.VerificacaoLinhaBase ? resultado.LaudoLinhaBase : null;
+
         OnPropertyChanged(nameof(TotalPontos));
 
-        relatorio.ErroAngular = resultado.ErroAngular;
-        relatorio.ErroLinear = resultado.ErroLinear;
-        relatorio.ErroAltimetrico = resultado.ErroFechamentoZ;
 
-        relatorio.ToleranciasAplicadas = ToleranciasAtuais;
-        int nEstacoes = resultado.Poligonal?.Count ?? 0;
-        relatorio.ToleranciaAngularAdmissivel = ToleranciasAtuais.CalcularToleranciaAngularGraus(nEstacoes);
-        relatorio.ToleranciaLinearAdmissivel = ToleranciasAtuais.CalcularToleranciaLinearMetros(resultado.Perimetro);
-        relatorio.ToleranciaAltimetricaAdmissivel = ToleranciasAtuais.CalcularToleranciaAltimetricaMetros(resultado.Perimetro);
 
-        relatorio.AngularConforme = Math.Abs(relatorio.ErroAngular) <= relatorio.ToleranciaAngularAdmissivel + 1e-4;
-        relatorio.LinearConforme = resultado.Precisao <= ToleranciasAtuais.PrecisaoLinearMinima + 1e-6;
-        relatorio.AltimetricoConforme = Math.Abs(relatorio.ErroAltimetrico) <= relatorio.ToleranciaAltimetricaAdmissivel + 1e-4;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         RelatorioQaAtual = relatorio;
 
 
 
+
+
+
+
         // 5. Preenche as Coleções Tabulares de Apresentação O(N) de forma rápida
 
+
+
         EstacoesCaminhamento.Clear();
+
         var seqEstacoes = principal?.Metadados?.SequenciaEstacoesSelecionadas ?? [];
+
         if (seqEstacoes.Count > 0)
+
         {
+
             var usadasPorNome = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
             for (int i = 0; i < seqEstacoes.Count; i++)
+
             {
+
                 string nomeOrigem = seqEstacoes[i].Trim();
+
                 usadasPorNome.TryGetValue(nomeOrigem, out int usadas);
 
+
+
                 var estacaoOrigem = _estacoesEmMemoria
+
                     .Where(e => string.Equals(e.Nome, nomeOrigem, StringComparison.OrdinalIgnoreCase))
+
                     .Skip(usadas)
+
                     .FirstOrDefault();
+
                 usadasPorNome[nomeOrigem] = usadas + 1;
 
+
+
                 string nomeRe;
+
                 string nomeVante;
+
                 double hzVante = 0;
+
                 double distVante = 0;
 
+
+
                 if (i == 0)
+
                 {
+
                     nomeRe = principal?.Metadados?.NomeRe ?? "";
+
                     if (string.IsNullOrEmpty(nomeRe))
+
                     {
+
                         var lRe = estacaoOrigem?.Leituras.FirstOrDefault(l => string.Equals(l.Purpose, "re", StringComparison.OrdinalIgnoreCase));
+
                         nomeRe = lRe?.PontoVisado ?? "Ré";
+
                     }
+
                     nomeVante = (seqEstacoes.Count > 1) ? seqEstacoes[1] : "";
+
                 }
+
                 else if (i < seqEstacoes.Count - 1)
+
                 {
+
                     nomeRe = seqEstacoes[i - 1];
+
                     nomeVante = seqEstacoes[i + 1];
+
                 }
+
                 else
+
                 {
+
                     nomeRe = (i > 0) ? seqEstacoes[i - 1] : "Ré";
+
                     var lFecho = estacaoOrigem?.Leituras.FirstOrDefault(l => 
+
                         !string.Equals(l.PontoVisado, nomeRe, StringComparison.OrdinalIgnoreCase) && 
+
                         (string.Equals(l.Purpose, "vante", StringComparison.OrdinalIgnoreCase) || string.Equals(l.PontoVisado, principal?.Metadados?.NomeRe, StringComparison.OrdinalIgnoreCase)));
+
                     nomeVante = lFecho?.PontoVisado ?? (principal?.Metadados?.NomeRe ?? seqEstacoes[0]);
+
                 }
+
+
 
                 var visadaVante = estacaoOrigem?.Leituras.FirstOrDefault(l =>
+
                     string.Equals(l.PontoVisado, nomeVante, StringComparison.OrdinalIgnoreCase));
 
+
+
                 if (visadaVante != null)
+
                 {
+
                     hzVante = visadaVante.AnguloHorizontal;
+
                     distVante = visadaVante.DistanciaInclinada;
+
                 }
 
+
+
                 EstacoesCaminhamento.Add(new EstacaoCaminhamentoItemViewModel
+
                 {
+
                     NomeEstacao = nomeOrigem,
+
                     NomeRe = nomeRe,
+
                     AnguloHorizontalVante = hzVante,
+
                     NomeVante = nomeVante,
+
                     DistanciaVante = distVante
+
                 });
+
             }
+
         }
+
+
+
+
 
 
 
         // 6. Atualização síncrona de tabelas de visualização na Thread Gráfica STA
 
+
+
         await RunOnUiThreadAsync(() =>
+
+
 
         {
 
+
+
             ResultadosCaderneta.Clear();
+
+
 
             Visadas.Clear();
 
+
+
             var leituras = new List<LeituraViewModel>();
+
+
 
             foreach (var est in _estacoesEmMemoria)
 
+
+
             {
+
+
 
                 foreach (var l in est.Leituras)
 
+
+
                 {
+
+
 
                     leituras.Add(new LeituraViewModel(l) { AlturaInstrumento = est.AlturaInstrumento, NumeroSessao = est.NumeroSessao });
 
+
+
                 }
 
+
+
             }
+
+
 
             Visadas.AddRange(leituras);
 
+
+
             var todosPontosProc = resultado.TodosOsPontos.ToList();
+
             if (todosPontosProc.Count > 0)
+
             {
+
                 _originX = todosPontosProc.Min(p => p.X);
+
                 _originY = todosPontosProc.Min(p => p.Y);
+
             }
+
+
 
             // Esboço bruto da poligonal (StaticDraftGeometry)
+
             if (resultado.PoligonalBruta?.Count >= 2)
+
             {
+
                 var draft = new StreamGeometry();
+
                 using (var ctx = draft.Open())
+
                 {
+
                     var pts = resultado.PoligonalBruta;
+
                     bool coincidentes = pts.Count >= 3 &&
+
                         Math.Abs(pts[0].X - pts[^1].X) < 1e-3 &&
+
                         Math.Abs(pts[0].Y - pts[^1].Y) < 1e-3;
+
                     bool isClosed = pts.Count >= 3 && (coincidentes || resultado.PoligonalFechada || resultado.TipoCenario == TipoCenarioPoligonal.Fechada);
+
                     int count = (coincidentes && isClosed) ? pts.Count - 1 : pts.Count;
+
                     ctx.BeginFigure(new System.Windows.Point(pts[0].X - _originX, pts[0].Y - _originY), false, isClosed);
+
                     for (int i = 1; i < count; i++)
+
                         ctx.LineTo(new System.Windows.Point(pts[i].X - _originX, pts[i].Y - _originY), true, false);
+
                 }
+
                 draft.Freeze();
+
                 StaticDraftGeometry = draft;
+
             }
+
             else
+
             {
+
                 StaticDraftGeometry = Geometry.Empty;
+
             }
+
+
 
             // Poligonal Compensada Oficial (StaticPoligonalCompensadaGeometry)
+
             if (resultado.Poligonal?.Count >= 2)
+
             {
+
                 var compGeom = new StreamGeometry();
+
                 using (var ctx = compGeom.Open())
+
                 {
+
                     var pts = resultado.Poligonal;
+
                     bool coincidentes = pts.Count >= 3 &&
+
                         Math.Abs(pts[0].X - pts[^1].X) < 1e-3 &&
+
                         Math.Abs(pts[0].Y - pts[^1].Y) < 1e-3;
+
                     bool isClosed = pts.Count >= 3 && (coincidentes || resultado.PoligonalFechada || resultado.TipoCenario == TipoCenarioPoligonal.Fechada);
+
                     int count = (coincidentes && isClosed) ? pts.Count - 1 : pts.Count;
+
                     ctx.BeginFigure(new System.Windows.Point(pts[0].X - _originX, pts[0].Y - _originY), false, isClosed);
+
                     for (int i = 1; i < count; i++)
+
                         ctx.LineTo(new System.Windows.Point(pts[i].X - _originX, pts[i].Y - _originY), true, false);
+
                 }
+
                 compGeom.Freeze();
+
                 StaticPoligonalCompensadaGeometry = compGeom;
+
             }
+
             else
+
             {
+
                 StaticPoligonalCompensadaGeometry = Geometry.Empty;
+
             }
+
+
 
             // Pontos Calculados (StaticPointsGeometry) - renderização visual imediata
+
             if (todosPontosProc.Any())
+
             {
+
                 var ptsGeom = new StreamGeometry();
+
                 using (var ctx = ptsGeom.Open())
+
                 {
+
                     foreach (var p in todosPontosProc)
+
                     {
+
                         double px = p.X - _originX;
+
                         double py = p.Y - _originY;
+
                         // Micro-cruz de 1.5m (amplitude ±0.75m) centrada no vértice para renderização nítida
+
                         ctx.BeginFigure(new System.Windows.Point(px - 0.75, py), false, false);
+
                         ctx.LineTo(new System.Windows.Point(px + 0.75, py), true, false);
+
                         ctx.BeginFigure(new System.Windows.Point(px, py - 0.75), false, false);
+
                         ctx.LineTo(new System.Windows.Point(px, py + 0.75), true, false);
+
                     }
+
                 }
+
                 ptsGeom.Freeze();
+
                 StaticPointsGeometry = ptsGeom;
+
             }
+
+
 
             // Vetor de Erro de Fechamento (StaticErrorVectorGeometry) se houver erro
+
             if (resultado.PoligonalBruta?.Count >= 2 && resultado.Poligonal?.Count >= 2)
+
             {
+
                 var ultBruto = resultado.PoligonalBruta[^1];
+
                 var ultComp = resultado.Poligonal[^1];
+
                 var erroGeom = new StreamGeometry();
+
                 using (var ctx = erroGeom.Open())
+
                 {
+
                     ctx.BeginFigure(new System.Windows.Point(ultBruto.X - _originX, ultBruto.Y - _originY), false, false);
+
                     ctx.LineTo(new System.Windows.Point(ultComp.X - _originX, ultComp.Y - _originY), true, false);
+
                 }
+
                 erroGeom.Freeze();
+
                 StaticErrorVectorGeometry = erroGeom;
+
             }
 
+
+
             // Inicialização imediata do índice espacial KdTree2D para snapping imediato no CAD
+
             if (todosPontosProc.Any())
+
             {
+
                 SpatialIndex = new KdTree2D([.. todosPontosProc.Select((p, i) => new KdNode(p.X, p.Y, i))]);
+
             }
+
+
 
             ResultadosCaderneta.AddRange(todosPontosProc);
 
+
+
             // Ajuste automático do enquadramento (Zoom Extents)
+
             ZoomExtents(todosPontosProc);
+
+
 
         });
 
 
 
+
+
+
+
         // =========================================================================
+
+
 
         // 7. MAQUINA DE DECISAO DE COMPENSACAO (Tolerâncias da NBR 13.133)
 
+
+
         // =========================================================================
+
+
 
         if (!resultado.AprovadoNorma)
 
+
+
         {
 
+
+
             // Transição Reativa II (Reprovado): Acende StatusBar em Vermelho Crítico
+
+
 
             EstadoAtualMotor = EstadoMotor.ReprovadoNorma;
 
 
 
+
+
+
+
             if (resultado.Alertas != null)
+
+
 
             {
 
+
+
                 foreach (var alerta in resultado.Alertas)
+
+
 
                 {
 
+
+
                     AvisosDiagnostico.Add(alerta);
+
+
 
                 }
 
+
+
             }
+
+
+
+
 
 
 
             _messageService.MostrarAviso(
 
+
+
                 $"LEVANTAMENTO REPROVADO (NBR 13.133):\n\n{string.Join("\n", resultado.Alertas ?? [])}\n\n" +
+
+
 
                 "As coordenadas calculadas são brutas e impróprias para uso cartográfico legal.", 
 
+
+
                 "Falha de Tolerância"
+
+
 
             );
 
+
+
         }
+
+
 
         else
 
+
+
         {
+
+
 
             // Transição Reativa III (Compensado): Acende StatusBar em Verde Esmeralda (Sucesso)
 
+
+
             EstadoAtualMotor = EstadoMotor.Compensado;
+
+
 
             
 
+
+
             // Dispara regeneração assíncrona do Modelo MDT e Curvas de Nível (Tinfour.NET)
 
+
+
             await RenderizarTinDeResultadoAsync(resultado);
+
             AutodetectarLinhaBase();
+
+
+
+
 
 
 
             if (resultado.TipoCenario == TipoCenarioPoligonal.AbertaOrientada)
 
+
+
             {
+
+
 
                 _messageService.MostrarAviso("Poligonal ABERTA: deriva linear não auditada.", "Aviso");
 
+
+
             }
+
+
 
             else
 
+
+
             {
+
+
 
                 _messageService.MostrarSucesso("Compensação concluída. NBR 13.133 atendida com sucesso.", "Sucesso");
 
+
+
             }
+
+
 
         }
 
+
+
     }
+
+
 
     catch (DadosInsuficientesException ex)
 
+
+
     {
 
+
+
         EstadoAtualMotor = EstadoMotor.Bruto;
+
+
 
         _messageService.MostrarErro($"Ruptura topologica na caderneta de campo:\n\n{ex.Message}", "Falha de Consistancia");
 
+
+
     }
+
+
 
     catch (Exception ex)
 
+
+
     {
+
+
 
         EstadoAtualMotor = EstadoMotor.Bruto;
 
+
+
         _messageService.MostrarErro($"Erro crítico no motor de cálculo:\n\n{ex.Message}", "Falha Física");
 
+
+
     }
+
+
 
 }
 
 
 
+
+
+
+
 // === ETAPA 4 - Projeto ===
+
+
 
         private async Task AbrirProjetoAsync()
 
+
+
         {
+
+
 
             var caminho = _dialogService.SelecionarArquivoAbertura("Projeto TopoGENTE (*.topogente)|*.topogente|Todos (*.*)|*.*", "Abrir Projeto");
 
+
+
             if (string.IsNullOrEmpty(caminho)) return;
+
+
 
             try
 
+
+
             {
+
+
 
                 var projeto = await Task.Run(() => _projetoService.CarregarProjeto(caminho));
 
+
+
                 _estacoesEmMemoria = projeto.Estacoes ?? [];
+
+                if (projeto.PreferenciasExibicao != null)
+                {
+                    if (Enum.TryParse<UnidadeLinearEnum>(projeto.PreferenciasExibicao.UnidadeLinear, out var uLin))
+                    {
+                        _unidadeLinearSelecionada = uLin;
+                        OnPropertyChanged(nameof(UnidadeLinearSelecionada));
+                    }
+                    if (Enum.TryParse<UnidadeAngularEnum>(projeto.PreferenciasExibicao.UnidadeAngular, out var uAng))
+                    {
+                        _unidadeAngularSelecionada = uAng;
+                        OnPropertyChanged(nameof(UnidadeAngularSelecionada));
+                    }
+                }
+
+                if (projeto.Tolerancias != null)
+                {
+                    var tol = projeto.Tolerancias;
+                    _atualizandoPresetInternamente = true;
+                    try
+                    {
+                        PresetToleranciaSelecionado = tol.Preset;
+                        ToleranciaB = tol.CoeficienteAngularB;
+                        ToleranciaK = tol.FactorK;
+                        ToleranciaSigmaA = tol.SigmaA;
+                        ToleranciaTermoCentragemCa = tol.TermoCentragemCa;
+                        ToleranciaDenominadorLinear = tol.DenominadorPrecisaoLinear;
+                        ToleranciaCLinear = tol.ErroLinearConstanteC;
+                        ToleranciaDLinear = tol.CoeficienteLinearD;
+                        ToleranciaC = tol.C;
+                        ModoAvaliacaoLinearSelecionado = tol.ModoAvaliacaoLinear;
+                        ToleranciaCheckDeltaXY = tol.ToleranciaCheckDeltaXY;
+                        ToleranciaCheckDeltaZ = tol.ToleranciaCheckDeltaZ;
+                    }
+                    finally
+                    {
+                        _atualizandoPresetInternamente = false;
+                    }
+                }
+
+
 
                 InvalidarResultado(); AtualizarListaEstacoes();
 
+
+
                 ResultadosCaderneta.Clear();
+
+
 
                 Visadas.Clear();
 
 
 
+
+
+
+
                 var leituras = new List<LeituraViewModel>();
+
+
 
                 foreach (var est in _estacoesEmMemoria)
 
+
+
                 {
+
+
 
                     foreach (var l in est.Leituras)
 
+
+
                     {
+
+
 
                         leituras.Add(new LeituraViewModel(l) { AlturaInstrumento = est.AlturaInstrumento, NumeroSessao = est.NumeroSessao });
 
+
+
                     }
 
+
+
                 }
+
+
 
                 Visadas.AddRange(leituras);
 
 
 
+
+
+
+
                 var pontos = _estacoesEmMemoria
+
+
 
                     .SelectMany(e => e.Leituras
 
+
+
                         .Select(l => new PontoCoordenada { Nome = l.PontoVisado ?? string.Empty }))
 
+
+
                     .ToList();
+
+
 
                 ResultadosCaderneta.AddRange(pontos);
 
@@ -2166,469 +4710,968 @@ private async Task ProcessarAsync()
 
 
 
+
+
+
+
+
+
                 NomeArquivoAtual = System.IO.Path.GetFileName(caminho); ProjetoModificado = false;
 
+
+
             }
+
+
 
             catch (Exception ex) { _messageService.MostrarErro($"Erro ao abrir: {ex.Message}", "Erro"); }
 
+
+
         }
+
+
 
         private async Task SalvarProjetoAsync()
 
+
+
         {
+
+
 
             var caminho = _dialogService.SelecionarArquivoSalvamento("Projeto TopoGENTE (*.topogente)|*.topogente|Todos (*.*)|*.*", "Salvar Projeto", NomeArquivoAtual.Replace(".topogente", ""), ".topogente");
 
+
+
             if (string.IsNullOrEmpty(caminho)) return;
+
+
 
             try
 
+
+
             {
 
-                var projeto = new ProjetoTopo { Estacoes = _estacoesEmMemoria };
+
+
+                var projeto = new ProjetoTopo
+                {
+                    Estacoes = _estacoesEmMemoria,
+                    Tolerancias = ToleranciasAtuais,
+                    PreferenciasExibicao = new PreferenciasExibicaoDTO
+                    {
+                        UnidadeLinear = UnidadeLinearSelecionada.ToString(),
+                        UnidadeAngular = UnidadeAngularSelecionada.ToString()
+                    },
+                    RelatorioQA = RelatorioQaAtual
+                };
+
+
 
                 await Task.Run(() => _projetoService.SalvarProjeto(projeto, caminho));
 
+
+
                 NomeArquivoAtual = System.IO.Path.GetFileName(caminho); ProjetoModificado = false;
+
+
 
                 _messageService.MostrarSucesso($"Projeto salvo:\n{caminho}", "Salvo");
 
+
+
             }
+
+
 
             catch (Exception ex) { _messageService.MostrarErro($"Erro ao salvar: {ex.Message}", "Erro"); }
 
+
+
         }
+
+
+
+
 
 
 
         // === ETAPA 6-  Exportação ===
 
+
+
         private void OnExportarTxt()
+
+
 
         {
 
+
+
             if (_resultadoAtual == null) return;
+
+
 
             var caminho = _dialogService.SelecionarArquivoSalvamento("Texto (*.txt)|*.txt|Todos (*.*)|*.*", "Salvar Coordenadas", "Levantamento.txt", ".txt");
 
+
+
             if (string.IsNullOrEmpty(caminho)) return;
+
+
 
             try
 
+
+
             {
+
+
 
                 string dir = System.IO.Path.GetDirectoryName(caminho) ?? "";
 
+
+
                 string sem = System.IO.Path.GetFileNameWithoutExtension(caminho);
+
+
 
                 string mem = System.IO.Path.Combine(dir, $"{sem}_MemoriaCalculo.txt");
 
+
+
                 _exportarTxtService.ExportarCoordenadasGestor(_resultadoAtual, caminho);
+
+
 
                 _exportarTxtService.ExportarMemoriaCalculo(_resultadoAtual, mem);
 
+
+
                 _messageService.MostrarSucesso($"Exportado:\n1. {caminho}\n2. {mem}", "Exportação Concluída");
 
+
+
             }
+
+
 
             catch (Exception ex) { _messageService.MostrarErro($"Erro TXT: {ex.Message}", "Erro"); }
 
+
+
         }
+
+
 
         private void OnExportarDxf()
+
         {
+
             if (_resultadoAtual == null) return;
+
             var caminho = _dialogService.SelecionarArquivoSalvamento("DXF (*.dxf)|*.dxf|Todos (*.*)|*.*", "Salvar DXF", "Levantamento.dxf", ".dxf");
+
             if (string.IsNullOrEmpty(caminho)) return;
+
             try
+
             {
+
                 TerrainVertex[]? tinVertices = null;
+
                 TerrainTriangle[]? tinTriangulos = null;
+
                 Breakline[]? breaklines = null;
+
                 Isoline[]? curvasNivel = null;
 
+
+
                 if (EstadoAtualMotor == EstadoMotor.Compensado)
+
                 {
+
                     var (verts, tris) = _triangulator.GetCurrentMesh();
+
                     if (tris != null && tris.Length > 0)
+
                     {
+
                         tinVertices = verts;
+
                         tinTriangulos = tris;
+
                         breaklines = _triangulator.GetActiveBreaklines().ToArray();
+
                         curvasNivel = Analytics.ComputeContourMap(_stepInterval, _anchorElevation).ToArray();
+
                     }
+
                 }
+
+
 
                 var payload = new DxfExportPayload(
+
                     _resultadoAtual.Poligonal,
+
                     _resultadoAtual.Irradiacoes,
+
                     TinVertices: tinVertices,
+
                     TinTriangulos: tinTriangulos,
+
                     CurvasNivel: curvasNivel,
+
                     Breaklines: breaklines,
+
                     EquidistanciaCurva: _stepInterval,
+
                     FrequenciaCurvaMestra: _majorContourFrequency,
+
                     AnchorElevation: _anchorElevation
+
                 );
+
                 _exportadorDxfService.SalvarDxf(payload, caminho);
+
                 _messageService.MostrarSucesso($"DXF: {caminho}", "Exportado");
+
             }
+
             catch (Exception ex) { _messageService.MostrarErro($"Erro DXF: {ex.Message}", "Erro"); }
+
         }
+
+
 
         private void OnExportarRelatorioQa()
+
         {
+
             if (RelatorioQaAtual == null) return;
+
             var caminho = _dialogService.SelecionarArquivoSalvamento("Relatório de Auditoria (*.txt)|*.txt|Todos (*.*)|*.*", "Exportar Laudo Técnico QA", "Relatorio_Auditoria_QA.txt", ".txt");
+
             if (string.IsNullOrEmpty(caminho)) return;
+
             try
+
             {
+
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("================================================================================");
-                sb.AppendLine("          LAUDO TÉCNICO DE AUDITORIA E CONTROLE DE QUALIDADE (NBR 13.133)       ");
-                sb.AppendLine("================================================================================");
-                sb.AppendLine($"Data de Emissão: {RelatorioQaAtual.GeradoEm:dd/MM/yyyy HH:mm:ss}");
-                sb.AppendLine($"Arquivo Base:    {NomeArquivoAtual}");
-                sb.AppendLine($"Status do Motor: {TextoStatusBar}");
-                sb.AppendLine();
-                sb.AppendLine("FECHAMENTOS E TOLERÂNCIAS NBR 13.133:");
-                sb.AppendLine($"  - Classe Normativa: {RelatorioQaAtual.ToleranciasAplicadas.Preset}");
-                sb.AppendLine($"  - Parâmetros:       k={RelatorioQaAtual.ToleranciasAplicadas.K:F1}, σa={RelatorioQaAtual.ToleranciasAplicadas.SigmaA:F1}\", 1/P=1:{RelatorioQaAtual.ToleranciasAplicadas.DenominadorPrecisaoLinear}, c={RelatorioQaAtual.ToleranciasAplicadas.C:F1} mm/km^0.5");
-                sb.AppendLine($"  - Erro Angular:     {RelatorioQaAtual.ErroAngular:F4}° (Admissível: {RelatorioQaAtual.ToleranciaAngularAdmissivel:F4}°) | Status: {(RelatorioQaAtual.AngularConforme ? "CONFORME" : "REPROVADO")}");
-                sb.AppendLine($"  - Erro Linear:      {RelatorioQaAtual.ErroLinear:F4} m (Admissível: {RelatorioQaAtual.ToleranciaLinearAdmissivel:F4} m) | Status: {(RelatorioQaAtual.LinearConforme ? "CONFORME" : "REPROVADO")}");
-                sb.AppendLine($"  - Erro Altimétrico: {RelatorioQaAtual.ErroAltimetrico:F4} m (Admissível: {RelatorioQaAtual.ToleranciaAltimetricaAdmissivel:F4} m) | Status: {(RelatorioQaAtual.AltimetricoConforme ? "CONFORME" : "REPROVADO")}");
-                sb.AppendLine();
-                sb.AppendLine("ESTATÍSTICAS DA SUPERFÍCIE:");
-                sb.AppendLine($"  - Total de Pontos:      {TotalPontos}");
-                sb.AppendLine($"  - Triângulos TIN (MDT): {TotalTriangulosMdt}");
-                sb.AppendLine($"  - Cota Mínima:          {CotaMinimaTerreno:F3} m");
-                sb.AppendLine($"  - Cota Máxima:          {CotaMaximaTerreno:F3} m");
-                sb.AppendLine($"  - Desnível Total:       {DesnivelTerreno:F3} m");
-                sb.AppendLine();
-                sb.AppendLine("INSPEÇÃO DE CHECKPOINTS E HOMÓLOGOS:");
-                if (RelatorioQaAtual.Checks != null && RelatorioQaAtual.Checks.Count > 0)
-                {
-                    foreach (var chk in RelatorioQaAtual.Checks)
-                    {
-                        sb.AppendLine($"  * Ponto: {chk.TargetPoint,-10} | Estação: {chk.EstacaoOcupada,-10} | dXY: {chk.DeltaXY?.ToString("F4") ?? "N/A",8} m | dZ: {chk.DeltaZ?.ToString("F4") ?? "N/A",8} m | Status: {(chk.ExcedeuDeltaXY || chk.ExcedeuDeltaZ ? "REPROVADO" : "CONFORME")}");
-                        if (!string.IsNullOrWhiteSpace(chk.Mensagem))
-                        {
-                            sb.AppendLine($"    Detalhes: {chk.Mensagem}");
-                        }
-                    }
-                }
-                else
-                {
-                    sb.AppendLine("  (Nenhum evento de ultrapassagem de tolerância registrado)");
-                }
-                sb.AppendLine();
+
                 sb.AppendLine("================================================================================");
 
+                sb.AppendLine("          LAUDO TÉCNICO DE AUDITORIA E CONTROLE DE QUALIDADE (NBR 13.133)       ");
+
+                sb.AppendLine("================================================================================");
+
+                sb.AppendLine($"Data de Emissão: {RelatorioQaAtual.GeradoEm:dd/MM/yyyy HH:mm:ss}");
+
+                sb.AppendLine($"Arquivo Base:    {NomeArquivoAtual}");
+
+                sb.AppendLine($"Status do Motor: {TextoStatusBar}");
+
+                sb.AppendLine();
+
+                var tol = RelatorioQaAtual.ToleranciasAplicadas;
+                sb.AppendLine("FECHAMENTOS E TOLERÂNCIAS NBR 13.133:");
+                sb.AppendLine($"  - Classe Normativa:          {tol.Preset}");
+                sb.AppendLine($"  - Coeficiente Angular b:     {tol.CoeficienteAngularB:F1}\" (Ta = b · √n + Ca)");
+                sb.AppendLine($"  - Termo de Centragem Ca:     {tol.TermoCentragemCa:F1}\"");
+                sb.AppendLine($"  - Fator k / Desvio σa:       k={tol.FactorK:F1}, σa={tol.SigmaA:F1}\"");
+                sb.AppendLine($"  - Denom. Linear (1/P):       1:{tol.DenominadorPrecisaoLinear}");
+                sb.AppendLine($"  - Coeficientes TP:           c={tol.ErroLinearConstanteC:F4} m, d={tol.CoeficienteLinearD:F2} m/√km");
+                sb.AppendLine($"  - Modo Julgamento Linear:    {RelatorioQaAtual.ModoAvaliacaoLinearUtilizado}");
+                sb.AppendLine();
+                sb.AppendLine("RESULTADOS DA AUDITORIA:");
+                sb.AppendLine($"  - Erro Angular:              {FormatadorUnidades.FormatarAngular(RelatorioQaAtual.ErroAngular, UnidadeAngularSelecionada, 2)} (Admissível: {FormatadorUnidades.FormatarAngular(RelatorioQaAtual.ToleranciaAngularAdmissivel, UnidadeAngularSelecionada, 2)}) | Status: {(RelatorioQaAtual.AngularConforme ? "CONFORME" : "REPROVADO")}");
+                sb.AppendLine($"  - Erro Linear Absoluto:      {FormatadorUnidades.FormatarLinear(RelatorioQaAtual.ErroLinear, UnidadeLinearSelecionada)} (Admissível TP: {FormatadorUnidades.FormatarLinear(RelatorioQaAtual.ToleranciaLinearAbsolutaMetros, UnidadeLinearSelecionada)}) | Status: {(RelatorioQaAtual.AprovadoAbsoluto ? "CONFORME" : "REPROVADO")}");
+                sb.AppendLine($"  - Precisão Linear Relativa:  1:{Math.Round(RelatorioQaAtual.PrecisaoLinearObtidaDenominador)} (Mínima: 1:{tol.DenominadorPrecisaoLinear}) | Status: {(RelatorioQaAtual.AprovadoRelativo ? "CONFORME" : "REPROVADO")}");
+                sb.AppendLine($"  - Conformidade Linear Geral: {(RelatorioQaAtual.AprovadoLinearGeral ? "APROVADO" : "REPROVADO")}");
+                sb.AppendLine($"  - Erro Altimétrico:          {FormatadorUnidades.FormatarLinear(RelatorioQaAtual.ErroAltimetrico, UnidadeLinearSelecionada)} (Admissível: {FormatadorUnidades.FormatarLinear(RelatorioQaAtual.ToleranciaAltimetricaAdmissivel, UnidadeLinearSelecionada)}) | Status: {(RelatorioQaAtual.AltimetricoConforme ? "CONFORME" : "REPROVADO")}");
+                sb.AppendLine();
+                sb.AppendLine("ESTATÍSTICAS DA SUPERFÍCIE:");
+
+                sb.AppendLine($"  - Total de Pontos:      {TotalPontos}");
+
+                sb.AppendLine($"  - Triângulos TIN (MDT): {TotalTriangulosMdt}");
+
+                sb.AppendLine($"  - Cota Mínima:          {CotaMinimaTerreno:F3} m");
+
+                sb.AppendLine($"  - Cota Máxima:          {CotaMaximaTerreno:F3} m");
+
+                sb.AppendLine($"  - Desnível Total:       {DesnivelTerreno:F3} m");
+
+                sb.AppendLine();
+
+                sb.AppendLine("INSPEÇÃO DE CHECKPOINTS E HOMÓLOGOS:");
+
+                if (RelatorioQaAtual.Checks != null && RelatorioQaAtual.Checks.Count > 0)
+
+                {
+
+                    foreach (var chk in RelatorioQaAtual.Checks)
+
+                    {
+
+                        sb.AppendLine($"  * Ponto: {chk.TargetPoint,-10} | Estação: {chk.EstacaoOcupada,-10} | dXY: {chk.DeltaXY?.ToString("F4") ?? "N/A",8} m | dZ: {chk.DeltaZ?.ToString("F4") ?? "N/A",8} m | Status: {(chk.ExcedeuDeltaXY || chk.ExcedeuDeltaZ ? "REPROVADO" : "CONFORME")}");
+
+                        if (!string.IsNullOrWhiteSpace(chk.Mensagem))
+
+                        {
+
+                            sb.AppendLine($"    Detalhes: {chk.Mensagem}");
+
+                        }
+
+                    }
+
+                }
+
+                else
+
+                {
+
+                    sb.AppendLine("  (Nenhum evento de ultrapassagem de tolerância registrado)");
+
+                }
+
+                sb.AppendLine();
+
+                if (RelatorioQaAtual.MemorialRastreabilidade != null)
+                {
+                    sb.AppendLine(_formatadorMemorialPericial.FormatarMemorialCompleto(RelatorioQaAtual.MemorialRastreabilidade));
+                    sb.AppendLine();
+                }
+
+                sb.AppendLine("NOTA PERICIAL NORMATIVA:");
+                sb.AppendLine($"Os valores numéricos de fechamento linear e angular apresentados neste laudo foram");
+                sb.AppendLine($"formatados nas unidades [{UnidadeLinearSelecionada} / {UnidadeAngularSelecionada}] conforme preferência do projeto.");
+                sb.AppendLine($"A avaliação de conformidade seguiu os parâmetros da NBR 13.133 para a Classe {tol.Preset}");
+                sb.AppendLine($"(b = {tol.CoeficienteAngularB:F1}\", Ca = {tol.TermoCentragemCa:F1}\", 1/P = 1/{tol.DenominadorPrecisaoLinear}, c = {tol.ErroLinearConstanteC:F4} m, d = {tol.CoeficienteLinearD:F2} m/km^0.5).");
+                sb.AppendLine($"Modo de Julgamento Linear: {RelatorioQaAtual.ModoAvaliacaoLinearUtilizado}.");
+                sb.AppendLine("================================================================================");
+
+
+
                 System.IO.File.WriteAllText(caminho, sb.ToString(), System.Text.Encoding.UTF8);
+
                 _messageService.MostrarSucesso($"Relatório de Auditoria QA exportado com sucesso:\n{caminho}", "Laudo Técnico Exportado");
+
             }
+
             catch (Exception ex)
+
             {
+
                 _messageService.MostrarErro($"Erro ao exportar relatório QA: {ex.Message}", "Falha na Exportação");
+
             }
+
         }
+
+
+
+
 
 
 
         // === ICadCanvasContext ===
 
+
+
         public void EmitirLinhaVetorizada(int startVertexId, int endVertexId)
 
+
+
         {
+
+
 
             var bl = new Breakline(startVertexId, endVertexId);
 
+
+
             if (ConsolidarBreaklineCommand.CanExecute(bl)) ConsolidarBreaklineCommand.Execute(bl);
 
+
+
         }
 
+
+
         private async Task ConsolidarBreaklineAsync(Breakline bl)
+
         {
+
             try { ExecuteCommand(new Commands.AddBreaklineCommand(_triangulator, bl)); }
+
             catch (BreaklineConflictException ex) { WeakReferenceMessenger.Default.Send(new RollbackVetorizacaoMensagem(bl.StartVertexId, bl.EndVertexId, ex.Message)); }
+
             catch (TopoGenteDomainException ex) { _messageService.MostrarAviso(ex.Message, "MDT Não Inicializado"); }
+
             await Task.CompletedTask;
+
         }
+
+
 
         private async Task DeletarElementoSelecionadoAsync() { await Task.Yield(); }
 
+
+
         public bool ExisteBreakline(Breakline bl) => _triangulator.ExisteBreakline(bl);
 
+
+
         public void NotificarConflitoSelecao(Breakline bl) =>
+
+
 
             WeakReferenceMessenger.Default.Send(new RollbackVetorizacaoMensagem(bl.StartVertexId, bl.EndVertexId, $"Linha entre {bl.StartVertexId} e {bl.EndVertexId} removida concorrentemente."));
 
 
 
+
+
+
+
         // === AVISOS ===
 
+
+
         public void Receive(TopologyChangedMessage message)
+
         {
+
             if (IsTopologyRebuilding) return;
+
             IsTopologyRebuilding = true;
+
             Task.Run(() => { try { ProcessarGeometriasAtuais(); } finally { RunOnUiThread(() => IsTopologyRebuilding = false); } });
+
         }
+
+
 
         public void Receive(ResultadoMdtMensagem message) { Task.Run(() => ProcessarResultadoTopologico(message.Value)); }
 
 
 
+
+
+
+
         // === Pipeline TIN ===
 
+
+
         private async Task RenderizarTinDeResultadoAsync(ResultadoLevantamento resultado)
+
         {
+
             if (!resultado.TodosOsPontos.Any()) return;
+
+
 
             var verts = resultado.TodosOsPontos.Select((p, i) => new TerrainVertex(p.X, p.Y, p.Z, i)).ToArray();
 
+
+
             if (_originX == 0 && _originY == 0 && verts.Length > 0 && (Math.Abs(verts[0].X) > 1000 || Math.Abs(verts[0].Y) > 1000))
+
             {
+
                 _originX = verts.Min(v => v.X);
+
                 _originY = verts.Min(v => v.Y);
+
             }
+
+
 
             if (IsTopologyRebuilding) return;
+
             IsTopologyRebuilding = true;
 
+
+
             try
+
             {
+
                 var dadosMalha = await Task.Run(() =>
+
                 {
+
                     var (mv, tr) = _triangulator.GenerateBaseDelaunayMesh(verts, [], 0.001);
+
                     var iso = Analytics.ComputeContourMap(_stepInterval, _anchorElevation).ToArray();
+
                     var (tin, minor, major) = ConstruirBuffersGeometricos(mv, tr, iso);
 
+
+
                     var pts = new StreamGeometry();
+
                     using (var ctx = pts.Open())
+
                     {
+
                         foreach (var v in verts)
+
                         {
+
                             double px = v.X - _originX;
+
                             double py = v.Y - _originY;
+
                             ctx.BeginFigure(new System.Windows.Point(px - 0.75, py), false, false);
+
                             ctx.LineTo(new System.Windows.Point(px + 0.75, py), true, false);
+
                             ctx.BeginFigure(new System.Windows.Point(px, py - 0.75), false, false);
+
                             ctx.LineTo(new System.Windows.Point(px, py + 0.75), true, false);
+
                         }
+
                     }
+
                     pts.Freeze();
 
+
+
                     int totalTri = tr.Length;
+
                     int totalVerts = mv.Length;
+
                     double minZ = verts.Length > 0 ? verts.Min(v => v.Z) : 0;
+
                     double maxZ = verts.Length > 0 ? verts.Max(v => v.Z) : 0;
+
                     double desnivel = maxZ - minZ;
 
+
+
                     return (tin, minor, major, pts, totalTri, totalVerts, minZ, maxZ, desnivel);
+
                 });
+
+
 
                 await RunOnUiThreadAsync(() =>
+
                 {
+
                     SpatialIndex = new KdTree2D([.. verts.Select(v => new KdNode(v.X, v.Y, v.Id))]);
+
                     StaticTinGeometry = dadosMalha.tin;
+
                     StaticMinorContoursGeometry = dadosMalha.minor;
+
                     StaticMajorContoursGeometry = dadosMalha.major;
+
                     StaticBreaklinesGeometry = Geometry.Empty;
+
                     EdgeSpatialIndex = null;
+
                     StaticPointsGeometry = dadosMalha.pts;
+
                     TotalTriangulosMdt = dadosMalha.totalTri;
+
                     TotalVerticesMdt = dadosMalha.totalVerts;
+
                     CotaMinimaTerreno = dadosMalha.minZ;
+
                     CotaMaximaTerreno = dadosMalha.maxZ;
+
                     DesnivelTerreno = dadosMalha.desnivel;
+
                     OnPropertyChanged(nameof(TotalPontos));
+
                 });
+
             }
+
             catch (Exception ex)
+
             {
+
                 System.Diagnostics.Debug.WriteLine($"Erro ao renderizar TIN de resultado: {ex.Message}");
+
             }
+
             finally
+
             {
+
                 RunOnUiThread(() => IsTopologyRebuilding = false);
+
             }
+
         }
 
+
+
         private void RenderizarTinDeResultado(ResultadoLevantamento resultado)
+
         {
+
             _ = RenderizarTinDeResultadoAsync(resultado);
+
         }
+
+
 
         private void ProcessarResultadoTopologico(ResultadoLevantamento resultado) { RenderizarTinDeResultado(resultado); }
 
+
+
         private void ProcessarGeometriasAtuais()
+
         {
+
             try
+
             {
+
                 var (mv, tr) = _triangulator.GetCurrentMesh();
+
                 var iso = Analytics.ComputeContourMap(_stepInterval, _anchorElevation).ToArray();
+
                 var (tin, minor, major) = ConstruirBuffersGeometricos(mv, tr, iso);
 
+
+
                 int totalTri = tr.Length;
+
                 int totalVerts = mv.Length;
+
                 double minZ = mv.Length > 0 ? mv.Min(v => v.Z) : 0;
+
                 double maxZ = mv.Length > 0 ? mv.Max(v => v.Z) : 0;
+
                 double desnivel = maxZ - minZ;
 
+
+
                 // Construir geometria de breaklines e índice espacial de arestas
+
                 var activeBreaklines = _triangulator.GetActiveBreaklines().ToArray();
+
                 var breaklinesGeom = new StreamGeometry();
+
                 BvhTree2D? edgeIndex = null;
 
+
+
                 if (activeBreaklines.Length > 0)
+
                 {
+
                     var vertexLookup = new Dictionary<int, TerrainVertex>();
+
                     foreach (var v in mv) vertexLookup[v.Id] = v;
 
+
+
                     using (var ctx = breaklinesGeom.Open())
+
                     {
+
                         foreach (var bl in activeBreaklines)
+
                         {
+
                             if (vertexLookup.TryGetValue(bl.StartVertexId, out var v1) &&
+
                                 vertexLookup.TryGetValue(bl.EndVertexId, out var v2))
+
                             {
+
                                 ctx.BeginFigure(new System.Windows.Point(v1.X - _originX, v1.Y - _originY), false, false);
+
                                 ctx.LineTo(new System.Windows.Point(v2.X - _originX, v2.Y - _originY), true, false);
+
                             }
+
                         }
+
                     }
+
                     breaklinesGeom.Freeze();
+
                     edgeIndex = new BvhTree2D(activeBreaklines, vertexLookup);
+
                 }
+
                 else
+
                 {
+
                     breaklinesGeom.Freeze();
+
                 }
+
+
 
                 Action atualizarUi = () =>
+
                 {
+
                     StaticTinGeometry = tin;
+
                     StaticMinorContoursGeometry = minor;
+
                     StaticMajorContoursGeometry = major;
+
                     StaticBreaklinesGeometry = breaklinesGeom;
+
                     EdgeSpatialIndex = edgeIndex;
+
                     TotalTriangulosMdt = totalTri;
+
                     TotalVerticesMdt = totalVerts;
+
                     CotaMinimaTerreno = minZ;
+
                     CotaMaximaTerreno = maxZ;
+
                     DesnivelTerreno = desnivel;
+
                 };
 
+
+
                 RunOnUiThread(atualizarUi);
+
             }
+
             catch (Exception ex)
+
             {
+
                 System.Diagnostics.Debug.WriteLine($"Erro ao processar geometrias atuais: {ex.Message}");
+
             }
+
         }
 
+
+
         private (StreamGeometry Tin, StreamGeometry Minor, StreamGeometry Major) ConstruirBuffersGeometricos(
+
             TerrainVertex[] meshVertices, TerrainTriangle[] triangles, Isoline[] isolines)
+
         {
+
             var tin = new StreamGeometry(); var minor = new StreamGeometry(); var major = new StreamGeometry();
+
             int maxId = meshVertices.Length > 0 ? meshVertices.Max(v => v.Id) : 0;
+
             var lk = new TerrainVertex[maxId + 1];
+
             foreach (var v in meshVertices) lk[v.Id] = v;
 
+
+
             using (var ctx = tin.Open()) foreach (var t in triangles)
+
             {
+
                 var v0 = lk[t.V0]; var v1 = lk[t.V1]; var v2 = lk[t.V2];
+
                 ctx.BeginFigure(new System.Windows.Point(v0.X - _originX, v0.Y - _originY), true, true);
+
                 ctx.LineTo(new System.Windows.Point(v1.X - _originX, v1.Y - _originY), true, false);
+
                 ctx.LineTo(new System.Windows.Point(v2.X - _originX, v2.Y - _originY), true, false);
+
             }
+
             tin.Freeze();
 
+
+
             using (var ctxMi = minor.Open()) using (var ctxMa = major.Open()) foreach (var iso in isolines)
+
             {
+
                 double rel = (iso.Elevation - _anchorElevation) / _stepInterval;
+
                 double rnd = Math.Round(rel);
+
                 bool mestra = Math.Abs(rel - rnd) < 1e-7 && ((int)rnd % _majorContourFrequency == 0);
+
                 var ctx2 = mestra ? ctxMa : ctxMi;
+
                 var pts2 = iso.Vertices.Span;
+
                 if (pts2.Length > 1)
+
                 {
+
                     ctx2.BeginFigure(new System.Windows.Point(pts2[0].X - _originX, pts2[0].Y - _originY), false, false);
+
                     var wp = new System.Windows.Point[pts2.Length - 1];
+
                     for (int i = 1; i < pts2.Length; i++) wp[i - 1] = new System.Windows.Point(pts2[i].X - _originX, pts2[i].Y - _originY);
+
                     ctx2.PolyLineTo(wp, true, false);
+
                 }
+
             }
+
+
 
             minor.Freeze(); major.Freeze();
 
+
+
             return (tin, minor, major);
 
+
+
         }
+
+
+
+
 
 
 
         // === Helpers ===
 
+
+
         private void InvalidarResultado()
+
+
 
 {
 
+
+
     _resultadoAtual = null;
+
+
 
     RelatorioQaAtual = null;
 
+
+
     StaticDraftGeometry = Geometry.Empty;
+
     StaticPoligonalCompensadaGeometry = Geometry.Empty;
+
     StaticPointsGeometry = Geometry.Empty;
+
     StaticErrorVectorGeometry = Geometry.Empty;
+
     StaticTinGeometry = Geometry.Empty;
+
     StaticMinorContoursGeometry = Geometry.Empty;
+
     StaticMajorContoursGeometry = Geometry.Empty;
+
     StaticBreaklinesGeometry = Geometry.Empty;
 
+
+
     TotalTriangulosMdt = 0;
+
     TotalVerticesMdt = 0;
+
     CotaMinimaTerreno = 0;
+
     CotaMaximaTerreno = 0;
+
     DesnivelTerreno = 0;
+
     OnPropertyChanged(nameof(TotalPontos));
 
+
+
     _originX = 0;
+
     _originY = 0;
+
+
 
     // Reseta os relatórios de QA
 
+
+
     AvisosDiagnostico.Clear(); 
+
+
 
     // Reseta o estado do motor de volta a Bruto (StatusBar Cinza)
 
+
+
     if (EstadoAtualMotor != EstadoMotor.Calculando)
+
+
 
     {
 
+
+
         EstadoAtualMotor = EstadoMotor.Bruto;
+
+
 
     }
 
+
+
     NotifyCommandStates(); // Atualiza o CanExecute dos botões de exportação
 
+
+
 }
+
+
+
+
 
 
 
 // Método interceptado reativamente pela edição de linha da caderneta de campo
 
+
+
 private async Task OnRowEditEndingAsync(object? args)
+
+
 
 {
 
+
+
     InvalidarResultado();
+
+
 
     await Task.Yield();
 
+
+
 }
+
+
+
+
+
+
 
 
 
@@ -2636,260 +5679,518 @@ private async Task OnRowEditEndingAsync(object? args)
 
         private void NotifyCommandStates()
 
+
+
         {
+
+
 
             ((AsyncRelayCommand)ProcessarCommand).NotifyCanExecuteChanged();
 
+
+
             (ExportarTxtCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
+
+
             (ExportarDxfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
             (ExportarRelatorioQaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
             (RecalcularMalhaCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+
+
 
             (RemoverPoligonalCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
+
+
             (AdicionarSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+
 
             (RemoverSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
+
+
             (SubirSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+
 
             (DescerSequenciaCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
+
+
             ((AsyncRelayCommand<Breakline>)ConsolidarBreaklineCommand)?.NotifyCanExecuteChanged();
+
             OnPropertyChanged(nameof(PodeTraçarBreaklines));
+
             OnPropertyChanged(nameof(TooltipBreaklines));
 
+
+
         }
+
+
 
         
 
 
 
+
+
+
+
         // === Modulo 3: Verificacao de Linha de Base ===
 
+
+
         public void SugerirLinhaBasePreliminar()
+
         {
+
             if (!string.IsNullOrWhiteSpace(PontoPartidaLinhaBase) && !string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
                 return;
+
+
 
             var principal = Poligonais.FirstOrDefault(p => p.EhPrincipal) ?? Poligonais.FirstOrDefault();
 
+
+
             if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase))
+
             {
+
                 PontoPartidaLinhaBase = principal?.Estacoes.FirstOrDefault() 
+
                     ?? _estacoesEmMemoria.FirstOrDefault()?.Nome 
+
                     ?? string.Empty;
+
             }
 
+
+
             if (string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
             {
+
                 if (!string.IsNullOrWhiteSpace(principal?.NomeRe))
+
                 {
+
                     PontoChegadaLinhaBase = principal.NomeRe;
+
                 }
+
                 else if (_estacoesEmMemoria.Count > 0)
+
                 {
+
                     var primeiraEstacao = _estacoesEmMemoria[0];
+
                     var leituraRe = primeiraEstacao.Leituras.FirstOrDefault(l => string.Equals(l.Purpose, "re", StringComparison.OrdinalIgnoreCase));
+
                     if (!string.IsNullOrWhiteSpace(leituraRe?.PontoVisado))
+
                     {
+
                         PontoChegadaLinhaBase = leituraRe.PontoVisado;
+
                     }
+
                     else if (_pontosConhecidosGlobais != null)
+
                     {
+
                         var outroPontoConhecido = _pontosConhecidosGlobais.Keys.FirstOrDefault(k => !string.Equals(k, PontoPartidaLinhaBase, StringComparison.OrdinalIgnoreCase));
+
                         if (!string.IsNullOrWhiteSpace(outroPontoConhecido))
+
                         {
+
                             PontoChegadaLinhaBase = outroPontoConhecido;
+
                         }
+
                     }
+
                 }
+
             }
+
         }
+
+
 
         public void AutodetectarLinhaBase()
+
         {
+
             if (_resultadoAtual == null)
+
             {
+
                 SugerirLinhaBasePreliminar();
+
                 return;
+
             }
+
+
 
             var poligonal = _resultadoAtual.Poligonal ?? _resultadoAtual.PoligonalBruta;
+
             if (poligonal == null || poligonal.Count < 2)
+
             {
+
                 SugerirLinhaBasePreliminar();
+
                 return;
+
             }
+
+
 
             var primeiro = poligonal[0];
+
             var ultimo = poligonal[^1];
 
+
+
             if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase))
+
                 PontoPartidaLinhaBase = primeiro.Nome ?? string.Empty;
 
+
+
             // Se for poligonal fechada (onde primeiro == ultimo), prioriza a ré de controle conhecida
+
             if (string.Equals(primeiro.Nome, ultimo.Nome, StringComparison.OrdinalIgnoreCase))
+
             {
+
                 var principal = Poligonais.FirstOrDefault(p => p.EhPrincipal) ?? Poligonais.FirstOrDefault();
+
                 if (!string.IsNullOrWhiteSpace(principal?.NomeRe))
+
                 {
+
                     if (string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
                         PontoChegadaLinhaBase = principal.NomeRe;
+
                     return;
+
                 }
+
             }
+
+
 
             if (string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
                 PontoChegadaLinhaBase = ultimo.Nome ?? string.Empty;
+
         }
 
+
+
         public async Task ExecutarVerificacaoLinhaBaseAsync()
+
         {
+
             if (_resultadoAtual == null)
+
             {
+
                 if (PodeProcessar())
+
                 {
+
                     await ProcessarAsync();
+
                     return;
+
                 }
+
                 _messageService.MostrarAviso("Execute o processamento da poligonal antes de verificar a linha de base.", "Dados Insuficientes");
+
                 return;
+
             }
+
+
 
             if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase) || string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
             {
+
                 AutodetectarLinhaBase();
+
                 if (string.IsNullOrWhiteSpace(PontoPartidaLinhaBase) || string.IsNullOrWhiteSpace(PontoChegadaLinhaBase))
+
                 {
+
                     _messageService.MostrarAviso("Informe o ponto de partida e o ponto de chegada da linha de base.", "Dados Insuficientes");
+
                     return;
+
                 }
+
             }
+
+
 
             var ptosConhecidos = _pontosConhecidosGlobais != null
+
                 ? new Dictionary<string, PontoCoordenada>(_pontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase)
+
                 : new Dictionary<string, PontoCoordenada>(StringComparer.OrdinalIgnoreCase);
 
+
+
             if (_resultadoAtual.TodosOsPontos != null)
+
             {
+
                 foreach (var p in _resultadoAtual.TodosOsPontos.Where(p => !string.IsNullOrWhiteSpace(p.Nome)))
+
                 {
+
                     if (!ptosConhecidos.ContainsKey(p.Nome!))
+
                         ptosConhecidos[p.Nome!] = p;
+
                 }
+
             }
+
+
 
             if (!ptosConhecidos.TryGetValue(PontoPartidaLinhaBase, out var ptPartida))
+
             {
+
                 _messageService.MostrarAviso($"Ponto de partida '{PontoPartidaLinhaBase}' não encontrado nos pontos conhecidos.", "Ponto não localizado");
+
                 return;
+
             }
+
+
 
             if (!ptosConhecidos.TryGetValue(PontoChegadaLinhaBase, out var ptChegada))
+
             {
+
                 _messageService.MostrarAviso($"Ponto de chegada '{PontoChegadaLinhaBase}' não encontrado nos pontos conhecidos.", "Ponto não localizado");
+
                 return;
+
             }
 
+
+
             try
+
             {
+
                 var factory = new TopoGente.Core.Strategies.CompensacaoStrategyFactory();
+
                 var strategy = factory.Criar(TipoCenarioPoligonal.VerificacaoLinhaBase);
 
+
+
                 var sequencias = Poligonais.Select(p => p.ToEntity()).ToList();
+
                 var principal = sequencias.FirstOrDefault(p => p.EhPrincipal) ?? sequencias.FirstOrDefault();
 
+
+
                 var todasLeituras = _estacoesEmMemoria.SelectMany(e => e.Leituras).ToList();
+
                 var leiturasPoligonal = todasLeituras.Where(l => l.Tipo == TipoLeitura.Poligonal).ToList();
 
+
+
                 var input = new CompensacaoPoligonalInputDTO
+
                 { 
+
                     PontoPartida = ptPartida,
+
                     PontoChegada = ptChegada,
+
                     Tolerancias = ToleranciasAtuais,
+
                     PoligonalBruta = _resultadoAtual.PoligonalBruta != null ? _resultadoAtual.PoligonalBruta.ToList() : new List<PontoCoordenada>(),
+
                     AzimuteInicial = principal?.Metadados?.AzimutePartida ?? ptPartida.AzimuteChegada,
+
                     AzimuteChegada = principal?.Metadados?.AzimuteChegada,
+
                     Leituras = leiturasPoligonal,
+
                     Metadados = new MetadadosCenario
+
                     {
+
                         TipoCenario = TipoCenarioPoligonal.VerificacaoLinhaBase,
+
                         PartidaX = ptPartida.X,
+
                         PartidaY = ptPartida.Y,
+
                         PartidaZ = ptPartida.Z,
+
                         ChegadaX = ptChegada.X,
+
                         ChegadaY = ptChegada.Y,
+
                         ChegadaZ = ptChegada.Z,
+
                         NomeChegada = ptChegada.Nome,
+
                         Tolerancias = ToleranciasAtuais
+
                     }
+
                 };
+
+
 
                 var resultado = await Task.Run(() => strategy.Compensar(input));
 
+
+
                 LaudoLinhaBase = resultado.LaudoLinhaBase;
+
                 ModoCalculo = ModoCalculoPoligonal.VerificacaoLinhaBase;
 
+
+
                 var laudo = resultado.LaudoLinhaBase;
+
                 string msgLinear = laudo != null ? laudo.ErroLinearFormatado : $"{resultado.ErroLinearTotal * 1000.0:F1} mm";
+
                 string msgAngular = laudo != null ? laudo.ErroAngularFormatado : $"{Math.Abs(resultado.ErroAngular) * 3600.0:F1}\"";
+
                 string msgPrecisao = laudo != null ? laudo.PrecisaoRelativaFormatada : "1 : 0";
 
+
+
                 if (resultado.AprovadoNorma)
+
                 {
+
                     _messageService.MostrarSucesso(
+
                         $"Linha de Base APROVADA (NBR 13.133):\n\n" +
+
                         $"Base: {PontoPartidaLinhaBase} -> {PontoChegadaLinhaBase}\n" +
+
                         $"Discrepância Linear: {msgLinear}\n" +
+
                         $"Discrepância Angular: {msgAngular}\n" +
+
                         $"Precisão: {msgPrecisao}",
+
                         "Verificação de Linha de Base");
+
                 }
+
                 else
+
                 {
+
                     _messageService.MostrarAviso(
+
                         $"Linha de Base REPROVADA:\n\n{resultado.AlertaReprovacao}",
+
                         "Verificação de Linha de Base");
+
                 }
+
             }
+
             catch (Exception ex)
+
             {
+
                 _messageService.MostrarErro($"Erro na verificação de linha de base:\n{ex.Message}", "Falha");
+
             }
+
         }
+
+
 
         // === IDisposable ===
 
+
+
         public void Dispose()
+
         {
+
             if (_disposed) return; 
+
             _disposed = true;
 
+
+
             // Desinscreve o ViewModel de todas as mensagens do barramento fraco
+
             WeakReferenceMessenger.Default.UnregisterAll(this);
 
+
+
             _undoStack.Clear(); 
+
             _redoStack.Clear();
 
+
+
             StaticTinGeometry = Geometry.Empty; 
+
             StaticMajorContoursGeometry = Geometry.Empty;
+
             StaticMinorContoursGeometry = Geometry.Empty; 
+
             StaticBreaklinesGeometry = Geometry.Empty;
+
             StaticPointsGeometry = Geometry.Empty; 
+
             DynamicRubberBandGeometry = Geometry.Empty;
 
+
+
             // Libera o adaptador do Tinfour
+
             if (_triangulator is IDisposable disposableTriangulator)
+
             {
+
                 disposableTriangulator.Dispose();
+
             }
 
+
+
             // Alerta o Garbage Collector para desconsiderar o finalizador (Prevenção de vazamento de Gen1)
+
             GC.SuppressFinalize(this);
+
         }
 
+
+
     }
+
+
 
 }
