@@ -8,7 +8,7 @@ using Xunit;
 
 namespace TopoGENTE.Test;
 
-public sealed class Modulo2ToleranciasTests
+public sealed class ToleranciasNormativasNBR13133Tests
 {
     // ──────────────────────────────────────────────────────────────────────────────
     // 1. ParametrosTolerancia (Cálculos Matemáticos NBR 13.133)

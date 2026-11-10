@@ -7,6 +7,7 @@ using TopoGente.Core.Entities.Pericia;
 using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
 using TopoGente.Infrastructure.Adapters.Leitores;
+using FluentAssertions;
 using Xunit;
 
 namespace TopoGENTE.Test
@@ -209,15 +210,11 @@ namespace TopoGENTE.Test
             // Act
             var estacoes = leitor.Ler(linhas, ConfiguracaoImportacao.PadraoFbk);
 
-            // Assert: Todas as visadas devem ter OrdemArquivo > 0 preenchido com o número da linha original
-            Assert.NotEmpty(estacoes);
-            foreach (var est in estacoes)
-            {
-                foreach (var vis in est.Leituras)
-                {
-                    Assert.True(vis.OrdemArquivo > 0, $"Visada para '{vis.PontoVisado}' na estação '{est.Nome}' tem OrdemArquivo inválida.");
-                }
-            }
+            // Assert: Todas as visadas devem ter OrdemArquivo > 0 preenchido com o número da linha original (sem loops condicionais)
+            estacoes.Should().NotBeEmpty();
+            var todasVisadas = estacoes.SelectMany(e => e.Leituras).ToList();
+            todasVisadas.Should().NotBeEmpty();
+            todasVisadas.Should().OnlyContain(vis => vis.OrdemArquivo > 0, "todas as visadas devem mapear sua linha física no arquivo original");
 
             // Testar geração do intervalo na TrilhaTopologica
             var organizador = new OrganizarCaminhamento();

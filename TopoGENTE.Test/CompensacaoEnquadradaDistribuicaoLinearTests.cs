@@ -5,9 +5,9 @@ using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 using TopoGENTE.Test.Builders;
 
-namespace TopoGente.Tests.CaixaBranca
+namespace TopoGENTE.Test
 {
-    public sealed record CompensacaoEnquadradaCaixaBrancaTests
+    public sealed record CompensacaoEnquadradaDistribuicaoLinearTests
     {
         private static CompensacaoPoligonalInputDTO CriarEntradaBase()
         {
@@ -22,7 +22,7 @@ namespace TopoGente.Tests.CaixaBranca
         }
 
         [Fact]
-        public void CT01_Deve_Abortar_Quando_Leituras_Ausentes()
+        public void Compensar_QuandoLeiturasAusentes_ReprovaComAlertaExplicito()
         {
             var entrada = CriarEntradaBase() with { Leituras = new List<LeituraEstacaoTotal>() };
 
@@ -34,7 +34,7 @@ namespace TopoGente.Tests.CaixaBranca
         }
 
         [Fact]
-        public void CT02_Deve_Abortar_Quando_Coordenadas_Chegada_Ausentes()
+        public void Compensar_QuandoCoordenadasChegadaAusentes_ReprovaComAlertaExplicito()
         {
             var entrada = CriarEntradaBase() with
             {
@@ -49,7 +49,7 @@ namespace TopoGente.Tests.CaixaBranca
         }
 
         [Fact]
-        public void CT03_Deve_Abortar_Quando_Erro_Angular_Supera_Tolerancia()
+        public void Compensar_QuandoErroAngularSuperaTolerancia_ReprovaLevantamento()
         {
             var entrada = CriarEntradaBase() with { AzimuteChegada = 0.0 };
 
@@ -61,7 +61,7 @@ namespace TopoGente.Tests.CaixaBranca
         }
 
         [Fact]
-        public void CT04_Deve_Abortar_Quando_Precisao_Linear_E_Inferior_A_Norma()
+        public void Compensar_QuandoPrecisaoLinearInferiorAoPisoNormativo_ReprovaLevantamento()
         {
             var entrada = CriarEntradaBase();
             entrada.Metadados.ChegadaX = 1000.0;
@@ -76,7 +76,7 @@ namespace TopoGente.Tests.CaixaBranca
         }
 
         [Fact]
-        public void CT05_Deve_Abortar_Quando_Erro_Altimetrico_Supera_Tolerancia()
+        public void Compensar_QuandoErroAltimetricoSuperaTolerancia_ReprovaLevantamento()
         {
             var entrada = CriarEntradaBase();
             entrada.Metadados.ChegadaZ = 1000.0;
@@ -89,7 +89,7 @@ namespace TopoGente.Tests.CaixaBranca
         }
 
         [Fact]
-        public void CT06_Deve_Aprovar_Quando_Todos_Os_Criterios_Sao_Atendidos()
+        public void Compensar_QuandoTodosCriteriosAtendidos_AprovaEDistribuiCorrecaoMilimetrica()
         {
             var entrada = CriarEntradaBase();
 

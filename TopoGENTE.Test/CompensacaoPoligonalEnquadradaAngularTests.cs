@@ -4,13 +4,12 @@ using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 
-namespace TopoGente.Tests.CaixaPreta
+namespace TopoGENTE.Test
 {
     /// <summary>
-    /// TERCEIRO PILAR: Validação Comportamental de Caixa-Preta
-    /// Domínio: Tolerância de Fechamento Angular (NBR 13.133).
+    /// Domínio: Tolerância e Compensação de Fechamento Angular em Poligonal Enquadrada (NBR 13.133).
     /// </summary>
-    public class FechamentoAngularCaixaPretaTests
+    public class CompensacaoPoligonalEnquadradaAngularTests
     {
         private (PontoCoordenada partida, PontoCoordenada chegada, List<LeituraEstacaoTotal> leituras, List<PontoCoordenada> poligonalBruta) SetupGrafoPoligonal(double erroAngularEmGraus)
         {
@@ -48,7 +47,7 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT04_Deve_Aprovar_Compensacao_Quando_ClasseValida_Angular_For_Detectada()
+        public void Compensar_QuandoErroAngularDentroDaToleranciaNormativa_AprovaLevantamento()
         {
             double erroValidoEmGraus = 20.0 / 3600.0;
             var (partida, chegada, leituras, poligonalBruta) = SetupGrafoPoligonal(erroValidoEmGraus);
@@ -72,7 +71,7 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT05_Deve_Abortar_Compensacao_Quando_ClasseInvalida_Angular_For_Detectada()
+        public void Compensar_QuandoErroAngularExcedeToleranciaNormativa_ReprovaLevantamento()
         {
             double erroInvalidoEmGraus = 50.0 / 3600.0;
             var (partida, chegada, leituras, poligonalBruta) = SetupGrafoPoligonal(erroInvalidoEmGraus);
@@ -96,7 +95,7 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT06_Deve_Aprovar_Compensacao_No_Limite_Exato_Da_Tolerancia_Angular()
+        public void Compensar_NoLimiteExatoDaToleranciaAngular_AprovaLevantamento()
         {
             double erroFronteiraEmGraus = 40.0 / 3600.0;
             var (partida, chegada, leituras, poligonalBruta) = SetupGrafoPoligonal(erroFronteiraEmGraus);

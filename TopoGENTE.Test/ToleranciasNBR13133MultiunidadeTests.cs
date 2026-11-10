@@ -16,6 +16,9 @@ namespace TopoGENTE.Test
         [InlineData(6.0, 4, 0.0, 12.0)]     // Classe I P (b=6", n=4, Ca=0) -> Ta = 6*2 + 0 = 12.0"
         [InlineData(15.0, 9, 0.0, 45.0)]    // Classe II P (b=15", n=9, Ca=0) -> Ta = 15*3 + 0 = 45.0"
         [InlineData(15.0, 9, 5.0, 50.0)]    // Classe II P com Centragem (b=15", n=9, Ca=5") -> Ta = 45 + 5 = 50.0"
+        [InlineData(15.0, 3, 0.0, 25.98)]   // Classe II P (b=15", n=3, Ca=0) -> Ta = 15*sqrt(3) = 25.98"
+        [InlineData(15.0, 3, 5.0, 30.98)]   // Classe II P com Centragem (b=15", n=3, Ca=5") -> Ta = 25.98 + 5 = 30.98"
+        [InlineData(30.0, 3, 0.0, 51.96)]   // Classe III P (b=30", n=3, Ca=0) -> Ta = 30*sqrt(3) = 51.96"
         [InlineData(30.0, 4, 0.0, 60.0)]    // Classe III P (b=30", n=4, Ca=0) -> Ta = 30*2 = 60.0"
         [InlineData(60.0, 4, 10.0, 130.0)]  // Classe IV P (b=60", n=4, Ca=10") -> Ta = 120 + 10 = 130.0"
         public void CalcularToleranciaAngular_DeveSeguirFormulaNbr13133(double b, int n, double ca, double toleranciaEsperada)
@@ -144,7 +147,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void LevantamentoReal113503_ComClasseIIIP_DeveSerAprovadoDiretamente()
+        public void AjustarPoligonalFechada_SobParametrosClasseIIIP_AprovaFechamentoAngularELinear()
         {
             // O arquivo 113503.FBK possui erro angular de 30.96" e erro linear de 2.27 mm em 97.44 m
             // Na Classe III P (b=30"): Ta = 30 * sqrt(3) = 51.96" >= 30.96" -> APROVADO!
@@ -203,7 +206,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void LevantamentoReal113503_ComClasseIIP_E_Centragem10s_DeveSerAprovado()
+        public void AjustarPoligonalFechada_SobClasseIIPComTermoCentragem_AprovaFechamentoAngular()
         {
             // Na Classe II P com termo constante de centragem de 10":
             // Ta = 15 * sqrt(3) + 10 = 25.98 + 10 = 35.98" >= 30.96" -> APROVADO!

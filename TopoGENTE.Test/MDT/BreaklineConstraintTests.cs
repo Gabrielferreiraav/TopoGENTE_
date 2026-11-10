@@ -42,22 +42,24 @@ public class BreaklineConstraintTests
     [Fact]
     public void GenerateMesh_WithBreakline_BreaklineEdgeExistsInAtLeastOneTriangle()
     {
-        // Breakline: vértice 0 (0,0) → vértice 2 (1,1) — diagonal principal
+        // Breakline: vértice 0 (0,0) → vértice 2 (1,1) — diagonal principal em 4 cantos
+        var quatroCantos = PontosQuadrado.Take(4).ToArray();
         var breaklines = new[] { new Breakline(0, 2) };
 
         var (vertices, triangles) = _adapter
-            .GenerateBaseDelaunayMesh(PontosQuadrado, breaklines, toleranceThreshold: 0.001);
+            .GenerateBaseDelaunayMesh(quatroCantos, breaklines, toleranceThreshold: 0.001);
 
         Assert.NotEmpty(vertices);
         Assert.NotEmpty(triangles);
 
-        // Com restoreConformity, a aresta pode ser subdividida por Steiner Points.
-        // O vértice 0 e o vértice 2 devem fazer parte da malha.
-        bool hasVertex0 = triangles.Any(t => t.V0 == 0 || t.V1 == 0 || t.V2 == 0);
-        bool hasVertex2 = triangles.Any(t => t.V0 == 2 || t.V1 == 2 || t.V2 == 2);
+        // Invariante de CDT (Delaunay Restrita): a aresta (0, 2) DEVE obrigatoriamente estar presente em ao menos um triângulo
+        bool arestaPreservada = triangles.Any(t =>
+            (t.V0 == 0 && t.V1 == 2) || (t.V1 == 0 && t.V0 == 2) ||
+            (t.V1 == 0 && t.V2 == 2) || (t.V2 == 0 && t.V1 == 2) ||
+            (t.V2 == 0 && t.V0 == 2) || (t.V0 == 0 && t.V2 == 2));
 
-        Assert.True(hasVertex0 && hasVertex2,
-            "Os vértices da Breakline [0 e 2] deveriam estar presentes na malha CDT.");
+        Assert.True(arestaPreservada,
+            "A aresta da Breakline (0, 2) DEVE estar preservada na malha CDT como aresta compartilhada por triângulos.");
     }
 
     [Fact]

@@ -9,7 +9,7 @@ namespace TopoGENTE.Test
     public class EstacaoTest
     {
         [Fact]
-        public void SubstituirLeitura_DeveRemoverAntigaECriarNovaComMesmoSetup()
+        public void SubstituirLeitura_QuandoIdValido_SubstituiVisadaPreservandoConfiguracaoEstacao()
         {
             // Arrange
             var estacao = new Estacao { Nome = "E1" };
@@ -45,12 +45,12 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void SubstituirLeitura_IdInexistente_NaoDeveFalhar_EvitaDoubleFireDoWpf()
+        public void SubstituirLeitura_QuandoIdNaoEncontrado_MantemColecaoDeVisadasInalterada()
         {
-            // Arrange
+            // Arrange: Operação idempotente contra referências inexistentes
             var estacao = new Estacao { Nome = "E1" };
             
-            // Act - O retorno deve ser silencioso conforme a regra de evitar double-fire da UI
+            // Act: Retorno silencioso sem efeitos colaterais
             estacao.SubstituirLeitura(Guid.NewGuid().ToString(), "V2", 150, 95, 60, 1.6, "Nova observacao");
             
             // Assert

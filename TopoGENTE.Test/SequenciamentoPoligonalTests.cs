@@ -12,7 +12,7 @@ namespace TopoGENTE.Test
     public class SequenciamentoPoligonalTests
     {
         [Fact]
-        public void CT_SEQ_001_OrdenacaoCaminhamentoPorCorrespondenciaVante()
+        public void OrganizarPorVante_QuandoEstacoesEstaoDesordenadas_OrdenaCaminhamentoPeloEncadeamentoTopologico()
         {
             // Arrange
             var organizador = new OrganizarCaminhamento();
@@ -43,7 +43,7 @@ namespace TopoGENTE.Test
         [InlineData(1100.0, 1000.0, 1000.0, 1000.0, 90.0)]    // Leste
         [InlineData(1000.0, 900.0, 1000.0, 1000.0, 180.0)]    // Sul
         [InlineData(900.0, 1000.0, 1000.0, 1000.0, 270.0)]    // Oeste
-        public void CT_SEQ_002_CalculoAzimutePartidaInicialPorReCoordenada(double reX, double reY, double estX, double estY, double azimuteEsperado)
+        public void CalcularAzimutePorCoordenadas_NosQuatroQuadrantes_RetornaAzimutesGeodesicosExatos(double reX, double reY, double estX, double estY, double azimuteEsperado)
         {
             // Arrange & Act
             double azimuteCalculado = GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(estX, estY, reX, reY);
@@ -53,7 +53,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void CT_SEQ_003_ValidacaoPreventivaEstacaoOrfa()
+        public void Processar_QuandoSequenciaPossuiEstacaoOrfaSemOrigemNoGrafo_LancaExcecaoDadosInsuficientes()
         {
             // Arrange
             var e1 = new Estacao { Nome = "E1" };
@@ -80,7 +80,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void CT_SEQ_004_IsolamentoDeReferenciasMemoryLeak()
+        public void Processar_ExecucoesSucessivas_NaoRetemEstadoNemProvocaAcoplamentoDeInstancias()
         {
             // Arrange
             var leituraOriginal = new LeituraEstacaoTotal { PontoVisado = "VanteTeste", Observacao = "Obs Teste" };

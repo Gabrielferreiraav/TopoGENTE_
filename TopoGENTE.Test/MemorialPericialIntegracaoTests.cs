@@ -44,7 +44,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void Caderneta113503_DeveCapturarSentinelasResiduaisDasLinhas153e154()
+        public void ProcessarCaderneta_ComSentinelasDeFechamentoResidual_RegistraLinhasDescartadasNoMemorial()
         {
             // Arrange
             string caminho = ResolverCaminhoCaderneta("113503.FBK");
@@ -80,7 +80,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void Caderneta113503_DeveCatalogarCicloDeVidaComDesmembramentoPorDeltaHi()
+        public void ConstruirTrilhaTopologica_QuandoEstacaoPossuiVariacaoSignificativaDeAlturaInstrumento_DesmembraEmSessoesDistintas()
         {
             // Arrange
             string caminho = ResolverCaminhoCaderneta("113503.FBK");
@@ -118,7 +118,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void Caderneta113503_VerificacaoLinhaBase_DeveGerarLaudoDiscrepanciaNoCapitulo3()
+        public void VerificacaoLinhaBase_ComPontosConhecidos_GeraLaudoDeDiscrepanciasNoMemorialPericial()
         {
             // Arrange
             string caminho = ResolverCaminhoCaderneta("113503.FBK");
@@ -182,7 +182,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void Caderneta121377_DeveDetectarPontoHomologo70ETracarMemorialCompleto()
+        public void ConstruirTrilhaTopologica_QuandoPontoEVisadoDeMultiplasEstacoes_CatalogaComoPontoHomologo()
         {
             // Arrange
             string caminho = ResolverCaminhoCaderneta("121377.FBK");
@@ -220,7 +220,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void Caderneta121377_ProcessamentoCompleto_DeveGerarOsTresCapitulosEstruturados()
+        public void ProcessarMemorialPericial_CadernetaCompletamenteAuditada_GeraOsTresCapitulosEstruturados()
         {
             // Arrange
             string caminho = ResolverCaminhoCaderneta("121377.FBK");

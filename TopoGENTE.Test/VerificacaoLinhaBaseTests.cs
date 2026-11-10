@@ -8,7 +8,7 @@ using Xunit;
 namespace TopoGENTE.Test;
 
 /// <summary>
-/// Testes unitários do Módulo 3 — VerificacaoLinhaBaseStrategy.
+/// Testes unitários do serviço de domínio — VerificacaoLinhaBaseStrategy.
 /// Cobertura:
 ///   1. Cálculo analítico de Δ E, Δ N, Δ Z e e_l em cenário sintético.
 ///   2. Aprovação com discrepância dentro da tolerância.
@@ -20,7 +20,7 @@ namespace TopoGENTE.Test;
 ///   8. Guard: leituras vazias.
 ///   9. Guard: chegada não informada.
 /// </summary>
-public sealed class Modulo3LinhaBaseTests
+public sealed class VerificacaoLinhaBaseTests
 {
     // ──────────────────────────────────────────────────────────────────────────────
     // Helpers de fixture
@@ -48,23 +48,13 @@ public sealed class Modulo3LinhaBaseTests
             Z = 100.0 + erroZChegada
         };
 
-        // AnguloHorizontal = 180° significa "seguir em frente" a partir do azimute vigente
-        // Azimute inicial = 90° + ângulo horizontal 180° → Az = 270° → não, precisa ser 0°...
-        // Na caderneta: ângulo horizontal é a deflexão; para seguir reto numa linha de base,
-        // o azimute do primeiro lance é o azimute inicial (90°).
-        // A cada estação, voltamos 180° e giramos o ângulo horizontal → para manter 90°:
-        // Az_vante = Az_re_invertido + AnguloH
-        // Az_re_inv = Az_vante + 180 = 270°
-        // 270 + AnguloH = 90° (próximo) → AnguloH = -180° (ou 180° com normalização)
-        // Na prática, para poligonal em linha reta: AnguloH = 180°.
-
         var leituras = new List<LeituraEstacaoTotal>
         {
             new()
             {
                 EstacaoOcupada = "E1", PontoVisado = "E2",
                 DistanciaInclinada = dh, AnguloVertical = 90.0,
-                AnguloHorizontal = 0.0,     // Primeiro lance: azimute inicial já define a direção
+                AnguloHorizontal = 0.0,
                 AlturaInstrumento = 1.5, AlturaPrisma = 1.5,
                 Tipo = TipoLeitura.Poligonal
             },
@@ -72,7 +62,7 @@ public sealed class Modulo3LinhaBaseTests
             {
                 EstacaoOcupada = "E2", PontoVisado = "E4",
                 DistanciaInclinada = dh, AnguloVertical = 90.0,
-                AnguloHorizontal = 180.0,  // Segunda estação: girar 180° para continuar reto
+                AnguloHorizontal = 180.0,
                 AlturaInstrumento = 1.5, AlturaPrisma = 1.5,
                 Tipo = TipoLeitura.Poligonal
             }
@@ -177,9 +167,6 @@ public sealed class Modulo3LinhaBaseTests
         var resultado = strategy.Compensar(input);
 
         // ErroX = ΔE = coord_calculada.X - chegada.X
-        // coord_calculada.X deverá ser ≈ 56.56 (linha reta)
-        // chegada.X = 56.56 + 0.012
-        // ΔE = 56.56 - (56.56 + 0.012) = -0.012
         Assert.Equal(-erroX, resultado.ErroX, precision: 5);
         Assert.NotNull(resultado.LaudoLinhaBase);
         Assert.Equal(-erroX, resultado.LaudoLinhaBase.DeltaEsteMetros, precision: 5);
@@ -193,11 +180,6 @@ public sealed class Modulo3LinhaBaseTests
     [Fact]
     public void Benchmark_LinhaBase56560m_DiscrepanciaMaxima3mm()
     {
-        // Cenário sintético que reproduz as condições nominais do arquivo 121377.FBK:
-        // Base E1→E4, distância nominal = 56.560 m, discrepância observada ≈ 3 mm.
-        // A tolerância padrão (1:12000) para 56.56 m: Tl = 56.56/12000 ≈ 4.71 mm.
-        // Portanto 3 mm deve APROVAR.
-
         var strategy = new VerificacaoLinhaBaseStrategy();
         var input = CriarInputLinhaReta(
             distanciaTotal: 56.560,
@@ -212,7 +194,6 @@ public sealed class Modulo3LinhaBaseTests
             $"A discrepância de 3 mm deveria aprovar. Motivo: {laudo.MotivoReprovacao}");
         Assert.Equal(3.0, laudo.ErroLinearMm, precision: 1);
 
-        // Precisão relativa: 0.003 / 56.560 ≈ 1:18.853
         double denominadorEsperado = 56.560 / 0.003;
         Assert.Equal(denominadorEsperado, 1.0 / laudo.PrecisaoRelativa, precision: 0);
     }
@@ -228,13 +209,8 @@ public sealed class Modulo3LinhaBaseTests
         var input = CriarInputLinhaReta(distanciaTotal: 100.0, erroXChegada: 0.0124);
         var laudo = strategy.Compensar(input).LaudoLinhaBase!;
 
-        // ΔE = -0.0124 m → "-12.4 mm"
         Assert.Equal("-12.4 mm", laudo.DeltaEsteMmFormatado);
-
-        // Erro linear ≈ 12.4 mm → "+12.4 mm"
         Assert.StartsWith("+12.4", laudo.ErroLinearFormatado);
-
-        // Precisão relativa: 0.0124/100 = 1:8064
         Assert.Contains(":", laudo.PrecisaoRelativaFormatada);
     }
 
@@ -274,14 +250,14 @@ public sealed class Modulo3LinhaBaseTests
         var input = new CompensacaoPoligonalInputDTO
         {
             PontoPartida   = new PontoCoordenada { Nome = "E1", X = 0, Y = 0, Z = 100 },
-            PontoChegada   = new PontoCoordenada { Nome = "E4", X = 0, Y = 0, Z = 0 },  // coord nula
+            PontoChegada   = new PontoCoordenada { Nome = "E4", X = 0, Y = 0, Z = 0 },
             Leituras = new List<LeituraEstacaoTotal>
             {
                 new() { DistanciaInclinada = 50, AnguloVertical = 90, AnguloHorizontal = 0, Tipo = TipoLeitura.Poligonal }
             },
             PoligonalBruta = new List<PontoCoordenada>(),
             Tolerancias    = ParametrosTolerancia.Padrao,
-            Metadados      = new MetadadosCenario()  // ChegadaX/Y/Z nulos
+            Metadados      = new MetadadosCenario()
         };
 
         var resultado = strategy.Compensar(input);
@@ -318,5 +294,4 @@ public sealed class Modulo3LinhaBaseTests
 
         Assert.Equal("1 : ∞", laudo.PrecisaoRelativaFormatada);
     }
-
 }

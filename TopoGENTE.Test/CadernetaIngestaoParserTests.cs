@@ -9,7 +9,7 @@ using Xunit;
 
 namespace TopoGENTE.Test;
 
-public sealed class Modulo1ParserTests
+public sealed class CadernetaIngestaoParserTests
 {
     // ──────────────────────────────────────────────────────────────────────────────
     // 1. ConversorAngulos (DDD.MMSS, Graus Decimais, Gradiados/Gons)
@@ -124,20 +124,30 @@ public sealed class Modulo1ParserTests
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
-    // 3. LeitorFbk com Benchmark 121377.FBK (Linha 161 e Tolerância a Magnitude)
+    // 3. LeitorFbk (Coordenadas Locais e Extração de Baseline)
     // ──────────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LeitorFbk_ProcessarArquivo121377_ToleraCoordenadaLocalLinha161EExtraiBaseline()
+    public void LeitorFbk_QuandoCoordenadaLocalSemMilhao_ToleraParsingEEmiteAvisoRastreabilidade()
     {
-        string caminhoFbk = @"C:\Users\gabri\Downloads\121377.FBK";
-        if (!File.Exists(caminhoFbk))
+        // Dataset sintético em memória (elimina Mystery Guest e skip silencioso)
+        var linhas = new[]
         {
-            // Se o arquivo não existir neste path exato, skip gracioso
-            return;
-        }
-
-        var linhas = File.ReadAllLines(caminhoFbk);
+            "UNIT METER DECDEG",
+            "NEZ \"E1\" 7702635.7870 722020.7120 651.934",
+            "NEZ \"E4\" 7702688.6120 722000.4820 652.186",
+            "STN \"E1\" 1.500",
+            "BS \"E4\" 0.0000",
+            "AD VA \"P1\" 45.0000 50.000 90.0000 \"V\"",
+            "STN \"P1\" 1.500",
+            "BS \"E1\" 225.0000",
+            "AD VA \"P2\" 90.0000 50.000 90.0000 \"V\"",
+            "STN \"P2\" 1.500",
+            "BS \"P1\" 270.0000",
+            "AD VA \"E1\" 180.0000 50.000 90.0000 \"V\"",
+            // Coordenadas locais (sem a magnitude de milhão): NEZ 70 2726.1160 21957.8820 652.233 MF1
+            "NEZ 70 2726.1160 21957.8820 652.233 MF1"
+        };
         var leitor = new LeitorFbk();
         var config = ConfiguracaoImportacao.PadraoFbk;
 
@@ -162,8 +172,8 @@ public sealed class Modulo1ParserTests
         Assert.Equal(722000.4820, pE4.X, 3);
         Assert.Equal(652.186, pE4.Z, 3);
 
-        // Verifica linha 161: NEZ 70 2726.1160 21957.8820 652.233 MF1
-        Assert.True(leitor.UltimosPontosConhecidos.ContainsKey("70"), "Ponto 70 da linha 161 deve ter sido registrado");
+        // Verifica ponto 70 com coordenadas locais
+        Assert.True(leitor.UltimosPontosConhecidos.ContainsKey("70"), "Ponto 70 deve ter sido registrado");
         var p70 = leitor.UltimosPontosConhecidos["70"];
         Assert.Equal(2726.1160, p70.Y, 3);
         Assert.Equal(21957.8820, p70.X, 3);
@@ -197,8 +207,7 @@ public sealed class Modulo1ParserTests
         var estacoes = leitor.Ler(linhas, config);
         Assert.Empty(estacoes);
 
-        // Como são coordenadas retangulares diretas, não há estações polares (ou zero)
-        // Mas UltimosPontosImportados deve conter os dois pontos
+        // Como são coordenadas retangulares diretas, não há estações polares
         Assert.Equal(2, leitor.UltimosPontosImportados.Count);
 
         var m1 = leitor.UltimosPontosImportados[0];

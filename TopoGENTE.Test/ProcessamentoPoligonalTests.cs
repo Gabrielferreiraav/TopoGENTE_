@@ -18,7 +18,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void CT_PRO_001_AjustamentoPoligonalFechada_Sucesso()
+        public void Processar_PoligonalFechadaConforme_CompensaCoordenadasPeloMetodoBowditch()
         {
             // Arrange
             var processor = CriarProcessor();
@@ -59,7 +59,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void CT_PRO_002_RejeicaoPreventivaErroAngularExtrapolado()
+        public void Processar_PoligonalFechadaComErroAngularExtrapolado_ReprovaLevantamento()
         {
             // Arrange
             var processor = CriarProcessor();
@@ -91,7 +91,7 @@ namespace TopoGENTE.Test
         }
 
         [Fact]
-        public void CT_PRO_003_ProtecaoDetalhesIrradiadosCotasZ()
+        public void GerarEsbocoBruto_CalculaProjecaoTrigonometricaExata_DePontosIrradiadosPlanimetricosEAltimetricos()
         {
             // Arrange
             var processor = CriarProcessor();
@@ -166,6 +166,12 @@ namespace TopoGENTE.Test
             res.Irradiacoes.Should().NotBeEmpty();
             var detHoriz = res.Irradiacoes.First(i => i.Nome == "DET_HORIZ");
             detHoriz.Z.Should().BeApproximately(100.0, 0.001, "com visada horizontal V=90 e hi=hp, a cota deve ser idêntica à estação ocupada");
+            
+            // Validação de projeção analítica no plano cartesiano (NBR 13.133)
+            double esperadoXHoriz = 1000.0 + (50.0 * Math.Sin(Math.PI / 4.0));
+            double esperadoYHoriz = 1000.0 + (50.0 * Math.Cos(Math.PI / 4.0));
+            detHoriz.XBruto.Should().BeApproximately(esperadoXHoriz, 0.001, "coordenada X bruta da irradiação deve seguir a projeção senoidal do azimute 45°");
+            detHoriz.YBruto.Should().BeApproximately(esperadoYHoriz, 0.001, "coordenada Y bruta da irradiação deve seguir a projeção cossenoidal do azimute 45°");
 
             var detInclinado = res.Irradiacoes.First(i => i.Nome == "DET_INCLINADO");
             detInclinado.Z.Should().BeApproximately(150.0, 0.001, "com V=60°, cos(60°)=0.5 e di=100m, o desnível trigonométrico é de +50m sobre a cota de 100m da estação");

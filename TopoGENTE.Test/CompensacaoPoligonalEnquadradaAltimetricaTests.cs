@@ -3,15 +3,12 @@ using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 
-namespace TopoGente.Tests.CaixaPreta
+namespace TopoGENTE.Test
 {
     /// <summary>
-    /// TERCEIRO PILAR: Validação Comportamental de Caixa-Preta
-    /// Domínio: Tolerância de Erro Altimétrico (NBR 13.133).
-    /// Fórmula: T = 0.15 * sqrt(k), onde k é o perímetro em km.
-    /// Base laboratorial: k = 4 km. T máximo = 0.30m.
+    /// Domínio: Tolerância de Erro Altimétrico em Nivelamento Geométrico/Trigonométrico (NBR 13.133).
     /// </summary>
-    public class ToleranciaAltimetricaCaixaPretaTests
+    public class CompensacaoPoligonalEnquadradaAltimetricaTests
     {
         private (PontoCoordenada partida, PontoCoordenada chegada, List<LeituraEstacaoTotal> leituras, List<PontoCoordenada> poligonalBruta)
             SetupGrafoAltimetrico(double erroAltimetricoInjetado)
@@ -47,7 +44,7 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT07_Deve_Aprovar_Compensacao_Quando_ClasseValida_Altimetrica_For_Detectada()
+        public void Compensar_QuandoErroAltimetricoDentroDaTolerancia_AprovaLevantamento()
         {
             var (partida, chegada, leituras, poligonalBruta) = SetupGrafoAltimetrico(0.20);
 
@@ -70,7 +67,7 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT08_Deve_Abortar_Compensacao_Quando_ClasseInvalida_Altimetrica_For_Detectada()
+        public void Compensar_QuandoErroAltimetricoExcedeTolerancia_ReprovaLevantamento()
         {
             var (partida, chegada, leituras, poligonalBruta) = SetupGrafoAltimetrico(0.35);
 

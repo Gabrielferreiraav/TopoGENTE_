@@ -5,9 +5,9 @@ using TopoGente.Core.Services;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using Xunit;
 
-namespace TopoGente.Test
+namespace TopoGENTE.Test
 {
-    public class ClassificacaoVisadasHexagonalTests
+    public class ClassificadorTopologicoVisadasTests
     {
         [Fact]
         public void LeitorFbk_Deve_Mapear_Purpose_Sem_Definir_Tipo_Topologico()

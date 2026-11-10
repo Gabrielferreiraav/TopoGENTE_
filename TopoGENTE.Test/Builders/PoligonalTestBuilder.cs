@@ -58,6 +58,21 @@ public class PoligonalTestBuilder
         return this;
     }
 
+    public PoligonalTestBuilder ComoAbertaOrientada(
+        string nomePartida, 
+        double x, 
+        double y, 
+        double z = 0, 
+        double azimutePartida = 0)
+    {
+        _tipoCenario = TipoCenarioPoligonal.AbertaOrientada;
+        _nomePartida = nomePartida;
+        _coordPartida = (x, y, z);
+        _azimutePartida = azimutePartida;
+        ComPontoConhecido(nomePartida, x, y, z);
+        return this;
+    }
+
     public PoligonalTestBuilder ComTolerancias(ParametrosTolerancia tolerancias)
     {
         _tolerancias = tolerancias;
@@ -193,6 +208,38 @@ public class PoligonalTestBuilder
         };
 
         return (new List<SequenciaPoligonal> { sequencia }, _estacoes, _pontosConhecidos);
+    }
+
+    public List<Estacao> BuildEstacoes() => _estacoes;
+
+    public Dictionary<string, PontoCoordenada> BuildPontosConhecidos() => _pontosConhecidos;
+
+    public SequenciaPoligonal BuildSequencia(string nome, bool ehPrincipal, string? ancoragem = null, List<string>? estacoes = null)
+    {
+        var seqEstacoes = estacoes ?? new List<string>(_sequenciaEstacoes);
+        var metadados = new MetadadosCenario
+        {
+            TipoCenario = _tipoCenario,
+            PartidaX = _coordPartida.X,
+            PartidaY = _coordPartida.Y,
+            PartidaZ = _coordPartida.Z,
+            AzimutePartida = _azimutePartida,
+            NomeChegada = _nomeChegada,
+            ChegadaX = _coordChegada?.X,
+            ChegadaY = _coordChegada?.Y,
+            ChegadaZ = _coordChegada?.Z,
+            Tolerancias = _tolerancias,
+            SequenciaEstacoesSelecionadas = seqEstacoes
+        };
+
+        return new SequenciaPoligonal
+        {
+            Nome = nome,
+            EhPrincipal = ehPrincipal,
+            EstacaoAncoragemNome = ancoragem,
+            Metadados = metadados,
+            Estacoes = seqEstacoes
+        };
     }
 
     public CompensacaoPoligonalInputDTO BuildDto()

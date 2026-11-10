@@ -1,18 +1,17 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 
-namespace TopoGente.Tests.CaixaPreta
+namespace TopoGENTE.Test
 {
     /// <summary>
-    /// TERCEIRO PILAR: Validação Comportamental de Caixa-Preta
-    /// Domínio: Tolerância de Precisão Relativa Linear (NBR 13.133).
+    /// Domínio: Tolerância de Precisão Relativa Linear em Poligonal Enquadrada (NBR 13.133).
     /// </summary>
-    public class PrecisaoLinearCaixaPretaTests
+    public class CompensacaoPoligonalEnquadradaLinearTests
     {
         [Fact]
-        public void CT01_Deve_Aprovar_Compensacao_Quando_ClasseValida_For_Detectada()
+        public void Compensar_QuandoPrecisaoLinearSuperaPisoNormativo_AprovaLevantamento()
         {
             var pontoPartida = new PontoCoordenada { X = 0, Y = 0, Z = 0, Nome = "M1", AzimuteChegada = 90.0 };
             var pontoChegada = new PontoCoordenada { X = 999.95, Y = 0, Z = 0, Nome = "M2" };
@@ -50,9 +49,8 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT02_Deve_Abortar_Compensacao_Quando_ClasseInvalida_For_Detectada()
+        public void Compensar_QuandoPrecisaoLinearInferiorAoExigido_ReprovaLevantamento()
         {
-            // Arrange: Partição Inválida (CT-02).
             // A leitura gera 1000m. A chegada teórica exige 998.0m. 
             // Erro forjado no oráculo será de 2.0m. Precisão Relativa de 1:500.
             var pontoPartida = new PontoCoordenada { X = 0, Y = 0, Z = 0, Nome = "M1", AzimuteChegada = 90.0 };
@@ -89,9 +87,9 @@ namespace TopoGente.Tests.CaixaPreta
         }
 
         [Fact]
-        public void CT03_Deve_Aprovar_Compensacao_No_Limite_Exato_Da_Norma()
+        public void Compensar_NoLimiteExatoDaPrecisaoLinearNormativa_AprovaLevantamento()
         {
-            // Arrange: Análise de Valor Limite (CT-03) e blindagem IEEE 754.
+            // Análise de Valor Limite e blindagem IEEE 754.
             // A leitura dita 1200.0m de deslocamento. O ponto de chegada está matematicamente fixado em 1199.90m.
             // Erro Linear exato: 0.10m. Razão exata: 0.10 / 1200.0 = 1:12.000.
             var pontoPartida = new PontoCoordenada { X = 0, Y = 0, Z = 0, Nome = "M1", AzimuteChegada = 90.0 };
@@ -122,8 +120,6 @@ namespace TopoGente.Tests.CaixaPreta
             var strategy = new CompensacaoStrategyFactory().Criar(TipoCenarioPoligonal.Enquadrada);
             var resultado = strategy.Compensar(entrada);
 
-            // Assert: A condicional relacional "if (precisaoRelativa > precisaoMinima)" processará as dízimas binárias
-            // provando que a fronteira inclusiva do software lida corretamente com a restrição da NBR 13.133.
             Assert.True(resultado.AprovadoNorma);
             Assert.Empty(resultado.AlertaReprovacao);
         }
