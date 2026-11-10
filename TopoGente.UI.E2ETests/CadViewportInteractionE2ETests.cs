@@ -130,6 +130,7 @@ namespace TopoGente.UI.E2ETests
             Assert.False(vm.StaticDraftGeometry.IsEmpty(), "Esboço bruto prévio deve ser gerado na importação.");
 
             // 4. Execução do Cálculo e Ajustamento de Poligonal (Bowditch)
+            vm.PresetToleranciaSelecionado = TopoGente.Core.Entities.PresetToleranciaEnum.ClasseIVP;
             var processarCmd = (AsyncRelayCommand)vm.ProcessarCommand;
             await processarCmd.ExecuteAsync(null);
 
@@ -493,6 +494,7 @@ namespace TopoGente.UI.E2ETests
 
                                 // Importação e Cálculo
                                 await ((AsyncRelayCommand)vm.ImportarCadernetaCommand).ExecuteAsync(null);
+                                vm.PresetToleranciaSelecionado = TopoGente.Core.Entities.PresetToleranciaEnum.ClasseIVP;
                                 await ((AsyncRelayCommand)vm.ProcessarCommand).ExecuteAsync(null);
 
                                 Assert.Equal(EstadoMotor.Compensado, vm.EstadoAtualMotor);
