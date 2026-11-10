@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using FluentAssertions;
 using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
+using TopoGENTE.Test.Builders;
 
 namespace TopoGente.Tests.CaixaBranca
 {
@@ -9,64 +11,31 @@ namespace TopoGente.Tests.CaixaBranca
     {
         private static CompensacaoPoligonalInputDTO CriarEntradaBase()
         {
-            var partida = new PontoCoordenada { X = 0, Y = 0, Z = 0, Nome = "E0", AzimuteChegada = 90.0 };
-            var chegada = new PontoCoordenada { X = 400, Y = 0, Z = 0, Nome = "E4" };
-
-            var metadados = new MetadadosCenario
-            {
-                ChegadaX = chegada.X,
-                ChegadaY = chegada.Y,
-                ChegadaZ = chegada.Z,
-                NomeChegada = chegada.Nome
-            };
-
-            var leituras = new List<LeituraEstacaoTotal>
-            {
-                new LeituraEstacaoTotal { DistanciaInclinada = 100, AnguloVertical = 90, AnguloHorizontal = 180, AlturaInstrumento = 0, AlturaPrisma = 0, PontoVisado = "E1" },
-                new LeituraEstacaoTotal { DistanciaInclinada = 100, AnguloVertical = 90, AnguloHorizontal = 180, AlturaInstrumento = 0, AlturaPrisma = 0, PontoVisado = "E2" },
-                new LeituraEstacaoTotal { DistanciaInclinada = 100, AnguloVertical = 90, AnguloHorizontal = 180, AlturaInstrumento = 0, AlturaPrisma = 0, PontoVisado = "E3" },
-                new LeituraEstacaoTotal { DistanciaInclinada = 100, AnguloVertical = 90, AnguloHorizontal = 180, AlturaInstrumento = 0, AlturaPrisma = 0, PontoVisado = "E4" }
-            };
-
-            var poligonalBruta = new List<PontoCoordenada>
-            {
-                partida,
-                new PontoCoordenada { X = 100, Y = 0, Z = 0, Nome = "E1", AzimuteChegada = 90.0 },
-                new PontoCoordenada { X = 200, Y = 0, Z = 0, Nome = "E2", AzimuteChegada = 90.0 },
-                new PontoCoordenada { X = 300, Y = 0, Z = 0, Nome = "E3", AzimuteChegada = 90.0 },
-                new PontoCoordenada { X = 400, Y = 0, Z = 0, Nome = "E4", AzimuteChegada = 90.0 }
-            };
-
-            return new CompensacaoPoligonalInputDTO
-            {
-                Metadados = metadados,
-                PontoPartida = partida,
-                PontoChegada = chegada,
-                AzimuteInicial = 270.0,
-                AzimuteChegada = 270.0,
-                AnguloFechamento = 0.0,
-                Leituras = leituras,
-                PoligonalBruta = poligonalBruta
-            };
+            return new PoligonalTestBuilder()
+                .ComoEnquadrada("E0", (0, 0, 0), "E4", (400, 0, 0), azimutePartida: 270.0)
+                .ComAzimuteChegada(270.0)
+                .ComEstacao("E0", hi: 0).VisandoVante("E1", anguloHz: 180, distanciaInclinada: 100, anguloVt: 90, hp: 0)
+                .ComEstacao("E1", hi: 0).VisandoVante("E2", anguloHz: 180, distanciaInclinada: 100, anguloVt: 90, hp: 0)
+                .ComEstacao("E2", hi: 0).VisandoVante("E3", anguloHz: 180, distanciaInclinada: 100, anguloVt: 90, hp: 0)
+                .ComEstacao("E3", hi: 0).VisandoVante("E4", anguloHz: 180, distanciaInclinada: 100, anguloVt: 90, hp: 0)
+                .BuildDto();
         }
 
         [Fact]
         public void CT01_Deve_Abortar_Quando_Leituras_Ausentes()
         {
-            // O record permite a mutação não destrutiva do DTO imutável
             var entrada = CriarEntradaBase() with { Leituras = new List<LeituraEstacaoTotal>() };
 
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
 
-            Assert.False(resultado.AprovadoNorma);
-            Assert.Equal("Nenhuma leitura fornecida. Compensação não realizada.", resultado.AlertaReprovacao);
+            resultado.AprovadoNorma.Should().BeFalse();
+            resultado.AlertaReprovacao.Should().Be("Nenhuma leitura fornecida. Compensação não realizada.");
         }
 
         [Fact]
         public void CT02_Deve_Abortar_Quando_Coordenadas_Chegada_Ausentes()
         {
-            // Clona a entrada base, mas injeta metadados com propriedades nulas para romper o contrato
             var entrada = CriarEntradaBase() with
             {
                 Metadados = new MetadadosCenario { NomeChegada = "E4" }
@@ -75,21 +44,20 @@ namespace TopoGente.Tests.CaixaBranca
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
 
-            Assert.False(resultado.AprovadoNorma);
-            Assert.Equal("Poligonal enquadrada exige coordenadas de chegada (X, Y, Z).", resultado.AlertaReprovacao);
+            resultado.AprovadoNorma.Should().BeFalse();
+            resultado.AlertaReprovacao.Should().Be("Poligonal enquadrada exige coordenadas de chegada (X, Y, Z).");
         }
 
         [Fact]
         public void CT03_Deve_Abortar_Quando_Erro_Angular_Supera_Tolerancia()
         {
-            // Clona o grafo base injetando a anomalia angular diretamente na inicialização
             var entrada = CriarEntradaBase() with { AzimuteChegada = 0.0 };
 
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
 
-            Assert.False(resultado.AprovadoNorma);
-            Assert.Contains("Erro Angular", resultado.AlertaReprovacao);
+            resultado.AprovadoNorma.Should().BeFalse();
+            resultado.AlertaReprovacao.Should().Contain("Erro Angular");
         }
 
         [Fact]
@@ -103,8 +71,8 @@ namespace TopoGente.Tests.CaixaBranca
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
 
-            Assert.False(resultado.AprovadoNorma);
-            Assert.Contains("Precisão Linear", resultado.AlertaReprovacao);
+            resultado.AprovadoNorma.Should().BeFalse();
+            resultado.AlertaReprovacao.Should().Contain("Precisão Linear");
         }
 
         [Fact]
@@ -116,8 +84,8 @@ namespace TopoGente.Tests.CaixaBranca
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
 
-            Assert.False(resultado.AprovadoNorma);
-            Assert.Contains("altimétrico", resultado.AlertaReprovacao.ToLowerInvariant());
+            resultado.AprovadoNorma.Should().BeFalse();
+            resultado.AlertaReprovacao.ToLowerInvariant().Should().Contain("altimétrico");
         }
 
         [Fact]
@@ -128,14 +96,14 @@ namespace TopoGente.Tests.CaixaBranca
             var strategy = new CompensacaoEnquadradaStrategy();
             var resultado = strategy.Compensar(entrada);
 
-            Assert.True(resultado.AprovadoNorma);
-            Assert.Empty(resultado.AlertaReprovacao);
-            Assert.Equal(100.000, resultado.PoligonalCompensada[1].X, precision: 3);
-            Assert.Equal(0.000, resultado.PoligonalCompensada[1].Y, precision: 3);
-            Assert.Equal(0.000, resultado.PoligonalCompensada[1].Z, precision: 3);
-            Assert.Equal(400.000, resultado.PoligonalCompensada[4].X, precision: 3);
-            Assert.Equal(0.000, resultado.PoligonalCompensada[4].Y, precision: 3);
-            Assert.Equal(0.000, resultado.PoligonalCompensada[4].Z, precision: 3);
+            resultado.AprovadoNorma.Should().BeTrue();
+            resultado.AlertaReprovacao.Should().BeEmpty();
+            resultado.PoligonalCompensada[1].X.Should().BeApproximately(100.0, 0.001);
+            resultado.PoligonalCompensada[1].Y.Should().BeApproximately(0.0, 0.001);
+            resultado.PoligonalCompensada[1].Z.Should().BeApproximately(0.0, 0.001);
+            resultado.PoligonalCompensada[4].X.Should().BeApproximately(400.0, 0.001);
+            resultado.PoligonalCompensada[4].Y.Should().BeApproximately(0.0, 0.001);
+            resultado.PoligonalCompensada[4].Z.Should().BeApproximately(0.0, 0.001);
         }
     }
 }

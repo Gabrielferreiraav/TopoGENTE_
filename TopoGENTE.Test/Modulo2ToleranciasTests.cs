@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FluentAssertions;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
@@ -18,26 +19,26 @@ public sealed class Modulo2ToleranciasTests
     {
         var tol = ParametrosTolerancia.ClasseIP;
 
-        Assert.Equal(2.0, tol.K);
-        Assert.Equal(2.0, tol.SigmaA);
-        Assert.Equal(10000, tol.DenominadorPrecisaoLinear);
-        Assert.Equal(1.5, tol.C);
-        Assert.Equal(0.0001, tol.PrecisaoLinearMinima, 6);
+        tol.K.Should().BeApproximately(2.0, 1e-4);
+        tol.SigmaA.Should().BeApproximately(3.0, 1e-4);
+        tol.DenominadorPrecisaoLinear.Should().Be(10000);
+        tol.C.Should().BeApproximately(1.5, 1e-4);
+        tol.PrecisaoLinearMinima.Should().BeApproximately(0.0001, 1e-6);
 
-        // n = 4 estações: Ta = 2.0 * 2.0 * sqrt(4) = 8.0"
+        // n = 4 estações: Ta = 6.0 * sqrt(4) = 12.0"
         double taSegundos = tol.CalcularToleranciaAngularSegundos(4);
-        Assert.Equal(8.0, taSegundos, 4);
+        taSegundos.Should().BeApproximately(12.0, 1e-4);
 
         double taGraus = tol.CalcularToleranciaAngularGraus(4);
-        Assert.Equal(8.0 / 3600.0, taGraus, 7);
+        taGraus.Should().BeApproximately(12.0 / 3600.0, 1e-7);
 
         // Perímetro = 1000 m (1 km): Tz = (1.5 / 1000) * sqrt(1) = 0.0015 m (1.5 mm)
         double tzMetros = tol.CalcularToleranciaAltimetricaMetros(1000.0);
-        Assert.Equal(0.0015, tzMetros, 5);
+        tzMetros.Should().BeApproximately(0.0015, 1e-5);
 
         // Perímetro = 1000 m: Tl = 1000 / 10000 = 0.10 m (10 cm)
         double tlMetros = tol.CalcularToleranciaLinearMetros(1000.0);
-        Assert.Equal(0.10, tlMetros, 4);
+        tlMetros.Should().BeApproximately(0.10, 1e-4);
     }
 
     [Fact]
@@ -45,18 +46,18 @@ public sealed class Modulo2ToleranciasTests
     {
         var tol = ParametrosTolerancia.ClasseIIP;
 
-        Assert.Equal(2.0, tol.K);
-        Assert.Equal(5.0, tol.SigmaA);
-        Assert.Equal(5000, tol.DenominadorPrecisaoLinear);
-        Assert.Equal(3.0, tol.C);
+        tol.K.Should().BeApproximately(2.0, 1e-4);
+        tol.SigmaA.Should().BeApproximately(7.5, 1e-4);
+        tol.DenominadorPrecisaoLinear.Should().Be(5000);
+        tol.C.Should().BeApproximately(3.0, 1e-4);
 
-        // n = 9 estações: Ta = 2.0 * 5.0 * sqrt(9) = 30.0"
+        // n = 9 estações: Ta = 15.0 * sqrt(9) = 45.0"
         double taSegundos = tol.CalcularToleranciaAngularSegundos(9);
-        Assert.Equal(30.0, taSegundos, 4);
+        taSegundos.Should().BeApproximately(45.0, 1e-4);
 
         // Perímetro = 4000 m (4 km): Tz = (3.0 / 1000) * sqrt(4) = 0.006 m (6.0 mm)
         double tzMetros = tol.CalcularToleranciaAltimetricaMetros(4000.0);
-        Assert.Equal(0.006, tzMetros, 5);
+        tzMetros.Should().BeApproximately(0.006, 1e-5);
     }
 
     [Fact]
@@ -70,13 +71,13 @@ public sealed class Modulo2ToleranciasTests
             checkXY: 0.005,
             checkZ: 0.010);
 
-        Assert.Equal(PresetToleranciaEnum.Personalizado, custom.Preset);
-        Assert.Equal(2.5, custom.K);
-        Assert.Equal(3.0, custom.SigmaA);
-        Assert.Equal(15000, custom.DenominadorPrecisaoLinear);
-        Assert.Equal(2.0, custom.C);
-        Assert.Equal(0.005, custom.ToleranciaCheckDeltaXY);
-        Assert.Equal(0.010, custom.ToleranciaCheckDeltaZ);
+        custom.Preset.Should().Be(PresetToleranciaEnum.Personalizado);
+        custom.K.Should().BeApproximately(2.5, 1e-4);
+        custom.SigmaA.Should().BeApproximately(3.0, 1e-4);
+        custom.DenominadorPrecisaoLinear.Should().Be(15000);
+        custom.C.Should().BeApproximately(2.0, 1e-4);
+        custom.ToleranciaCheckDeltaXY.Should().BeApproximately(0.005, 1e-4);
+        custom.ToleranciaCheckDeltaZ.Should().BeApproximately(0.010, 1e-4);
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
@@ -88,8 +89,8 @@ public sealed class Modulo2ToleranciasTests
     {
         var strategy = new CompensacaoEnquadradaStrategy();
 
-        // Erro angular de 12 segundos (0.003333°)
-        double erroAngularEmGraus = 12.0 / 3600.0;
+        // Erro angular de 16 segundos (0.004444°)
+        double erroAngularEmGraus = 16.0 / 3600.0;
         var partida = new PontoCoordenada { X = 0, Y = 0, Z = 0, Nome = "E0", AzimuteChegada = 90.0 };
 
         double corrUnitaria = -erroAngularEmGraus / 4.0;
@@ -119,7 +120,7 @@ public sealed class Modulo2ToleranciasTests
             new() { X = 100, Y = 0, Z = 0, Nome = "E4", AzimuteChegada = 90.0 + erroAngularEmGraus }
         };
 
-        // Sob Classe I P (n=4): Ta = 2 * 2 * sqrt(4) = 8.0" -> Erro de 12.0" DEVE REPROVAR
+        // Sob Classe I P (n=4): Ta = 6.0 * sqrt(4) = 12.0" -> Erro de 16.0" DEVE REPROVAR
         var inputClasse1 = new CompensacaoPoligonalInputDTO
         {
             PontoPartida = partida,
@@ -136,7 +137,7 @@ public sealed class Modulo2ToleranciasTests
         Assert.False(resultado1.AprovadoNorma);
         Assert.Contains("Erro Angular", resultado1.AlertaReprovacao);
 
-        // Sob Classe II P (n=4): Ta = 2 * 5 * sqrt(4) = 20.0" -> Erro de 12.0" DEVE APROVAR
+        // Sob Classe II P (n=4): Ta = 15.0 * sqrt(4) = 30.0" -> Erro de 16.0" DEVE APROVAR
         var inputClasse2 = inputClasse1 with { Tolerancias = ParametrosTolerancia.ClasseIIP };
         var resultado2 = strategy.Compensar(inputClasse2);
 

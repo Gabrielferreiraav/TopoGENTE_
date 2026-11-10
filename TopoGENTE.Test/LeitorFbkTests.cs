@@ -144,6 +144,7 @@ namespace TopoGente.Test
 
             var estacoes = leitor.Ler(linhas);
 
+            Assert.Single(estacoes);
             Assert.True(leitor.UltimosPontosConhecidos.ContainsKey("1"));
             Assert.True(leitor.UltimosPontosConhecidos.ContainsKey("100"));
         }

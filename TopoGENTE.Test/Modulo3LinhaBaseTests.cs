@@ -111,7 +111,7 @@ public sealed class Modulo3LinhaBaseTests
         var resultado = strategy.Compensar(input);
 
         Assert.NotNull(resultado.LaudoLinhaBase);
-        var laudo = resultado.LaudoLinhaBase!;
+        var laudo = resultado.LaudoLinhaBase;
 
         Assert.Equal(0.0, laudo.DeltaEsteMetros,  precision: 6);
         Assert.Equal(0.0, laudo.DeltaNorteMetros, precision: 6);
@@ -136,7 +136,7 @@ public sealed class Modulo3LinhaBaseTests
 
         Assert.True(resultado.AprovadoNorma);
         Assert.NotNull(resultado.LaudoLinhaBase);
-        Assert.True(resultado.LaudoLinhaBase!.Aprovado);
+        Assert.True(resultado.LaudoLinhaBase.Aprovado);
         Assert.Empty(resultado.LaudoLinhaBase.MotivoReprovacao);
     }
 
@@ -159,7 +159,7 @@ public sealed class Modulo3LinhaBaseTests
 
         Assert.False(resultado.AprovadoNorma);
         Assert.NotNull(resultado.LaudoLinhaBase);
-        Assert.False(resultado.LaudoLinhaBase!.Aprovado);
+        Assert.False(resultado.LaudoLinhaBase.Aprovado);
         Assert.Contains("Erro linear", resultado.LaudoLinhaBase.MotivoReprovacao);
     }
 
@@ -182,7 +182,7 @@ public sealed class Modulo3LinhaBaseTests
         // ΔE = 56.56 - (56.56 + 0.012) = -0.012
         Assert.Equal(-erroX, resultado.ErroX, precision: 5);
         Assert.NotNull(resultado.LaudoLinhaBase);
-        Assert.Equal(-erroX, resultado.LaudoLinhaBase!.DeltaEsteMetros, precision: 5);
+        Assert.Equal(-erroX, resultado.LaudoLinhaBase.DeltaEsteMetros, precision: 5);
         Assert.Equal(Math.Abs(erroX) * 1000.0, resultado.LaudoLinhaBase.ErroLinearMm, precision: 2);
     }
 
@@ -205,7 +205,7 @@ public sealed class Modulo3LinhaBaseTests
             tolerancias: ParametrosTolerancia.Padrao);
 
         var resultado = strategy.Compensar(input);
-        var laudo = resultado.LaudoLinhaBase!;
+        var laudo = resultado.LaudoLinhaBase;
 
         Assert.NotNull(laudo);
         Assert.True(laudo.Aprovado,

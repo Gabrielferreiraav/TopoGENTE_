@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using FluentAssertions;
 using TopoGente.Core.Entities;
 using Xunit;
 
@@ -35,10 +36,10 @@ namespace TopoGENTE.Test
 
             Assert.NotEqual(idOriginal, leituraSubstituida.Id); // Garante novo Id físico
             Assert.Equal("V2", leituraSubstituida.PontoVisado);
-            Assert.Equal(150, leituraSubstituida.AnguloHorizontal);
-            Assert.Equal(95, leituraSubstituida.AnguloVertical);
-            Assert.Equal(60, leituraSubstituida.DistanciaInclinada);
-            Assert.Equal(1.6, leituraSubstituida.AlturaPrisma);
+            leituraSubstituida.AnguloHorizontal.Should().BeApproximately(150.0, 1e-4);
+            leituraSubstituida.AnguloVertical.Should().BeApproximately(95.0, 1e-4);
+            leituraSubstituida.DistanciaInclinada.Should().BeApproximately(60.0, 1e-4);
+            leituraSubstituida.AlturaPrisma.Should().BeApproximately(1.6, 1e-4);
             Assert.Equal("Nova observacao", leituraSubstituida.Observacao);
             Assert.Equal(TipoLeitura.Poligonal, leituraSubstituida.Tipo); // Copiou as imutáveis
         }

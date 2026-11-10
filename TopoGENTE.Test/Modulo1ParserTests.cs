@@ -195,6 +195,7 @@ public sealed class Modulo1ParserTests
         };
 
         var estacoes = leitor.Ler(linhas, config);
+        Assert.Empty(estacoes);
 
         // Como são coordenadas retangulares diretas, não há estações polares (ou zero)
         // Mas UltimosPontosImportados deve conter os dois pontos

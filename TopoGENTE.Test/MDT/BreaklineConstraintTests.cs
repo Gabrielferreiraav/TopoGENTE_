@@ -4,6 +4,7 @@ using System.Linq;
 using TopoGENTE.Domain.Exceptions;
 using TopoGENTE.Domain.ValueObjects;
 using TopoGENTE.Infrastructure.Adapters;
+using TopoGENTE.Test.Builders;
 using Xunit;
 
 namespace TopoGente.Test.MDT;
@@ -30,14 +31,7 @@ public class BreaklineConstraintTests
     ///   0(0,0) --- 1(1,0)
     ///         4(0.5,0.5)  (centro)
     /// </summary>
-    private static readonly TerrainVertex[] PontosQuadrado = new[]
-    {
-        new TerrainVertex(0.0, 0.0, 100.0, 0),
-        new TerrainVertex(1.0, 0.0, 101.0, 1),
-        new TerrainVertex(1.0, 1.0, 102.0, 2),
-        new TerrainVertex(0.0, 1.0, 101.5, 3),
-        new TerrainVertex(0.5, 0.5, 100.5, 4),
-    };
+    private static readonly TerrainVertex[] PontosQuadrado = new TerrenoTestBuilder().ComQuadradoUnitario().BuildVertices();
 
     private readonly RichFeatureTinfourAdapter _adapter = new();
 
@@ -51,9 +45,10 @@ public class BreaklineConstraintTests
         // Breakline: vértice 0 (0,0) → vértice 2 (1,1) — diagonal principal
         var breaklines = new[] { new Breakline(0, 2) };
 
-        var (vertices, triangles) = new RichFeatureTinfourAdapter()
+        var (vertices, triangles) = _adapter
             .GenerateBaseDelaunayMesh(PontosQuadrado, breaklines, toleranceThreshold: 0.001);
 
+        Assert.NotEmpty(vertices);
         Assert.NotEmpty(triangles);
 
         // Com restoreConformity, a aresta pode ser subdividida por Steiner Points.
@@ -68,7 +63,7 @@ public class BreaklineConstraintTests
     [Fact]
     public void GenerateMesh_NoBreaklines_ProducesValidMesh()
     {
-        var (_, triangles) = new RichFeatureTinfourAdapter()
+        var (_, triangles) = _adapter
             .GenerateBaseDelaunayMesh(PontosQuadrado, Array.Empty<Breakline>(), 0.001);
 
         // Sem breaklines, o número de triângulos para 5 pontos em posição geral é 4.
@@ -93,7 +88,7 @@ public class BreaklineConstraintTests
 
         // O motor Tinfour deve rejeitar restrições que se intersectam em ponto não-vértice
         var ex = Assert.Throws<BreaklineConflictException>(() =>
-            new RichFeatureTinfourAdapter().GenerateBaseDelaunayMesh(
+            _adapter.GenerateBaseDelaunayMesh(
                 PontosQuadrado.Take(4).ToArray(), // Apenas 4 cantos — sem ponto central
                 breaklinesCruzadas,
                 toleranceThreshold: 0.001));

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentAssertions;
 using Xunit;
 using TopoGente.UI.CadInteraction;
 using TopoGente.UI.Spatial;
@@ -64,8 +65,8 @@ public sealed class StubCadCanvasContext : ICadCanvasContext
 
     public void SetMeasurementBand(double? startX, double? startY, double? endX, double? endY)
     {
-        RubberBandStartX = startX; RubberBandStartY = startY;
-        RubberBandEndX = endX; RubberBandEndY = endY;
+        SetRubberBand(startX, startY, endX, endY);
+
     }
 
     public void ClearMeasurementBand() => SetMeasurementBand(null, null, null, null);
@@ -109,10 +110,10 @@ public class CadInteractionTests
         stateMachine.HandleMouseDown(100.0, 200.0, nodeA);
         stateMachine.HandleMouseMove(150.0, 250.0, null);
 
-        Assert.Equal(100.0, context.RubberBandStartX);
-        Assert.Equal(200.0, context.RubberBandStartY);
-        Assert.Equal(150.0, context.RubberBandEndX);
-        Assert.Equal(250.0, context.RubberBandEndY);
+        context.RubberBandStartX.Should().BeApproximately(100.0, 1e-4);
+        context.RubberBandStartY.Should().BeApproximately(200.0, 1e-4);
+        context.RubberBandEndX.Should().BeApproximately(150.0, 1e-4);
+        context.RubberBandEndY.Should().BeApproximately(250.0, 1e-4);
     }
 
     [Fact]
@@ -212,7 +213,7 @@ public class CadInteractionTests
 
         Assert.Equal(1, context.Emitidas);
         Assert.Equal((1, 2), context.UltimaEmissao);
-        Assert.Equal(300.0, context.SnapMarkerX);
+        context.SnapMarkerX.Should().BeApproximately(300.0, 1e-4);
     }
 
     [Fact]
@@ -255,11 +256,11 @@ public class CadInteractionTests
         var noB = new KdNode(3.0, 4.0, 2); // Z mock = 20
         sm.HandleMouseMove(3.0, 4.0, noB);
         
-        Assert.Equal(5.0, context.UltimoDH, 3); // sqrt(3^2 + 4^2) = 5
-        Assert.Equal(10.0, context.UltimoDZ, 3); // 20 - 10 = 10
-        Assert.Equal(11.180, context.UltimoDI, 3); // sqrt(5^2 + 10^2) = 11.180
-        Assert.Equal(200.0, context.UltimaInclinacao, 3); // 10 / 5 = 200%
-        Assert.Equal(36.870, context.UltimoAzimute, 3); // atan2(3,4) = 36.87
+        context.UltimoDH.Should().BeApproximately(5.0, 0.001); // sqrt(3^2 + 4^2) = 5
+        context.UltimoDZ.Should().BeApproximately(10.0, 0.001); // 20 - 10 = 10
+        context.UltimoDI.Should().BeApproximately(11.180, 0.001); // sqrt(5^2 + 10^2) = 11.180
+        context.UltimaInclinacao.Should().BeApproximately(200.0, 0.001); // 10 / 5 = 200%
+        context.UltimoAzimute.Should().BeApproximately(36.870, 0.001); // atan2(3,4) = 36.87
     }
 
     [Fact]

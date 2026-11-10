@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TopoGENTE.Domain.ValueObjects;
 using TopoGENTE.Infrastructure.Adapters;
+using TopoGENTE.Test.Builders;
 using Xunit;
 
 namespace TopoGente.Test.MDT;
@@ -23,20 +24,8 @@ public class DelaunayCorrectnessTests
     // Auxiliares
     // -------------------------------------------------------------------------
 
-    private static TerrainVertex[] GerarGradeSimetrica(int linhas, int colunas, double espacamento = 1.0)
-    {
-        var pts = new List<TerrainVertex>();
-        int id = 0;
-        for (int r = 0; r < linhas; r++)
-            for (int c = 0; c < colunas; c++)
-            {
-                double x = c * espacamento;
-                double y = r * espacamento;
-                double z = 100 + x * 0.05 + y * 0.03; // plano inclinado simples
-                pts.Add(new TerrainVertex(x, y, z, id++));
-            }
-        return pts.ToArray();
-    }
+    private static TerrainVertex[] GerarGradeSimetrica(int linhas, int colunas, double espacamento = 1.0) =>
+        new TerrenoTestBuilder().ComGrade(linhas, colunas, espacamento).BuildVertices();
 
     /// <summary>
     /// Calcula o circuncírculo de um triângulo definido por três pontos 2D.
