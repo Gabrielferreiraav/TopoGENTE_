@@ -15,7 +15,11 @@ namespace TopoGente.UI.CadInteraction
             if (nearestNode.HasValue)
             {
                 double? z = Context.GetElevation(nearestNode.Value.DomainId);
-                Context.NotificarElementoInspecionado(nearestNode.Value.DomainId, nearestNode.Value.X, nearestNode.Value.Y, z, $"Vértice {nearestNode.Value.DomainId}");
+                string? idVertice = Context.ObterIdentificadorVertice(nearestNode.Value.DomainId);
+                string descVertice = !string.IsNullOrWhiteSpace(idVertice) && idVertice != nearestNode.Value.DomainId.ToString()
+                    ? $"Ponto {idVertice}"
+                    : $"Vértice {nearestNode.Value.DomainId}";
+                Context.NotificarElementoInspecionado(nearestNode.Value.DomainId, nearestNode.Value.X, nearestNode.Value.Y, z, descVertice);
             }
 
             if (Context.EdgeSpatialIndex == null) return;
@@ -38,7 +42,9 @@ namespace TopoGente.UI.CadInteraction
                     return;
                 }
 
-                Context.NotificarElementoInspecionado(null, null, null, null, $"Breakline de {breakline.StartVertexId} para {breakline.EndVertexId}");
+                string idStart = Context.ObterIdentificadorVertice(breakline.StartVertexId) ?? breakline.StartVertexId.ToString();
+                string idEnd = Context.ObterIdentificadorVertice(breakline.EndVertexId) ?? breakline.EndVertexId.ToString();
+                Context.NotificarElementoInspecionado(null, null, null, null, $"Breakline de {idStart} para {idEnd}");
                 StateMachine.ChangeState(new EditingState(StateMachine, Context, breakline));
             }
         }

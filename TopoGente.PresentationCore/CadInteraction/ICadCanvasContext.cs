@@ -35,6 +35,11 @@ namespace TopoGente.UI.CadInteraction
 
         double? GetElevation(int vertexId);
         
+        /// <summary>
+        /// Obtém o identificador legível (Nome do ponto ou código de campo) para o vértice no índice espacial.
+        /// </summary>
+        string? ObterIdentificadorVertice(int vertexId) => null;
+        
         void SetMeasurementBand(double? startX, double? startY, double? endX, double? endY);
         void ClearMeasurementBand() => SetMeasurementBand(null, null, null, null);
         void NotificarMedicao(double dh, double di, double dz, double inclinacao, double azimute);

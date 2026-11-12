@@ -13,5 +13,13 @@ namespace TopoGente.UI.Views
         {
 
         }
+
+        private void ExportarMenuItem_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (BtnExportar != null)
+            {
+                BtnExportar.IsChecked = false;
+            }
+        }
     }
 }

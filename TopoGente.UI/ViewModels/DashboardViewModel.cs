@@ -697,7 +697,7 @@ public double DesnivelTerreno
 
 
 
-public int TotalPontos => _resultadoAtual?.TodosOsPontos.Count() ?? 0;
+public int TotalPontos => _resultadoAtual?.TodosOsPontos.Count ?? 0;
 
 
 
@@ -1671,13 +1671,12 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         {
 
-            var pts = pontos?.ToList() 
-
-                ?? _resultadoAtual?.TodosOsPontos?.ToList() 
-
-                ?? _resultadoAtual?.Poligonal?.ToList()
-
-                ?? _resultadoAtual?.PoligonalBruta?.ToList();
+            var pts = (pontos as IReadOnlyList<PontoCoordenada>)
+                ?? _pontosAtivosCanvas
+                ?? _resultadoAtual?.TodosOsPontos
+                ?? _resultadoAtual?.Poligonal
+                ?? _resultadoAtual?.PoligonalBruta
+                ?? pontos?.ToList();
 
 
 
@@ -1951,28 +1950,46 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
 
+        private IReadOnlyList<PontoCoordenada>? _pontosAtivosCanvas;
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         public double? GetElevation(int vertexId)
-
         {
-
-            if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Any())
-
+            if (_pontosAtivosCanvas != null && (uint)vertexId < (uint)_pontosAtivosCanvas.Count)
             {
+                return _pontosAtivosCanvas[vertexId].Z;
+            }
 
-                var pontos = _resultadoAtual.TodosOsPontos.ToList();
-
-                if (vertexId >= 0 && vertexId < pontos.Count)
-
-                {
-
-                    return pontos[vertexId].Z;
-
-                }
-
+            if (_resultadoAtual != null && (uint)vertexId < (uint)_resultadoAtual.TodosOsPontos.Count)
+            {
+                return _resultadoAtual.TodosOsPontos[vertexId].Z;
             }
 
             return null;
+        }
 
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+        public PontoCoordenada? ObterPontoPorIndice(int vertexId)
+        {
+            if (_pontosAtivosCanvas != null && (uint)vertexId < (uint)_pontosAtivosCanvas.Count)
+            {
+                return _pontosAtivosCanvas[vertexId];
+            }
+
+            if (_resultadoAtual != null && (uint)vertexId < (uint)_resultadoAtual.TodosOsPontos.Count)
+            {
+                return _resultadoAtual.TodosOsPontos[vertexId];
+            }
+
+            return null;
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+        public string? ObterIdentificadorVertice(int vertexId)
+        {
+            var p = ObterPontoPorIndice(vertexId);
+            if (p == null) return null;
+            return !string.IsNullOrWhiteSpace(p.Nome) ? p.Nome : vertexId.ToString();
         }
 
 
@@ -2072,29 +2089,51 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
         
 
         public void NotificarElementoInspecionado(int? verticeId, double? x, double? y, double? z, string? descricao)
-
         {
-
             if (verticeId.HasValue)
-
             {
+                var ponto = ObterPontoPorIndice(verticeId.Value);
+                if (ponto != null)
+                {
+                    string nomePonto = !string.IsNullOrWhiteSpace(ponto.Nome) ? ponto.Nome : verticeId.Value.ToString();
+                    double coordX = x ?? ponto.X;
+                    double coordY = y ?? ponto.Y;
+                    double coordZ = z ?? ponto.Z;
 
-                TextoInspecaoAtual = $"ID: {verticeId} | X: {x:F3} | Y: {y:F3} | Z: {z:F3}";
+                    var sb = new System.Text.StringBuilder();
+                    sb.Append($"Ponto: {nomePonto} | X: {coordX:F3} | Y: {coordY:F3} | Z: {coordZ:F3} m");
 
+                    if (!string.IsNullOrWhiteSpace(ponto.Descricao))
+                    {
+                        sb.Append($" | Desc: {ponto.Descricao}");
+                        if (ponto.EhPontoPoligonal)
+                        {
+                            sb.Append(" (Poligonal)");
+                        }
+                    }
+                    else if (ponto.EhPontoPoligonal)
+                    {
+                        sb.Append(" | Poligonal");
+                    }
+
+                    TextoInspecaoAtual = sb.ToString();
+                }
+                else
+                {
+                    string rotulo = !string.IsNullOrWhiteSpace(descricao) ? descricao : $"Vértice {verticeId.Value}";
+                    string strZ = z.HasValue ? $"{z.Value:F3} m" : "N/A";
+                    double coordX = x ?? 0.0;
+                    double coordY = y ?? 0.0;
+                    TextoInspecaoAtual = $"{rotulo} | X: {coordX:F3} | Y: {coordY:F3} | Z: {strZ}";
+                }
             }
-
             else
-
             {
-
                 TextoInspecaoAtual = descricao ?? "";
-
             }
 
             TemInspecaoAtiva = true;
-
             TemMedicaoAtiva = false;
-
         }
 
         
@@ -2907,31 +2946,19 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
 
-            ExportarTxtCommand = new RelayCommand(_ => OnExportarTxt(), _ => _resultadoAtual?.TodosOsPontos.Any() == true && EstadoAtualMotor == EstadoMotor.Compensado);
+            ExportarTxtCommand = new RelayCommand(_ => OnExportarTxt(), _ => (_resultadoAtual?.TodosOsPontos.Count ?? 0) > 0 && EstadoAtualMotor == EstadoMotor.Compensado);
 
-
-
-            ExportarDxfCommand = new RelayCommand(_ => OnExportarDxf(), _ => _resultadoAtual?.TodosOsPontos.Any() == true && EstadoAtualMotor == EstadoMotor.Compensado);
-
-
+            ExportarDxfCommand = new RelayCommand(_ => OnExportarDxf(), _ => (_resultadoAtual?.TodosOsPontos.Count ?? 0) > 0 && EstadoAtualMotor == EstadoMotor.Compensado);
 
             MudarModuloCommand = new RelayCommand<WorkspaceModulo>(MudarModulo);
 
-
-
             RecalcularMalhaCommand = new AsyncRelayCommand(async () =>
-
             {
-
-                if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Any())
-
+                if (_resultadoAtual != null && _resultadoAtual.TodosOsPontos.Count > 0)
                 {
-
                     await RenderizarTinDeResultadoAsync(_resultadoAtual);
-
                 }
-
-            }, () => _resultadoAtual?.TodosOsPontos.Any() == true && !IsTopologyRebuilding);
+            }, () => (_resultadoAtual?.TodosOsPontos.Count ?? 0) > 0 && !IsTopologyRebuilding);
 
 
 
@@ -3335,6 +3362,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
                         var esboco = _processador.GerarEsbocoBruto(seqs, _estacoesEmMemoria);
 
                         var todosPontosEsboco = esboco.TodosOsPontos.ToList();
+                        _pontosAtivosCanvas = todosPontosEsboco;
 
                         if (todosPontosEsboco.Count > 0)
 
@@ -3384,7 +3412,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
 
-                            if (todosPontosEsboco.Any())
+                            if (todosPontosEsboco.Count > 0)
 
                             {
 
@@ -3780,12 +3808,13 @@ private async Task ProcessarAsync()
 
         {
 
-            if (s.Metadados != null)
+            if (s.Metadados != null) { 
 
                 s.Metadados.Tolerancias = ToleranciasAtuais;
                 s.Metadados.SentinelasDescartadas = _ultimasSentinelasDescartadas;
+            }
 
-        }
+                }
 
 
 
@@ -4135,7 +4164,8 @@ private async Task ProcessarAsync()
 
 
 
-            var todosPontosProc = resultado.TodosOsPontos.ToList();
+            var todosPontosProc = resultado.TodosOsPontos;
+            _pontosAtivosCanvas = todosPontosProc;
 
             if (todosPontosProc.Count > 0)
 
@@ -5175,11 +5205,17 @@ private async Task ProcessarAsync()
 
         {
 
-            if (!resultado.TodosOsPontos.Any()) return;
+            if (resultado.TodosOsPontos.Count == 0) return;
 
+            var todosPontosTin = resultado.TodosOsPontos;
+            _pontosAtivosCanvas = todosPontosTin;
 
-
-            var verts = resultado.TodosOsPontos.Select((p, i) => new TerrainVertex(p.X, p.Y, p.Z, i)).ToArray();
+            var verts = new TerrainVertex[todosPontosTin.Count];
+            for (int i = 0; i < todosPontosTin.Count; i++)
+            {
+                var p = todosPontosTin[i];
+                verts[i] = new TerrainVertex(p.X, p.Y, p.Z, i);
+            }
 
 
 
@@ -5553,15 +5589,10 @@ private async Task ProcessarAsync()
 
         private void InvalidarResultado()
 
-
-
 {
 
-
-
     _resultadoAtual = null;
-
-
+    _pontosAtivosCanvas = null;
 
     RelatorioQaAtual = null;
 

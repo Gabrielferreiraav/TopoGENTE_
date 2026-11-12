@@ -33,6 +33,156 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Botão plano padrão da barra superior -->
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#EAEAEA"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#3A3A3F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#48484E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.38"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botão de ação principal (Calcular e Ajustar) -->
+        <Style x:Key="ToolbarPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="Background" Value="#1565C0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#1976D2"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#0D47A1"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ToggleButton do menu dropdown Exportar -->
+        <Style x:Key="ToolbarDropDownToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#EAEAEA"/>
+            <Setter Property="BorderBrush" Value="#45454C"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#3A3A3F"/>
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#606068"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#32323A"/>
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#007ACC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Estilo dos itens explicativos dentro do menu Exportar -->
+        <Style x:Key="ExportDropdownItemStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#EAEAEA"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#333338"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#3E3E45"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.42"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Aviso no menu Exportar quando ainda não há cálculo compensado -->
+        <Style x:Key="ExportPendingWarningStyle" TargetType="Border">
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding EstadoAtualMotor}" Value="{x:Static domain:EstadoMotor.Compensado}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -42,48 +192,198 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ToolBarTray Grid.Row="0" Background="Transparent">
-            <ToolBar Style="{DynamicResource MaterialDesignToolBar}" Background="Transparent" ClipToBounds="False">
-                <Button Command="{Binding AbrirProjetoCommand}" ToolTip="Abrir Projeto (.topogente)">
-                    <materialDesign:PackIcon Kind="FolderOpen" />
-                </Button>
-                <Button Command="{Binding SalvarProjetoCommand}" ToolTip="Salvar Projeto">
-                    <materialDesign:PackIcon Kind="ContentSave" />
-                </Button>
-                <Separator/>
-                <Button Command="{Binding ImportarCadernetaCommand}" ToolTip="Importar Caderneta de Campo (FBK/CSV)">
-                    <materialDesign:PackIcon Kind="FileImport" />
-                </Button>
-                <ComboBox SelectedIndex="{Binding FormatoArquivoIndex}" 
-                          ToolTip="Selecione o formato do arquivo de entrada"
-                          Width="120" Margin="4,0"
-                          VerticalContentAlignment="Center">
-                    <ComboBoxItem>CSV Padrão</ComboBoxItem>
-                    <ComboBoxItem>FBK</ComboBoxItem>
-                    <ComboBoxItem>LandXML</ComboBoxItem>
-                </ComboBox>
-                <Separator/>
-                <Button Command="{Binding ProcessarCommand}" ToolTip="Processar Poligonal (Bowditch)" 
-                        Background="{DynamicResource PrimaryHueMidBrush}" 
-                        Foreground="White">
-                    <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="Calculator" Margin="0,0,5,0" Foreground="White" />
-                        <TextBlock Text="Calcular e Ajustar" Foreground="White"/>
-                    </StackPanel>
-                </Button>
-                <Separator/>
-                <Button Command="{Binding ZoomExtentsCommand}" ToolTip="Zoom Geral / Extents (Enquadrar Desenho)">
-                    <materialDesign:PackIcon Kind="FitToScreen" />
-                </Button>
-                <Separator/>
-                <Button Command="{Binding ExportarTxtCommand}" ToolTip="Exportar Coordenadas (TXT)">
-                    <materialDesign:PackIcon Kind="FileExport" />
-                </Button>
-                <Button Command="{Binding ExportarDxfCommand}" ToolTip="Exportar Desenho CAD (DXF)">
-                    <materialDesign:PackIcon Kind="VectorPolygon" />
-                </Button>
-            </ToolBar>
-        </ToolBarTray>
+        <!-- BARRA DE FERRAMENTAS PRINCIPAL (ORDEM DE PIPELINE: PROJETO -> CAMPO -> CÁLCULO -> ENTREGÁVEIS) -->
+        <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,6">
+            <DockPanel LastChildFill="False">
+
+                <!-- Bloco Direito: Edição CAD (Desfazer / Refazer) -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Command="{Binding UndoCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}"
+                            ToolTip="Desfazer última alteração no CAD (breaklines/edições)">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Undo" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="Desfazer" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding RedoCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}"
+                            Margin="2,0,0,0"
+                            ToolTip="Refazer alteração desfeita no CAD">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Redo" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="Refazer" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Bloco Esquerdo: Pipeline Topográfico -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+
+                    <!-- 1. Projeto Nativo (.topogente) -->
+                    <Button Command="{Binding AbrirProjetoCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}"
+                            ToolTip="Abrir projeto existente do TopoGENTE (.topogente)">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="FolderOpen" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Abrir" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding SalvarProjetoCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}"
+                            Margin="2,0,0,0"
+                            ToolTip="Salvar projeto atual com visadas, poligonais e breaklines (.topogente)">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Salvar" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Width="1" Height="22" Fill="#3E3E42" Margin="10,0"/>
+
+                    <!-- 2. Dados de Campo (Seletor de Formato ANTES do botão Importar Caderneta) -->
+                    <TextBlock Text="Formato:" Foreground="#A0A0A8" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox SelectedIndex="{Binding FormatoArquivoIndex}"
+                              ToolTip="Formato de leitura da caderneta de campo (CSV Padrão, FBK ou LandXML). Arquivos .fbk e .xml são reconhecidos automaticamente."
+                              Width="116" Height="28" Margin="0,0,6,0"
+                              VerticalContentAlignment="Center">
+                        <ComboBoxItem>CSV Padrão</ComboBoxItem>
+                        <ComboBoxItem>FBK</ComboBoxItem>
+                        <ComboBoxItem>LandXML</ComboBoxItem>
+                    </ComboBox>
+                    <Button Command="{Binding ImportarCadernetaCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}"
+                            ToolTip="Carregar caderneta de campo (.csv, .txt, .fbk, .xml) usando o formato selecionado">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="FileImport" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Importar Caderneta" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Width="1" Height="22" Fill="#3E3E42" Margin="10,0"/>
+
+                    <!-- 3. Motor de Processamento -->
+                    <Button Command="{Binding ProcessarCommand}"
+                            Style="{StaticResource ToolbarPrimaryButtonStyle}"
+                            ToolTip="Calcular coordenadas, compensar poligonal e gerar MDT / curvas de nível (Enter)">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Calculator" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="White"/>
+                            <TextBlock Text="Calcular e Ajustar" VerticalAlignment="Center" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Width="1" Height="22" Fill="#3E3E42" Margin="10,0"/>
+
+                    <!-- 4. Entregáveis (Menu Dropdown Único com explicação detalhada por item) -->
+                    <Grid>
+                        <ToggleButton x:Name="BtnExportar"
+                                      ToolTip="Exportar produtos do levantamento (Coordenadas, Planta CAD DXF ou Laudo Técnico QA)">
+                            <ToggleButton.Style>
+                                <Style TargetType="ToggleButton" BasedOn="{StaticResource ToolbarDropDownToggleStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsOpen, ElementName=PopupExportar}" Value="True">
+                                            <Setter Property="IsHitTestVisible" Value="False"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ToggleButton.Style>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <materialDesign:PackIcon Kind="FileExport" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Exportar" VerticalAlignment="Center"/>
+                                <materialDesign:PackIcon Kind="ChevronDown" Width="16" Height="16" VerticalAlignment="Center" Margin="4,1,0,0"/>
+                            </StackPanel>
+                        </ToggleButton>
+
+                        <Popup x:Name="PopupExportar"
+                               IsOpen="{Binding IsChecked, ElementName=BtnExportar, Mode=TwoWay}"
+                               PlacementTarget="{Binding ElementName=BtnExportar}"
+                               Placement="Bottom"
+                               VerticalOffset="4"
+                               StaysOpen="False"
+                               AllowsTransparency="True">
+                            <Border Background="#252526" BorderBrush="#45454C" BorderThickness="1" CornerRadius="6" Padding="8" Width="400">
+                                <StackPanel>
+                                    <TextBlock Text="EXPORTAR ENTREGÁVEIS DO LEVANTAMENTO"
+                                               FontSize="10" FontWeight="SemiBold" Foreground="#8E8E96"
+                                               Margin="10,4,10,6"/>
+
+                                    <!-- Opção 1: Coordenadas & Memória (.txt) -->
+                                    <Button Command="{Binding ExportarTxtCommand}"
+                                            Click="ExportarMenuItem_Click"
+                                            Style="{StaticResource ExportDropdownItemStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <materialDesign:PackIcon Grid.Column="0" Kind="FileDocumentOutline"
+                                                                     Width="22" Height="22" Foreground="#4EC9B0"
+                                                                     VerticalAlignment="Top" Margin="0,2,12,0"/>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="Tabela de Coordenadas e Memória de Cálculo (.txt)"
+                                                           FontWeight="SemiBold" FontSize="12.5" Foreground="#F0F0F0"/>
+                                                <TextBlock Text="Gera o arquivo de coordenadas X, Y, Z de todos os pontos e a memória analítica detalhada da poligonal e irradiações."
+                                                           FontSize="11" Foreground="#A5A5AD" TextWrapping="Wrap" Margin="0,2,0,0" LineHeight="15"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+
+                                    <!-- Opção 2: Planta Topográfica CAD (.dxf) -->
+                                    <Button Command="{Binding ExportarDxfCommand}"
+                                            Click="ExportarMenuItem_Click"
+                                            Style="{StaticResource ExportDropdownItemStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <materialDesign:PackIcon Grid.Column="0" Kind="FloorPlan"
+                                                                     Width="22" Height="22" Foreground="#60A5FA"
+                                                                     VerticalAlignment="Top" Margin="0,2,12,0"/>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="Planta Topográfica CAD em Camadas (.dxf)"
+                                                           FontWeight="SemiBold" FontSize="12.5" Foreground="#F0F0F0"/>
+                                                <TextBlock Text="Exporta desenho vetorial compatível com AutoCAD contendo poligonal compensada, pontos, malha TIN, breaklines e curvas de nível."
+                                                           FontSize="11" Foreground="#A5A5AD" TextWrapping="Wrap" Margin="0,2,0,0" LineHeight="15"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+
+                                    <!-- Opção 3: Laudo Técnico de Auditoria QA (.txt) -->
+                                    <Button Command="{Binding ExportarRelatorioQaCommand}"
+                                            Click="ExportarMenuItem_Click"
+                                            Style="{StaticResource ExportDropdownItemStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <materialDesign:PackIcon Grid.Column="0" Kind="ClipboardCheckOutline"
+                                                                     Width="22" Height="22" Foreground="#D7BA7D"
+                                                                     VerticalAlignment="Top" Margin="0,2,12,0"/>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="Laudo Técnico de Auditoria e QA — NBR 13.133 (.txt)"
+                                                           FontWeight="SemiBold" FontSize="12.5" Foreground="#F0F0F0"/>
+                                                <TextBlock Text="Emite o relatório de fechamento angular/linear, análise de sessões de estação, linha de base e estatísticas da superfície."
+                                                           FontSize="11" Foreground="#A5A5AD" TextWrapping="Wrap" Margin="0,2,0,0" LineHeight="15"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+
+                                    <!-- Aviso contextual quando ainda não compensado -->
+                                    <Border Style="{StaticResource ExportPendingWarningStyle}"
+                                            Background="#2C271B" BorderBrush="#5C4D1F" BorderThickness="1"
+                                            CornerRadius="4" Padding="10,6" Margin="4,6,4,2">
+                                        <TextBlock Text="Execute 'Calcular e Ajustar' para habilitar as exportações."
+                                                   Foreground="#E6C86E" FontSize="11" TextWrapping="Wrap"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </StackPanel>
+            </DockPanel>
+        </Border>
 
         <views:DashboardView Grid.Row="1" Loaded="DashboardView_Loaded"/>
         

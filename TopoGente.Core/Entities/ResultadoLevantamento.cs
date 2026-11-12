@@ -10,7 +10,30 @@ namespace TopoGente.Core.Entities
         public IReadOnlyList<PontoCoordenada> Poligonal { get; init; } = System.Array.Empty<PontoCoordenada>();
         public IReadOnlyList<PontoCoordenada> Irradiacoes { get; init; } = System.Array.Empty<PontoCoordenada>();
 
-        public IEnumerable<PontoCoordenada> TodosOsPontos => Poligonal.Concat(Irradiacoes);
+        private IReadOnlyList<PontoCoordenada>? _todosOsPontos;
+
+        /// <summary>
+        /// Coleção contígua de todos os pontos (Poligonal + Irradiações),
+        /// indexada e pré-materializada para permitir consultas O(1) com zero alocações na heap.
+        /// </summary>
+        public IReadOnlyList<PontoCoordenada> TodosOsPontos
+        {
+            get
+            {
+                if (_todosOsPontos == null)
+                {
+                    int total = (Poligonal?.Count ?? 0) + (Irradiacoes?.Count ?? 0);
+                    if (total == 0) return System.Array.Empty<PontoCoordenada>();
+
+                    var lista = new List<PontoCoordenada>(total);
+                    if (Poligonal != null) lista.AddRange(Poligonal);
+                    if (Irradiacoes != null) lista.AddRange(Irradiacoes);
+                    _todosOsPontos = lista;
+                }
+                return _todosOsPontos;
+            }
+            init => _todosOsPontos = value;
+        }
 
         public bool PoligonalFechada { get; set; }
         public double Perimetro { get; set; }

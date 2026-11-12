@@ -117,7 +117,7 @@ namespace TopoGente.UI.ViewModels
 
             CarregarArquivoCommand = new RelayCommand(OnCarregarArquivo);
             ProcessarCommand = new RelayCommand(OnProcessar, PodeCalcularCompensacao);
-            ExportarTxtCommand = new RelayCommand(OnExportarTxt, _ => _resultadoAtual?.TodosOsPontos.Any() == true);
+            ExportarTxtCommand = new RelayCommand(OnExportarTxt, _ => (_resultadoAtual?.TodosOsPontos.Count ?? 0) > 0);
             
             AdicionarPoligonalCommand = new RelayCommand(OnAdicionarPoligonal);
             RemoverPoligonalCommand = new RelayCommand(OnRemoverPoligonal, _ => PoligonalSelecionada != null && !PoligonalSelecionada.EhPrincipal);
@@ -401,7 +401,7 @@ namespace TopoGente.UI.ViewModels
 
         private void OnExportarTxt(object? parameter)
         {
-            if (_resultadoAtual == null || !_resultadoAtual.TodosOsPontos.Any()) return;
+            if (_resultadoAtual == null || _resultadoAtual.TodosOsPontos.Count == 0) return;
 
             var caminho = _dialogService.SelecionarArquivoSalvamento(
                 "Arquivo de Texto (*.txt)|*.txt|Todos os Arquivos (*.*)|*.*",

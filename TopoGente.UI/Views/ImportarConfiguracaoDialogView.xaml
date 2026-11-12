@@ -13,6 +13,10 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip">
 
+    <mah:MetroWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </mah:MetroWindow.Resources>
+
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -106,7 +110,6 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <materialDesign:PackIcon 
-                                    Kind="{Binding Valida, Converter={x:Null}}" 
                                     Width="18" Height="18"
                                     HorizontalAlignment="Center">
                                     <materialDesign:PackIcon.Style>
