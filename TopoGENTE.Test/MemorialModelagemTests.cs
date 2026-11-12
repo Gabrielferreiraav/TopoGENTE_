@@ -5,7 +5,7 @@ using TopoGente.Core.Entities;
 using TopoGente.Core.Entities.Pericia;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class MemorialModelagemTests
     {

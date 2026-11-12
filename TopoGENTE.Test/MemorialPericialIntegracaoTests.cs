@@ -10,7 +10,7 @@ using TopoGente.Core.Strategies;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     /// <summary>
     /// Testes de integração pericial ponta a ponta com as cadernetas reais 113503.FBK e 121377.FBK.

@@ -10,7 +10,7 @@ using TopoGente.UI.Spatial;
 using TopoGENTE.Domain.Ports;
 using TopoGente.Core.Entities;
 
-namespace TopoGENTE.Test.E2E
+namespace TopoGente.UI.E2ETests
 {
     [Collection("STA UI Tests")]
     public class DashboardInteractionE2ETests

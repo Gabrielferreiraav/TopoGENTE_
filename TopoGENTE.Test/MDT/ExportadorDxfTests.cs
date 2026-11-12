@@ -12,7 +12,7 @@ using TopoGENTE.Domain.Exceptions;
 using TopoGENTE.Domain.ValueObjects;
 using Xunit;
 
-namespace TopoGENTE.Test.MDT;
+namespace TopoGente.Test.MDT;
 
 public class ExportadorDxfTests
 {

@@ -3,7 +3,7 @@ using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     /// <summary>
     /// Domínio: Tolerância de Erro Altimétrico em Nivelamento Geométrico/Trigonométrico (NBR 13.133).

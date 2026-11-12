@@ -4,7 +4,7 @@ using System.Linq;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 
-namespace TopoGENTE.Test.Builders;
+namespace TopoGente.Test.Builders;
 
 /// <summary>
 /// Test Data Builder para construção fluente de cenários topográficos (Poligonais, Estações e Visadas).

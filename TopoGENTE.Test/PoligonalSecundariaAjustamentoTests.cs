@@ -5,9 +5,9 @@ using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
-using TopoGENTE.Test.Builders;
+using TopoGente.Test.Builders;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class PoligonalSecundariaAjustamentoTests
     {

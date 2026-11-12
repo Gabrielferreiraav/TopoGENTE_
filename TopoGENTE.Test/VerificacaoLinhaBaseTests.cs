@@ -5,7 +5,7 @@ using TopoGente.Core.Strategies;
 using TopoGente.Core.Utilities;
 using Xunit;
 
-namespace TopoGENTE.Test;
+namespace TopoGente.Test;
 
 /// <summary>
 /// Testes unitários do serviço de domínio — VerificacaoLinhaBaseStrategy.

@@ -5,7 +5,7 @@ using TopoGente.Core.Entities.Pericia;
 using TopoGente.Core.Services;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class FormatadorMemorialPericialServiceTests
     {

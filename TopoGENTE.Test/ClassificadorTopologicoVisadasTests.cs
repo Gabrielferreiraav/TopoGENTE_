@@ -5,7 +5,7 @@ using TopoGente.Core.Services;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class ClassificadorTopologicoVisadasTests
     {

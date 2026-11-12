@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using TopoGENTE.Domain.ValueObjects;
 
-namespace TopoGENTE.Test.Builders;
+namespace TopoGente.Test.Builders;
 
 /// <summary>
 /// Test Data Builder para construção fluente de nuvens de pontos e restrições (Breaklines) para o MDT.

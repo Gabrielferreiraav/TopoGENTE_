@@ -7,7 +7,7 @@ using TopoGente.Core.Services;
 using TopoGente.Core.Strategies;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class MemorialPipelineInFlightTests
     {

@@ -8,7 +8,7 @@ using TopoGente.Infrastructure.Adapters.Leitores;
 using TopoGente.PresentationCore.Units;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class ToleranciasNBR13133MultiunidadeTests
     {

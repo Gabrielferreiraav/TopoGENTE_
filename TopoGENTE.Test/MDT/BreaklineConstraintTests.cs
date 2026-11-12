@@ -4,7 +4,7 @@ using System.Linq;
 using TopoGENTE.Domain.Exceptions;
 using TopoGENTE.Domain.ValueObjects;
 using TopoGENTE.Infrastructure.Adapters;
-using TopoGENTE.Test.Builders;
+using TopoGente.Test.Builders;
 using Xunit;
 
 namespace TopoGente.Test.MDT;

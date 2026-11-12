@@ -4,7 +4,7 @@ using TopoGente.Core.Entities;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class ImportacaoCadernetaTests
     {

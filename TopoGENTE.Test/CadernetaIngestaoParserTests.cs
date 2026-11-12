@@ -7,7 +7,7 @@ using TopoGente.Core.Utilities;
 using TopoGente.Infrastructure.Adapters.Leitores;
 using Xunit;
 
-namespace TopoGENTE.Test;
+namespace TopoGente.Test;
 
 public sealed class CadernetaIngestaoParserTests
 {

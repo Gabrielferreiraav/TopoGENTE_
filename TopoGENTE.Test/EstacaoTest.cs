@@ -4,7 +4,7 @@ using FluentAssertions;
 using TopoGente.Core.Entities;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class EstacaoTest
     {

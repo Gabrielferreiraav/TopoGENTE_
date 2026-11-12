@@ -6,7 +6,7 @@ using Xunit;
 using TopoGente.UI.CadInteraction;
 using TopoGente.UI.Spatial;
 
-namespace TopoGENTE.Test.UI.CadInteraction;
+namespace TopoGente.Test.MDT;
 
 // Stub manual de ICadCanvasContext
 // Implementado para maximizar inlining via Native AOT.
@@ -91,6 +91,10 @@ public sealed class StubCadCanvasContext : ICadCanvasContext
     }
 
     public void LimparInspecao() { }
+
+    public Dictionary<int, string> NomesVerticesMock { get; } = new();
+    public string? ObterIdentificadorVertice(int vertexId) =>
+        NomesVerticesMock.TryGetValue(vertexId, out var nome) ? nome : vertexId.ToString();
 
     public bool PodeTraçarBreaklines { get; set; } = true;
     public string? UltimoAvisoNotificado { get; private set; }
@@ -313,5 +317,48 @@ public class CadInteractionTests
         var sm = new CadStateMachine(context);
 
         Assert.IsType<SelectionState>(sm.CurrentState);
+    }
+
+    [Fact]
+    public void Cenário12_Inspecao_Vertice_Com_Nome_Topografico_Deve_Conter_Nome_Ponto()
+    {
+        var context = new StubCadCanvasContext();
+        context.NomesVerticesMock[1] = "P1";
+        var sm = new CadStateMachine(context);
+        sm.SetToolMode(CadToolMode.Inspecao);
+
+        var noP1 = new KdNode(722003.929, 7702667.278, 1);
+        sm.HandleMouseDown(722003.929, 7702667.278, noP1);
+
+        Assert.Contains("Ponto P1", context.UltimaInspecaoDescricao);
+    }
+
+    [Fact]
+    public void Cenário13_Inspecao_Breakline_Com_Nomes_Topograficos_Deve_Identificar_Lances()
+    {
+        var context = new StubCadCanvasContext();
+        context.NomesVerticesMock[0] = "E1";
+        context.NomesVerticesMock[1] = "P1";
+
+        var breaklines = new List<TopoGENTE.Domain.ValueObjects.Breakline>
+        {
+            new TopoGENTE.Domain.ValueObjects.Breakline(0, 1)
+        };
+        var vertexLookup = new Dictionary<int, TopoGENTE.Domain.ValueObjects.TerrainVertex>
+        {
+            [0] = new TopoGENTE.Domain.ValueObjects.TerrainVertex(722020.712, 7702635.787, 651.934, 0),
+            [1] = new TopoGENTE.Domain.ValueObjects.TerrainVertex(722003.929, 7702667.278, 651.799, 1)
+        };
+        context.EdgeSpatialIndex = new BvhTree2D(breaklines, vertexLookup);
+
+        var sm = new CadStateMachine(context);
+        sm.SetToolMode(CadToolMode.Inspecao);
+
+        // Clica próximo ao ponto médio do segmento E1->P1
+        double midX = (722020.712 + 722003.929) / 2.0;
+        double midY = (7702635.787 + 7702667.278) / 2.0;
+        sm.HandleMouseDown(midX, midY, null);
+
+        Assert.Contains("Breakline de E1 para P1", context.UltimaInspecaoDescricao);
     }
 }

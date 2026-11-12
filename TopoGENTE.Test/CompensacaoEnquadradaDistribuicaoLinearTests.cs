@@ -3,9 +3,9 @@ using FluentAssertions;
 using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
-using TopoGENTE.Test.Builders;
+using TopoGente.Test.Builders;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public sealed record CompensacaoEnquadradaDistribuicaoLinearTests
     {

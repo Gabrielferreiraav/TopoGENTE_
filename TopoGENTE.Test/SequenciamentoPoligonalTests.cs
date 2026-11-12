@@ -7,7 +7,7 @@ using TopoGente.Core.Services;
 using TopoGente.Core.Utilities;
 using TopoGENTE.Domain.Exceptions;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     public class SequenciamentoPoligonalTests
     {

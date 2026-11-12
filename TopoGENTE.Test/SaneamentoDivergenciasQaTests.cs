@@ -10,7 +10,7 @@ using TopoGente.Infrastructure.Adapters.Leitores;
 using FluentAssertions;
 using Xunit;
 
-namespace TopoGENTE.Test
+namespace TopoGente.Test
 {
     /// <summary>
     /// Testes unitários para validação do saneamento de divergências do Relatório QA:
