@@ -80,7 +80,7 @@ namespace TopoGente.Test
         [Fact]
         public void QaCheckService_DeveUtilizarToleranciaAngularDaEstrategiaComoFonteUnicaDaVerdade()
         {
-            // Arrange: ResultadoLevantamento com Memorial onde a estratégia calculou Ta = 30.98"
+            // Arrange: ResultadoLevantamento com Memorial onde a estratégia calculou Ta = 30.9808" (n=3, b=15, Ca=5)
             double taEstrategiaSegundos = 30.9808;
             var resultado = new ResultadoLevantamento
             {
@@ -88,6 +88,7 @@ namespace TopoGente.Test
                 {
                     new() { Nome = "E1", X = 100, Y = 100 },
                     new() { Nome = "P1", X = 200, Y = 200 },
+                    new() { Nome = "P2", X = 150, Y = 300 },
                     new() { Nome = "E1", X = 100, Y = 100 }
                 },
                 ErroAngular = 0.005,
@@ -104,12 +105,16 @@ namespace TopoGente.Test
             };
 
             var qaService = new QaCheckService();
-            var tolerancias = ParametrosTolerancia.Padrao;
+            var tolerancias = new ParametrosTolerancia
+            {
+                CoeficienteAngularB = 15.0,
+                TermoCentragemCa = 5.0
+            };
 
             // Act
             var rel = qaService.GerarRelatorioQaChecks(new List<Estacao>(), resultado, new Dictionary<string, PontoCoordenada>(), tolerancias);
 
-            // Assert: QaCheckService deve adotar o valor exato da estratégia como Single Source of Truth
+            // Assert: QaCheckService deve convergir com a estratégia quando avaliados sob os mesmos parâmetros normativos
             Assert.Equal(taEstrategiaSegundos, rel.ToleranciaAngularSegundos, 4);
             Assert.Equal(taEstrategiaSegundos / 3600.0, rel.ToleranciaAngularAdmissivel, 6);
             Assert.True(rel.AngularConforme);

@@ -220,7 +220,8 @@ namespace TopoGente.UI.ViewModels
 
 
 
-        private readonly System.Windows.Threading.Dispatcher _dispatcher;
+        private readonly System.Windows.Threading.Dispatcher? _dispatcher;
+        private readonly object _visadasLock = new();
 
 
 
@@ -827,6 +828,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
                 if (SetProperty(ref _relatorioQaAtual, value))
                 {
                     OnPropertyChanged(nameof(MemorialPericial));
+                    NotificarPropriedadesFormatadas();
                 }
             }
         }
@@ -955,9 +957,9 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
                         AjustarParaPresetPersonalizado();
 
-                    }
+                        RecalcularLaudoQa();
 
-                    RecalcularLaudoQa();
+                    }
 
                 }
 
@@ -993,9 +995,9 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
                         AjustarParaPresetPersonalizado();
 
-                    }
+                        RecalcularLaudoQa();
 
-                    RecalcularLaudoQa();
+                    }
 
                 }
 
@@ -1031,9 +1033,9 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
                         AjustarParaPresetPersonalizado();
 
-                    }
+                        RecalcularLaudoQa();
 
-                    RecalcularLaudoQa();
+                    }
 
                 }
 
@@ -1055,7 +1057,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaTermoCentragemCa, value))
+                if (SetProperty(ref _toleranciaTermoCentragemCa, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1083,7 +1085,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaDenominadorLinear, value))
+                if (SetProperty(ref _toleranciaDenominadorLinear, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1111,7 +1113,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaC, value))
+                if (SetProperty(ref _toleranciaC, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1139,7 +1141,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaCheckDeltaXY, value))
+                if (SetProperty(ref _toleranciaCheckDeltaXY, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1167,7 +1169,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaCheckDeltaZ, value))
+                if (SetProperty(ref _toleranciaCheckDeltaZ, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1195,7 +1197,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaCLinear, value))
+                if (SetProperty(ref _toleranciaCLinear, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1223,7 +1225,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _toleranciaDLinear, value))
+                if (SetProperty(ref _toleranciaDLinear, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1251,7 +1253,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             {
 
-                if (SetProperty(ref _modoAvaliacaoLinearSelecionado, value))
+                if (SetProperty(ref _modoAvaliacaoLinearSelecionado, value) && !_atualizandoPresetInternamente)
 
                 {
 
@@ -1421,10 +1423,6 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
             RelatorioQaAtual = relatorio;
 
-            OnPropertyChanged(nameof(RelatorioQaAtual));
-
-            NotificarPropriedadesFormatadas();
-
         }
 
 
@@ -1461,7 +1459,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public string ErroLinearFormatado =>
 
-            FormatadorUnidades.FormatarLinear(_resultadoAtual?.ErroLinear ?? 0.0, UnidadeLinearSelecionada);
+            FormatadorUnidades.FormatarLinear(RelatorioQaAtual?.ErroLinear ?? 0.0, UnidadeLinearSelecionada);
 
 
 
@@ -1473,7 +1471,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public string ErroLinearAbsolutoFormatado =>
 
-            FormatadorUnidades.FormatarLinear(_resultadoAtual?.ErroLinear ?? 0.0, UnidadeLinearSelecionada);
+            FormatadorUnidades.FormatarLinear(RelatorioQaAtual?.ErroLinear ?? 0.0, UnidadeLinearSelecionada);
 
 
 
@@ -1485,7 +1483,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public string ErroAngularFormatado =>
 
-            FormatadorUnidades.FormatarAngular(_resultadoAtual?.ErroAngular ?? 0.0, UnidadeAngularSelecionada);
+            FormatadorUnidades.FormatarAngular(RelatorioQaAtual?.ErroAngular ?? 0.0, UnidadeAngularSelecionada);
 
 
 
@@ -1497,7 +1495,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public string TooltipErroLinear =>
 
-            FormatadorUnidades.GerarTooltipLinearCompleto(_resultadoAtual?.ErroLinear ?? 0.0);
+            FormatadorUnidades.GerarTooltipLinearCompleto(RelatorioQaAtual?.ErroLinear ?? 0.0);
 
 
 
@@ -1509,7 +1507,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         public string TooltipErroAngular =>
 
-            FormatadorUnidades.GerarTooltipAngularCompleto(_resultadoAtual?.ErroAngular ?? 0.0);
+            FormatadorUnidades.GerarTooltipAngularCompleto(RelatorioQaAtual?.ErroAngular ?? 0.0);
 
 
 
@@ -2856,9 +2854,9 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
 
-            _dispatcher = System.Windows.Threading.Dispatcher.FromThread(System.Threading.Thread.CurrentThread)
-
-                       ?? System.Windows.Threading.Dispatcher.CurrentDispatcher;
+            _dispatcher = System.Threading.Thread.CurrentThread.GetApartmentState() == System.Threading.ApartmentState.STA
+                ? System.Windows.Threading.Dispatcher.FromThread(System.Threading.Thread.CurrentThread)
+                : null;
 
 
 
@@ -2993,6 +2991,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
 
             VisadasView = CollectionViewSource.GetDefaultView(Visadas);
+            BindingOperations.EnableCollectionSynchronization(Visadas, _visadasLock);
 
             if (VisadasView.GroupDescriptions != null)
 
@@ -3010,7 +3009,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         {
 
-            if (_dispatcher == null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+            if (_dispatcher == null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished || !_dispatcher.Thread.IsAlive)
 
             {
 
@@ -3046,7 +3045,7 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
         {
 
-            if (_dispatcher == null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+            if (_dispatcher == null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished || !_dispatcher.Thread.IsAlive)
 
             {
 

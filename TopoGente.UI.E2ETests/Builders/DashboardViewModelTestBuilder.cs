@@ -56,6 +56,43 @@ internal sealed class DashboardViewModelTestBuilder
         "AD VA \"E4\" 270.0000 100.0000 90.0000 \"V\""
     };
 
+    /// <summary>
+    /// Poligonal fechada sintética 4x100 m (n = 4 estações, perímetro = 400,000 m) com erro angular
+    /// real de fechamento igual a +18" (0,0050°) e erro linear real (~34,64 mm), situando o erro
+    /// angular entre Classe I-P (12") e Classe II-P/IV-P (30" / 120").
+    /// </summary>
+    public static readonly string[] CadernetaQuadradoComErrosFechamentoFbk =
+    {
+        "UNIT METER DECDEG",
+        "NEZ \"E4\" 7700000.0000 719900.0000 100.000",
+        "NEZ \"E1\" 7700000.0000 720000.0000 100.000",
+        "STN \"E1\" 1.5000 E",
+        "BS \"E4\" 0.0000",
+        "PRISM 1.5000",
+        "AD VA \"E4\" 0.0000 100.0000 90.0000 \"R\"",
+        "AD VA \"P1\" 180.0000 100.0150 90.0000 \"V\"",
+        "STN \"P1\" 1.5000 E",
+        "BS \"E1\" 0.0000",
+        "PRISM 1.5000",
+        "AD VA \"E1\" 0.0000 100.0150 90.0000 \"R\"",
+        "AD VA \"P2\" 90.0000 100.0000 90.0000 \"V\"",
+        "STN \"P2\" 1.5000 E",
+        "BS \"P1\" 0.0000",
+        "PRISM 1.5000",
+        "AD VA \"P1\" 0.0000 100.0000 90.0000 \"R\"",
+        "AD VA \"P3\" 90.0000 99.9850 90.0000 \"V\"",
+        "STN \"P3\" 1.5000 E",
+        "BS \"P2\" 0.0000",
+        "PRISM 1.5000",
+        "AD VA \"P2\" 0.0000 99.9850 90.0000 \"R\"",
+        "AD VA \"E1\" 90.0000 100.0000 90.0000 \"V\"",
+        "STN \"E1\" 1.5000 E",
+        "BS \"P3\" 0.0000",
+        "PRISM 1.5000",
+        "AD VA \"P3\" 0.0000 100.0000 90.0000 \"R\"",
+        "AD VA \"E4\" 270.0050 100.0000 90.0000 \"V\""
+    };
+
     private string _nomeVirtualArquivo = "poligonal_sintetica.fbk";
     private string[] _linhasEmMemoria = CadernetaQuadradoSinteticoFbk;
     private string? _caminhoSalvamento;
@@ -64,6 +101,13 @@ internal sealed class DashboardViewModelTestBuilder
     private double? _stepIntervalInicial;
 
     public SpyMessageService MessageSpy { get; } = new();
+
+    public DashboardViewModelTestBuilder ComCadernetaComErrosFechamento()
+    {
+        _nomeVirtualArquivo = "poligonal_erros_sintetica.fbk";
+        _linhasEmMemoria = CadernetaQuadradoComErrosFechamentoFbk;
+        return this;
+    }
 
     public DashboardViewModelTestBuilder ComCadernetaEmMemoria(string nomeVirtual, params string[] linhas)
     {

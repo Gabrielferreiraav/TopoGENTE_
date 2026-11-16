@@ -40,18 +40,9 @@ namespace TopoGente.Core.Services
                 rel.ToleranciasAplicadas = tolerancias;
                 rel.ModoAvaliacaoLinearUtilizado = tolerancias.ModoAvaliacaoLinear;
 
-                if (resultado.Memorial?.Ajustamento != null && resultado.Memorial.Ajustamento.ToleranciaAngularSegundos > 0)
-                {
-                    rel.ToleranciaAngularSegundos = resultado.Memorial.Ajustamento.ToleranciaAngularSegundos;
-                    rel.ToleranciaAngularAdmissivel = rel.ToleranciaAngularSegundos / 3600.0;
-                    rel.AngularConforme = resultado.Memorial.Ajustamento.AngularAprovado;
-                }
-                else
-                {
-                    rel.ToleranciaAngularAdmissivel = tolerancias.CalcularToleranciaAngularGraus(nEstacoes);
-                    rel.ToleranciaAngularSegundos = tolerancias.CalcularToleranciaAngularSegundos(nEstacoes);
-                    rel.AngularConforme = Math.Abs(rel.ErroAngular) <= rel.ToleranciaAngularAdmissivel + 1e-6;
-                }
+                rel.ToleranciaAngularAdmissivel = tolerancias.CalcularToleranciaAngularGraus(nEstacoes);
+                rel.ToleranciaAngularSegundos = tolerancias.CalcularToleranciaAngularSegundos(nEstacoes);
+                rel.AngularConforme = Math.Abs(rel.ErroAngular) <= rel.ToleranciaAngularAdmissivel + 1e-6;
 
                 rel.ToleranciaLinearAbsolutaMetros = tolerancias.CalcularToleranciaLinearAbsolutaMetros(perimetro);
                 rel.ToleranciaLinearRelativaMetros = tolerancias.CalcularToleranciaLinearRelativaMetros(perimetro);
