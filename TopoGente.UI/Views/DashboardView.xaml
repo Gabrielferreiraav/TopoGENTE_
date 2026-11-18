@@ -674,6 +674,7 @@
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
                                         <!-- Coef. b e Centragem Ca -->
@@ -765,7 +766,7 @@
                                         </StackPanel>
 
                                         <!-- Check XY e Z -->
-                                        <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,4,0">
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,4,4">
                                             <TextBlock Text="Check dXY (m):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaCheckDeltaXY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
@@ -779,7 +780,7 @@
                                             </TextBox>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="3" Grid.Column="1" Margin="4,0,0,0">
+                                        <StackPanel Grid.Row="3" Grid.Column="1" Margin="4,0,0,4">
                                             <TextBlock Text="Check dZ (m):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
                                             <TextBox Text="{Binding ToleranciaCheckDeltaZ, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.ToolTip>
@@ -787,6 +788,35 @@
                                                         <StackPanel>
                                                             <TextBlock Text="Tolerância Altimétrica de Verificação (Check dZ)" FontWeight="Bold" Margin="0,0,0,4"/>
                                                             <TextBlock Text="Discrepância vertical máxima permitida." TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </ToolTip>
+                                                </TextBox.ToolTip>
+                                            </TextBox>
+                                        </StackPanel>
+
+                                        <!-- Altimetria C e Constante c Linear -->
+                                        <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,0,4,0">
+                                            <TextBlock Text="Altimetria C (mm/&#x221A;km):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding ToleranciaC, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                <TextBox.ToolTip>
+                                                    <ToolTip MaxWidth="320">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Tolerância Altimétrica (C)" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="NBR 13.133: Nivelamento Trigonométrico com Estação Total (150 a 200 mm/&#x221A;km) vs Nivelamento Geométrico (1.5 a 10 mm/&#x221A;km)." TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </ToolTip>
+                                                </TextBox.ToolTip>
+                                            </TextBox>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="4" Grid.Column="1" Margin="4,0,0,0">
+                                            <TextBlock Text="Constante c (m):" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding ToleranciaCLinear, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                <TextBox.ToolTip>
+                                                    <ToolTip MaxWidth="320">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Termo Linear Constante (c)" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="Termo Linear Constante da NBR 13.133 (c) em metros para TP = c + d&#183;&#x221A;L." TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </ToolTip>
                                                 </TextBox.ToolTip>
