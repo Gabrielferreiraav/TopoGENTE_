@@ -13,6 +13,7 @@ namespace TopoGente.Core.Services
         private PontoCoordenada? _estacaoAtual;
         private Estacao? _estacaoBase;
         private double? _azimuteReVigente;
+        private double? _anguloHorizontalReVigente;
         private readonly double _azimuteInicial;
 
         private readonly Dictionary<string, PontoCoordenada> _pontosCompensados;
@@ -43,6 +44,7 @@ namespace TopoGente.Core.Services
 
             // A cada nova ocupação de estação, a orientação de ré anterior é descartada
             _azimuteReVigente = null;
+            _anguloHorizontalReVigente = null;
         }
 
         public void VisitarLeitura(LeituraEstacaoTotal leitura)
@@ -51,7 +53,7 @@ namespace TopoGente.Core.Services
             if (_estacaoAtual == null) return;
 
             // O Double-Dispatch auto-seleciona a operação.
-            if (leitura.Tipo == TipoLeitura.Re)
+            if (leitura.Tipo == TipoLeitura.Re || leitura.Tipo == TipoLeitura.ReLocal)
             {
                 DefinirOrientacaoDeRe(leitura);
             }
@@ -80,6 +82,8 @@ namespace TopoGente.Core.Services
                 // Fallback: Se for a primeira estação e a ré não tem coordenadas, assume a orientação inicial
                 _azimuteReVigente = _azimuteInicial;
             }
+
+            _anguloHorizontalReVigente = leitura.AnguloHorizontal;
         }
 
         private void CalcularIrradiacao(LeituraEstacaoTotal leitura)
@@ -98,7 +102,11 @@ namespace TopoGente.Core.Services
                     : (_estacaoAtual.AzimuteChegada < 180 ? _estacaoAtual.AzimuteChegada + 180 : _estacaoAtual.AzimuteChegada - 180);
             }
 
-            var pontoIrradiado = GeometriaTopograficaHelper.CalcularPontoIrradiado(_estacaoAtual!, leitura, azReUsado);
+            double deflexao = GeometriaTopograficaHelper.Normalizar360(leitura.AnguloHorizontal - (_anguloHorizontalReVigente ?? 0.0));
+            double azimuteVante = GeometriaTopograficaHelper.Normalizar360(azReUsado + deflexao);
+            double azimuteOrientado = GeometriaTopograficaHelper.Normalizar360(azimuteVante - leitura.AnguloHorizontal);
+
+            var pontoIrradiado = GeometriaTopograficaHelper.CalcularPontoIrradiado(_estacaoAtual!, leitura, azimuteOrientado);
             pontoIrradiado.XBruto = pontoIrradiado.X;
             pontoIrradiado.YBruto = pontoIrradiado.Y;
             pontoIrradiado.ZBruto = pontoIrradiado.Z;

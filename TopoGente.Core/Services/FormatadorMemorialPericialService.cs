@@ -33,59 +33,66 @@ namespace TopoGente.Core.Services
         {
             var sb = new StringBuilder();
             sb.AppendLine("========================================================================================================================");
-            sb.AppendLine("CAPÍTULO 1: TRILHA TOPOLÓGICA E CICLO DE VIDA DOS VÉRTICES (GRAFO DE CAMINHAMENTO)");
+            sb.AppendLine("CAPÍTULO 1: HISTÓRICO OPERACIONAL E OCUPAÇÃO DE ESTAÇÕES");
             sb.AppendLine("========================================================================================================================");
 
             if (trilha == null)
             {
-                sb.AppendLine("  (Trilha topológica não disponível)");
+                sb.AppendLine("  (Histórico operacional não disponível)");
                 return sb.ToString();
             }
 
             if (!string.IsNullOrWhiteSpace(trilha.ResumoClassificacaoGrafo))
             {
-                sb.AppendLine($"Topologia: {trilha.ResumoClassificacaoGrafo}");
+                string resumoDidatico = trilha.ResumoClassificacaoGrafo
+                    .Replace("Grafo topológico composto por", "Levantamento composto por")
+                    .Replace("sessão(ões) física(s) de estação", "ocupação(ões) de estação")
+                    .Replace("ponto(s) homólogo(s) auditado(s)", "ponto(s) de controle com dupla visada")
+                    .Replace("sentinela(s) descartada(s)", "registro(s) nulo(s) descartado(s)");
+                sb.AppendLine($"Estrutura Operacional: {resumoDidatico}");
                 sb.AppendLine();
             }
 
             // 1.1 Ocupações Físicas de Estação
-            sb.AppendLine("1.1 Ocupações Físicas de Estação e Papéis Topológicos:");
+            sb.AppendLine("1.1 Histórico de Ocupações de Estação e Funções no Levantamento:");
             if (trilha.Estacoes == null || trilha.Estacoes.Count == 0)
             {
                 sb.AppendLine("  (Nenhuma estação registrada)");
             }
             else
             {
-                sb.AppendLine("+---------+--------+---------+-----------------------+-----------+---------+------------------+-------------------------------------------------------------+");
-                sb.AppendLine("| Estação | Sessão | HI (m)  | Papel Topológico      | Ré Ref.   | Irrad.  | Linhas Caderneta | Justificativa / Decisão Algorítmica                         |");
-                sb.AppendLine("+---------+--------+---------+-----------------------+-----------+---------+------------------+-------------------------------------------------------------+");
+                sb.AppendLine("+---------+--------+---------+-------------------------+-----------+---------+------------------+-------------------------------------------------------------+");
+                sb.AppendLine("| Estação | Sessão | HI (m)  | Função no Levantamento  | Ré Ref.   | Irrad.  | Linhas Caderneta | Finalidade da Ocupação / Decisão Técnica                    |");
+                sb.AppendLine("+---------+--------+---------+-------------------------+-----------+---------+------------------+-------------------------------------------------------------+");
 
                 foreach (var est in trilha.Estacoes)
                 {
                     string linhasStr = FormatarLinhasOrigem(est.LinhasArquivoOrigem);
                     var linhasJust = QuebrarTexto(est.Justificativa, 59);
+                    string papelStr = FormatarPapelDidatico(est.Papel);
+                    string reExibicao = string.IsNullOrWhiteSpace(est.PontoReReferencia) ? "---" : est.PontoReReferencia;
 
-                    sb.AppendLine($"| {est.NomeEstacao,-7} | {est.NumeroSessao,6} | {est.AlturaInstrumento,7:F4} | {est.Papel,-21} | {est.PontoReReferencia,-9} | {est.TotalIrradiacoesVinculadas,7} | {linhasStr,-16} | {linhasJust[0],-59} |");
+                    sb.AppendLine($"| {est.NomeEstacao,-7} | {est.NumeroSessao,6} | {est.AlturaInstrumento,7:F4} | {papelStr,-23} | {reExibicao,-9} | {est.TotalIrradiacoesVinculadas,7} | {linhasStr,-16} | {linhasJust[0],-59} |");
                     for (int k = 1; k < linhasJust.Count; k++)
                     {
-                        sb.AppendLine($"| {"",-7} | {"",6} | {"",7} | {"",-21} | {"",-9} | {"",7} | {"",-16} | {linhasJust[k],-59} |");
+                        sb.AppendLine($"| {"",-7} | {"",6} | {"",7} | {"",-23} | {"",-9} | {"",7} | {"",-16} | {linhasJust[k],-59} |");
                     }
                 }
 
-                sb.AppendLine("+---------+--------+---------+-----------------------+-----------+---------+------------------+-------------------------------------------------------------+");
+                sb.AppendLine("+---------+--------+---------+-------------------------+-----------+---------+------------------+-------------------------------------------------------------+");
             }
             sb.AppendLine();
 
             // 1.2 Pontos Homólogos de Detalhe
-            sb.AppendLine("1.2 Auditoria de Pontos Homólogos (Múltiplas Visadas / Checkpoints):");
+            sb.AppendLine("1.2 Conferência de Pontos com Dupla Visada (Checkpoints de Controle):");
             if (trilha.Homologos == null || trilha.Homologos.Count == 0)
             {
-                sb.AppendLine("  (Nenhum ponto homólogo de detalhe auditado no levantamento)");
+                sb.AppendLine("  (Nenhum ponto com dupla visada registrado no levantamento)");
             }
             else
             {
                 sb.AppendLine("+-------+-------------------------+-------------------------+-------------+-------------------------------------------------------------+");
-                sb.AppendLine("| Ponto | 1ª Visada (Est / Linha) | 2ª Visada (Est / Linha) | MDT Adotado | Justificativa Pericial                                      |");
+                sb.AppendLine("| Ponto | 1ª Visada (Est / Linha) | 2ª Visada (Est / Linha) | MDT Adotado | Justificativa Técnica                                       |");
                 sb.AppendLine("+-------+-------------------------+-------------------------+-------------+-------------------------------------------------------------+");
 
                 foreach (var h in trilha.Homologos)
@@ -107,10 +114,10 @@ namespace TopoGente.Core.Services
             sb.AppendLine();
 
             // 1.3 Sentinelas Descartadas
-            sb.AppendLine("1.3 Registros Sentinela e Linhas Residuais Descartadas:");
+            sb.AppendLine("1.3 Linhas em Branco ou Registros Nulos Descartados:");
             if (trilha.Sentinelas == null || trilha.Sentinelas.Count == 0)
             {
-                sb.AppendLine("  (Nenhum registro sentinela ou linha residual descartada)");
+                sb.AppendLine("  (Nenhuma linha residual ou registro nulo descartado)");
             }
             else
             {
@@ -141,10 +148,10 @@ namespace TopoGente.Core.Services
             sb.AppendLine("CAPÍTULO 2: MEMORIAL DE REDUÇÃO GEOMÉTRICA E TRANSPORTE ANALÍTICO (LANCE A LANCE)");
             sb.AppendLine("========================================================================================================================");
             sb.AppendLine("Modelagem de Redução Geométrica e Orientação:");
-            sb.AppendLine("  Distância Horizontal (HD):  HD = SD · sin(Z)");
-            sb.AppendLine("  Desnível Trigonométrico:    ΔZ = SD · cos(Z) + HI - HS");
-            sb.AppendLine("  Projeção Este:              ΔE = HD · sin(Az)");
-            sb.AppendLine("  Projeção Norte:             ΔN = HD · cos(Az)");
+            sb.AppendLine("  Distância Horizontal (DH):  DH = DI · sin(Z)");
+            sb.AppendLine("  Desnível Trigonométrico:    ΔZ = DI · cos(Z) + HI - AP");
+            sb.AppendLine("  Projeção Este:              ΔE = DH · sin(Az)");
+            sb.AppendLine("  Projeção Norte:             ΔN = DH · cos(Az)");
             sb.AppendLine();
 
             if (lances == null || lances.Lances == null || lances.Lances.Count == 0)
@@ -156,7 +163,7 @@ namespace TopoGente.Core.Services
             // 2.1 Observações Instrumentais e Reduções
             sb.AppendLine("2.1 Observações Instrumentais Brutas e Reduções Geométricas:");
             sb.AppendLine("+----+--------------+-------+--------------+--------------+----------+--------+--------+----------+----------+--------------+");
-            sb.AppendLine("| N° | De -> Para   | Ré    | Ang. Hz (AH) | Ang. V (Z)   | SD (m)   | HI (m) | HS (m) | HD (m)   | ΔZ (m)   | Azimute Vante|");
+            sb.AppendLine("| N° | De -> Para   | Ré    | Âng. Hz (AH) | Âng. Zen (Z) | DI (m)   | HI (m) | AP (m) | DH (m)   | ΔZ (m)   | Azimute Vante|");
             sb.AppendLine("+----+--------------+-------+--------------+--------------+----------+--------+--------+----------+----------+--------------+");
 
             foreach (var l in lances.Lances)
@@ -170,28 +177,29 @@ namespace TopoGente.Core.Services
             }
 
             sb.AppendLine("+----+--------------+-------+--------------+--------------+----------+--------+--------+----------+----------+--------------+");
+            sb.AppendLine("Convenções: AH = Ângulo Horizontal | Z = Ângulo Zenital | DI = Distância Inclinada | DH = Distância Horizontal | HI = Altura Instrumento | AP = Altura Prisma");
             sb.AppendLine($"Perímetro Total Desenvolvido: {lances.PerimetroTotal:F4} m");
             sb.AppendLine();
 
             // 2.2 Transporte de Coordenadas Brutas
             sb.AppendLine("2.2 Transporte de Coordenadas Cartesianas Brutas:");
-            sb.AppendLine("+----+---------+-------------+-------------+---------------+---------------+---------------+");
-            sb.AppendLine("| N° | Vértice | ΔE Brut (m) | ΔN Brut (m) | E Bruta (m)   | N Bruta (m)   | Z Bruta (m)   |");
-            sb.AppendLine("+----+---------+-------------+-------------+---------------+---------------+---------------+");
+            sb.AppendLine("+----+---------+---------------+---------------+---------------+---------------+---------------+");
+            sb.AppendLine("| N° | Vértice | ΔEste Bruto(m)| ΔNorte Brut(m)| Este Bruta(m) | Norte Bruta(m)| Cota Bruta(m) |");
+            sb.AppendLine("+----+---------+---------------+---------------+---------------+---------------+---------------+");
 
             var primeiro = lances.Lances[0];
             double eOrigem = primeiro.CoordenadaEBruta - primeiro.DeltaEBruto;
             double nOrigem = primeiro.CoordenadaNBruta - primeiro.DeltaNBruto;
             double zOrigem = primeiro.CoordenadaZBruta - primeiro.DeltaZ;
 
-            sb.AppendLine($"|  0 | {primeiro.EstacaoOrigem,-7} |         --- |         --- | {eOrigem,13:F4} | {nOrigem,13:F4} | {zOrigem,13:F4} |");
+            sb.AppendLine($"|  0 | {primeiro.EstacaoOrigem,-7} |           --- |           --- | {eOrigem,13:F4} | {nOrigem,13:F4} | {zOrigem,13:F4} |");
 
             foreach (var l in lances.Lances)
             {
-                sb.AppendLine($"| {l.OrdemLance,2} | {l.EstacaoVante,-7} | {l.DeltaEBruto,+11:F4} | {l.DeltaNBruto,+11:F4} | {l.CoordenadaEBruta,13:F4} | {l.CoordenadaNBruta,13:F4} | {l.CoordenadaZBruta,13:F4} |");
+                sb.AppendLine($"| {l.OrdemLance,2} | {l.EstacaoVante,-7} | {l.DeltaEBruto,+13:F4} | {l.DeltaNBruto,+13:F4} | {l.CoordenadaEBruta,13:F4} | {l.CoordenadaNBruta,13:F4} | {l.CoordenadaZBruta,13:F4} |");
             }
 
-            sb.AppendLine("+----+---------+-------------+-------------+---------------+---------------+---------------+");
+            sb.AppendLine("+----+---------+---------------+---------------+---------------+---------------+---------------+");
 
             return sb.ToString().TrimEnd();
         }
@@ -260,7 +268,7 @@ namespace TopoGente.Core.Services
                 else
                 {
                     sb.AppendLine("+---------+----------------+---------------------------------+---------------------------------+-----------------------------------------------+");
-                    sb.AppendLine("| Vértice | Dist. Acum (m) | CORREÇÃO BOWDITCH PURA (mm)     | DESLOCAMENTO TOTAL ACUMUL. (mm) | COORDENADAS FINAIS COMPENSADAS (m)            |");
+                    sb.AppendLine("| Vértice | Dist. Acum (m) | COMPENSAÇÃO LINEAR PARCIAL (mm) | CORREÇÃO VETORIAL ACUMULADA(mm) | COORDENADAS FINAIS COMPENSADAS (m)            |");
                     sb.AppendLine("|         |                |   δEste   |  δNorte   |   δCota   |  ΔE Total |  ΔN Total |  ΔZ Total | Este (E)      | Norte (N)     | Cota (Z)      |");
                     sb.AppendLine("+---------+----------------+-----------+-----------+-----------+-----------+-----------+-----------+---------------+---------------+---------------+");
 
@@ -272,12 +280,12 @@ namespace TopoGente.Core.Services
                     sb.AppendLine("+---------+----------------+-----------+-----------+-----------+-----------+-----------+-----------+---------------+---------------+---------------+");
                     var ultimo = ajustamento.RateioVertices.Last();
                     sb.AppendLine("Vetor Final no Vértice de Chegada:");
-                    sb.AppendLine($"  * Correção Pura de Bowditch:  δE = {ultimo.CorrecaoEMilimetros:+0.0;-0.0;0.0} mm | δN = {ultimo.CorrecaoNMilimetros:+0.0;-0.0;0.0} mm | δZ = {ultimo.CorrecaoZMilimetros:+0.0;-0.0;0.0} mm");
-                    sb.AppendLine($"  * Deslocamento Total Líquido: ΔE = {ultimo.DeslocamentoTotalEMilimetros:+0.0;-0.0;0.0} mm | ΔN = {ultimo.DeslocamentoTotalNMilimetros:+0.0;-0.0;0.0} mm | ΔZ = {ultimo.DeslocamentoTotalZMilimetros:+0.0;-0.0;0.0} mm");
+                    sb.AppendLine($"  * Compensação Linear Parcial (Bowditch): δEste = {ultimo.CorrecaoEMilimetros:+0.0;-0.0;0.0} mm | δNorte = {ultimo.CorrecaoNMilimetros:+0.0;-0.0;0.0} mm | δCota = {ultimo.CorrecaoZMilimetros:+0.0;-0.0;0.0} mm");
+                    sb.AppendLine($"  * Correção Vetorial Total Acumulada:     ΔEste = {ultimo.DeslocamentoTotalEMilimetros:+0.0;-0.0;0.0} mm | ΔNorte = {ultimo.DeslocamentoTotalNMilimetros:+0.0;-0.0;0.0} mm | ΔCota = {ultimo.DeslocamentoTotalZMilimetros:+0.0;-0.0;0.0} mm");
                     sb.AppendLine();
-                    sb.AppendLine("Nota Pericial:");
-                    sb.AppendLine("1. 'CORREÇÃO BOWDITCH PURA' representa a distribuição proporcional estrita do erro linear residual pós-fechamento angular (fL).");
-                    sb.AppendLine("2. 'DESLOCAMENTO TOTAL ACUMULADO' representa a variação vetorial espacial líquida completa sofrida por cada marco desde as leituras brutas instrumentais iniciais.");
+                    sb.AppendLine("Nota Técnica:");
+                    sb.AppendLine("1. 'COMPENSAÇÃO LINEAR PARCIAL' representa a distribuição proporcional estrita de Bowditch para o erro linear residual (fL) ao longo dos lances.");
+                    sb.AppendLine("2. 'CORREÇÃO VETORIAL ACUMULADA' representa a variação vetorial líquida completa sofrida por cada marco em relação às coordenadas brutas instrumentais.");
                 }
             }
             else
@@ -288,6 +296,18 @@ namespace TopoGente.Core.Services
 
             return sb.ToString().TrimEnd();
         }
+
+        private static string FormatarPapelDidatico(PapelTopologicoEnum papel) => papel switch
+        {
+            PapelTopologicoEnum.EstacaoPartida => "Partida da Poligonal",
+            PapelTopologicoEnum.FechamentoAnel => "Reocupação / Fechamento",
+            PapelTopologicoEnum.VerticeIntermediario => "Vértice de Apoio",
+            PapelTopologicoEnum.ReReferencia => "Ré de Amarração",
+            PapelTopologicoEnum.PontoHomologoCheck => "Ponto de Controle",
+            PapelTopologicoEnum.IrradiacaoCadastral => "Ponto de Detalhe",
+            PapelTopologicoEnum.SentinelaDescartada => "Registro Nulo",
+            _ => papel.ToString()
+        };
 
         private static string FormatarLinhasOrigem(IReadOnlyList<int>? linhas)
         {

@@ -1,9 +1,8 @@
 using TopoGente.Core.Entities.Pericia;
 using System;
-
 using TopoGente.Core.Services;
-
 using TopoGente.PresentationCore.Units;
+using TopoGente.PresentationCore.Tolerances;
 
 
 
@@ -1332,6 +1331,8 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
                     PresetToleranciaEnum.ClasseIVP => ParametrosTolerancia.ClasseIVP,
 
                     PresetToleranciaEnum.ClasseVP => ParametrosTolerancia.ClasseVP,
+
+                    PresetToleranciaEnum.PoligonalTrigonometrica => ParametrosTolerancia.PoligonalTrigonometrica,
 
                     _ => ParametrosTolerancia.ClasseIIP
 
@@ -5003,18 +5004,20 @@ private async Task ProcessarAsync()
 
                 sb.AppendLine($"Arquivo Base:    {NomeArquivoAtual}");
 
-                sb.AppendLine($"Status do Motor: {TextoStatusBar}");
+                sb.AppendLine($"Situação do Ajustamento: {TextoStatusBar}");
 
                 sb.AppendLine();
 
                 var tol = RelatorioQaAtual.ToleranciasAplicadas;
+                string nomeClasseExibicao = ToleranciaInfoHelper.ObterInfo(tol.Preset)?.NomeExibicao ?? tol.Preset.ToString();
                 sb.AppendLine("FECHAMENTOS E TOLERÂNCIAS NBR 13.133:");
-                sb.AppendLine($"  - Classe Normativa:          {tol.Preset}");
-                sb.AppendLine($"  - Coeficiente Angular b:     {tol.CoeficienteAngularB:F1}\" (Ta = b · √n + Ca)");
-                sb.AppendLine($"  - Termo de Centragem Ca:     {tol.TermoCentragemCa:F1}\"");
-                sb.AppendLine($"  - Fator k / Desvio σa:       k={tol.FactorK:F1}, σa={tol.SigmaA:F1}\"");
-                sb.AppendLine($"  - Denom. Linear (1/P):       1:{tol.DenominadorPrecisaoLinear}");
-                sb.AppendLine($"  - Coeficientes TP:           c={tol.ErroLinearConstanteC:F4} m, d={tol.CoeficienteLinearD:F2} m/√km");
+                sb.AppendLine($"  - Classe Normativa:          {nomeClasseExibicao}");
+                sb.AppendLine($"  - Tolerância Angular Ta:     b = {tol.CoeficienteAngularB:F1}\", Ca = {tol.TermoCentragemCa:F1}\" [Ta = b · √n + Ca]");
+                sb.AppendLine($"  - Parâmetros Estatísticos:   k = {tol.FactorK:F1}, σa = {tol.SigmaA:F1}\"");
+                sb.AppendLine($"  - Denom. Linear Mín. (1/P):  1:{tol.DenominadorPrecisaoLinear}");
+                sb.AppendLine($"  - Limite Linear Absoluto TP: c = {tol.ErroLinearConstanteC:F4} m, d = {tol.CoeficienteLinearD:F2} m/√km [TP = c + d · √L_km]");
+                sb.AppendLine($"  - Tolerância Altimétrica C:  {tol.C:F1} mm/√km [Tz = (C / 1000) · √L_km]");
+                sb.AppendLine($"  - Tolerâncias de Controle:   dXY = {tol.ToleranciaCheckDeltaXY:F3} m, dZ = {tol.ToleranciaCheckDeltaZ:F3} m");
                 sb.AppendLine($"  - Modo Julgamento Linear:    {RelatorioQaAtual.ModoAvaliacaoLinearUtilizado}");
                 sb.AppendLine();
                 sb.AppendLine("RESULTADOS DA AUDITORIA:");
@@ -5038,7 +5041,7 @@ private async Task ProcessarAsync()
 
                 sb.AppendLine();
 
-                sb.AppendLine("INSPEÇÃO DE CHECKPOINTS E HOMÓLOGOS:");
+                sb.AppendLine("INSPEÇÃO DE PONTOS DE CONTROLE E DUPLA VISADA:");
 
                 if (RelatorioQaAtual.Checks != null && RelatorioQaAtual.Checks.Count > 0)
 
@@ -5078,12 +5081,14 @@ private async Task ProcessarAsync()
                     sb.AppendLine();
                 }
 
+                string modoLinearExibicao = ToleranciaInfoHelper.ObterInfoModo(RelatorioQaAtual.ModoAvaliacaoLinearUtilizado)?.NomeExibicao ?? RelatorioQaAtual.ModoAvaliacaoLinearUtilizado.ToString();
+
                 sb.AppendLine("NOTA PERICIAL NORMATIVA:");
                 sb.AppendLine($"Os valores numéricos de fechamento linear e angular apresentados neste laudo foram");
                 sb.AppendLine($"formatados nas unidades [{UnidadeLinearSelecionada} / {UnidadeAngularSelecionada}] conforme preferência do projeto.");
-                sb.AppendLine($"A avaliação de conformidade seguiu os parâmetros da NBR 13.133 para a Classe {tol.Preset}");
-                sb.AppendLine($"(b = {tol.CoeficienteAngularB:F1}\", Ca = {tol.TermoCentragemCa:F1}\", 1/P = 1/{tol.DenominadorPrecisaoLinear}, c = {tol.ErroLinearConstanteC:F4} m, d = {tol.CoeficienteLinearD:F2} m/km^0.5).");
-                sb.AppendLine($"Modo de Julgamento Linear: {RelatorioQaAtual.ModoAvaliacaoLinearUtilizado}.");
+                sb.AppendLine($"A avaliação de conformidade seguiu os parâmetros da NBR 13.133 para a Classe: {nomeClasseExibicao}");
+                sb.AppendLine($"(b = {tol.CoeficienteAngularB:F1}\", Ca = {tol.TermoCentragemCa:F1}\", 1/P = 1/{tol.DenominadorPrecisaoLinear}, c = {tol.ErroLinearConstanteC:F4} m, d = {tol.CoeficienteLinearD:F2} m/√km).");
+                sb.AppendLine($"Critério de Avaliação Linear: {modoLinearExibicao}.");
                 sb.AppendLine("================================================================================");
 
 

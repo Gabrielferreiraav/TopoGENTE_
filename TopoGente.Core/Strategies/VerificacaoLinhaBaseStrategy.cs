@@ -57,9 +57,13 @@ namespace TopoGente.Core.Strategies
             double deltaZ = pontoCalculado.Z - pontoChegadaConhecido.Z;   // Cota
 
             // ── 3. Erros escalares ────────────────────────────────────────────────
+            // NBR 13.133: a tolerância linear (Tp = c + d√L) é definida para
+            // distâncias horizontais. O critério de aprovação usa apenas o erro
+            // planar (ΔE, ΔN). O erro 3D fica disponível para diagnóstico mas
+            // não entra na decisão de aprovação/reprovação linear.
             double erroLinearPlanarM = Math.Sqrt((deltaE * deltaE) + (deltaN * deltaN));
             double erroLinearTotalM  = Math.Sqrt((deltaE * deltaE) + (deltaN * deltaN) + (deltaZ * deltaZ));
-            double erroLinearMm      = erroLinearTotalM * 1000.0;
+            double erroLinearMm      = erroLinearPlanarM * 1000.0;   // FIX: era erroLinearTotalM — NBR 13.133 §7 define Tp sobre Dh, não D3D
 
             // ── 4. Erro angular (azimute teórico vs. medido), em segundos de arco ─
             double azimuteTeórico = GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(
@@ -115,6 +119,7 @@ namespace TopoGente.Core.Strategies
                 DeltaNorteMetros          = deltaN,
                 DeltaZMetros              = deltaZ,
                 ErroLinearMm              = erroLinearMm,
+                ErroEspacial3DMm          = erroLinearTotalM * 1000.0,
                 ErroAngularSegundos       = erroAngularSegundos,
                 PrecisaoRelativa          = precisaoRelativa,
                 ToleranciaLinearMm        = toleranciaLinearMm,
@@ -133,10 +138,12 @@ namespace TopoGente.Core.Strategies
                 ToleranciaAngularSegundos = toleranciaAngularSegundos,
                 AngularAprovado = aprovadoAngular,
 
-                ErroFechamentoLinearMetros = erroLinearTotalM,
+                ErroFechamentoLinearMetros = erroLinearPlanarM,
                 ToleranciaLinearMetros = toleranciaLinearMm / 1000.0,
                 PrecisaoRelativaObtida = precisaoRelativa,
                 LinearAprovado = aprovadoLinear,
+
+                ErroEspacial3DMetros = erroLinearTotalM,
 
                 ErroAltimetricoMetros = deltaZ,
                 ToleranciaAltimetricaMetros = tolerancias.CalcularToleranciaAltimetricaMetros(perimetroTotal),
@@ -152,7 +159,7 @@ namespace TopoGente.Core.Strategies
                 ErroAngular         = diferencaAngularGraus,
                 ErroX               = deltaE,
                 ErroY               = deltaN,
-                ErroLinearTotal     = erroLinearTotalM,
+                ErroLinearTotal     = erroLinearPlanarM,
                 PrecisaoRelativa    = precisaoRelativa,
                 ErroAltimetrico     = deltaZ,
                 AprovadoNorma       = aprovado,

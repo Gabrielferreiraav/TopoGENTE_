@@ -57,6 +57,15 @@ public static class ToleranciaInfoHelper
             Aplicacoes: "• Estudos de anteprojeto, viabilidade locacional preliminar e reconhecimento de acessos.\n• Delimitação expedita para linhas provisórias de transmissão, cercas rurais e canteiros de obra.\n• Esboços e croquis de campo para planejamento logístico e alocação de equipes."
         ),
 
+        [PresetToleranciaEnum.PoligonalTrigonometrica] = new(
+            Preset: PresetToleranciaEnum.PoligonalTrigonometrica,
+            Titulo: "Poligonal Trigonométrica — Estação Total (NBR 13.133)",
+            NomeExibicao: "Poligonal Trigonométrica (Estação Total)",
+            ParametrosResumo: "b = 60'' | 1/P = 1:5.000 | c = 5,0 mm | d = 0,40 m/√km | C = 200 mm/√km",
+            Descricao: "Poligonal planialtimétrica com transporte de cotas via nivelamento trigonométrico em estação total segundo a ABNT NBR 13.133. Aplica tolerância angular Ta = 60''·√n + 10'', razão de precisão linear de 1:5.000, limite linear absoluto TP = 5,0 mm + 0,40 m/√L(km) e tolerância altimétrica Tz = 200 mm·√L(km) (C = 200 mm/√km para nivelamento trigonométrico com estação total conforme a NBR 13.133).",
+            Aplicacoes: "• Levantamentos planialtimétricos cadastrais com estação total com transporte de altitude trigonométrica.\n• Projetos de terraplenagem, traçados preliminares, perfis, seções e geração de MDT/curvas de nível.\n• Levantamentos topográficos urbanos e rurais sem exigência normativa de nivelamento geométrico de precisão milimétrica."
+        ),
+
         [PresetToleranciaEnum.Personalizado] = new(
             Preset: PresetToleranciaEnum.Personalizado,
             Titulo: "Personalizado — Órgãos Reguladores, Editais e Contratos Especiais",

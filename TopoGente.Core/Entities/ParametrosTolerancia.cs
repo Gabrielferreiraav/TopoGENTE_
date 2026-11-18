@@ -12,6 +12,7 @@ public enum PresetToleranciaEnum
     ClasseIIIP,      // Classe III P: b=30", k=2.0, sigma=15.0", 1/P=1:3000,  c=5.0mm,  d=0.42 m/sqrt(km)
     ClasseIVP,       // Classe IV P: b=60",  k=2.0, sigma=30.0", 1/P=1:1000,  c=10.0mm, d=0.50 m/sqrt(km)
     ClasseVP,        // Classe V P: b=180",  k=2.0, sigma=90.0", 1/P=1:500,   c=20.0mm, d=1.00 m/sqrt(km)
+    PoligonalTrigonometrica, // Poligonal Trigonométrica / Estação Total (C = 200 mm/sqrt(km))
     Personalizado    // Customizado pelo operador (INCRA, DER, etc.)
 }
 
@@ -130,7 +131,8 @@ public sealed record ParametrosTolerancia
         {
             ModoAvaliacaoLinearEnum.ApenasAbsoluto => CalcularToleranciaLinearAbsolutaMetros(perimetroTotalMetros),
             ModoAvaliacaoLinearEnum.ApenasRelativo => CalcularToleranciaLinearRelativaMetros(perimetroTotalMetros),
-            _ => CalcularToleranciaLinearRelativaMetros(perimetroTotalMetros)
+            ModoAvaliacaoLinearEnum.AmbosRigorosoNBR => Math.Min(CalcularToleranciaLinearRelativaMetros(perimetroTotalMetros), CalcularToleranciaLinearAbsolutaMetros(perimetroTotalMetros)),
+            _ => Math.Min(CalcularToleranciaLinearRelativaMetros(perimetroTotalMetros), CalcularToleranciaLinearAbsolutaMetros(perimetroTotalMetros))
         };
     }
 
@@ -252,6 +254,23 @@ public sealed record ParametrosTolerancia
         ToleranciaCheckDeltaZ = 0.10,
         ModoAvaliacaoLinear = ModoAvaliacaoLinearEnum.AmbosRigorosoNBR,
         Preset = PresetToleranciaEnum.ClasseVP
+    };
+
+    /// <summary>Poligonal com nivelamento trigonométrico via Estação Total (NBR 13.133: C = 200 mm/√km).</summary>
+    public static ParametrosTolerancia PoligonalTrigonometrica => new()
+    {
+        CoeficienteAngularB = 60.0,
+        FactorK = 2.0,
+        SigmaA = 30.0,
+        TermoCentragemCa = 10.0,
+        DenominadorPrecisaoLinear = 5000,
+        ErroLinearConstanteC = 0.0050,
+        CoeficienteLinearD = 0.40,
+        C = 200.0,
+        ToleranciaCheckDeltaXY = 0.03,
+        ToleranciaCheckDeltaZ = 0.08,
+        ModoAvaliacaoLinear = ModoAvaliacaoLinearEnum.AmbosRigorosoNBR,
+        Preset = PresetToleranciaEnum.PoligonalTrigonometrica
     };
 
     /// <summary>Preset Padrão de Fábrica (conservador, compatível com a NBR 13.133 taqueométrica e legado topoGRAPH 98 SE).</summary>
