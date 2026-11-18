@@ -74,7 +74,7 @@ namespace TopoGente.Test
                 caderneta.SentinelasDescartadas);
 
             string cap1 = _formatador.FormatarCapitulo1TrilhaTopologica(trilha);
-            Assert.Contains("1.3 Registros Sentinela e Linhas Residuais Descartadas:", cap1);
+            Assert.Contains("1.3 Linhas em Branco ou Registros Nulos Descartados:", cap1);
             Assert.Contains("153", cap1);
             Assert.Contains("154", cap1);
         }
@@ -214,7 +214,7 @@ namespace TopoGente.Test
 
             // Renderização no Capítulo 1
             string cap1 = _formatador.FormatarCapitulo1TrilhaTopologica(trilha);
-            Assert.Contains("1.2 Auditoria de Pontos Homólogos", cap1);
+            Assert.Contains("1.2 Conferência de Pontos com Dupla Visada", cap1);
             Assert.Contains("70", cap1);
             Assert.Contains("SIM (1ª)", cap1);
         }
@@ -259,7 +259,7 @@ namespace TopoGente.Test
             string memorialAscii = _formatador.FormatarMemorialCompleto(resultado.Memorial);
 
             // Validação dos três capítulos no relatório final exportável
-            Assert.Contains("CAPÍTULO 1: TRILHA TOPOLÓGICA E CICLO DE VIDA DOS VÉRTICES", memorialAscii);
+            Assert.Contains("CAPÍTULO 1: HISTÓRICO OPERACIONAL E OCUPAÇÃO DE ESTAÇÕES", memorialAscii);
             Assert.Contains("CAPÍTULO 2: MEMORIAL DE REDUÇÃO GEOMÉTRICA E TRANSPORTE ANALÍTICO", memorialAscii);
             Assert.Contains("CAPÍTULO 3: MEMÓRIA ANALÍTICA DE AJUSTAMENTO E RATEIO DE ERROS", memorialAscii);
 
