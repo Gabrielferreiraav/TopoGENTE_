@@ -394,19 +394,44 @@ namespace TopoGente.Core.Services
 
             double anguloFechamento = 0;
 
-            string nomeEstacaoInicial = leiturasPoligonal.FirstOrDefault()?.EstacaoOcupada ?? pontoPartida.Nome;
-            var reInicial = leiturasRe.FirstOrDefault(r => r.EstacaoOcupada == nomeEstacaoInicial)
-                ?? todasLeituras.FirstOrDefault(r => r.EstacaoOcupada == nomeEstacaoInicial && (r.Tipo == TipoLeitura.Re || r.Tipo == TipoLeitura.ReLocal || string.Equals(r.Purpose, "re", StringComparison.OrdinalIgnoreCase)));
+            string nomeEstacaoInicial = !string.IsNullOrWhiteSpace(leiturasPoligonal.FirstOrDefault()?.EstacaoOcupada)
+                ? leiturasPoligonal.First().EstacaoOcupada
+                : pontoPartida.Nome;
+
+            var reInicial = leiturasRe.FirstOrDefault(r => string.Equals(r.EstacaoOcupada, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase))
+                ?? todasLeituras.FirstOrDefault(r => string.Equals(r.EstacaoOcupada, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase) && EhLeituraRe(r))
+                ?? todasEstacoes.FirstOrDefault(e => string.Equals(e.Nome, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase))?.Leituras.FirstOrDefault(EhLeituraRe);
+
             if (reInicial != null)
             {
                 string nomePontoReInicial = reInicial.PontoVisado;
                 var leituraFechamento = todasLeituras
-                    .Where(r => r.EstacaoOcupada == nomeEstacaoInicial && r.PontoVisado.Equals(nomePontoReInicial, StringComparison.OrdinalIgnoreCase))
+                    .Where(r => (string.Equals(r.EstacaoOcupada, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase) ||
+                                 todasEstacoes.Any(e => string.Equals(e.Nome, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase) && e.Leituras.Contains(r)))
+                                && string.Equals(r.PontoVisado, nomePontoReInicial, StringComparison.OrdinalIgnoreCase))
                     .LastOrDefault();
 
-                anguloFechamento = leituraFechamento?.AnguloHorizontal
-                    ?? leiturasRe.LastOrDefault()?.AnguloHorizontal
-                    ?? 0;
+                if (leituraFechamento != null)
+                {
+                    string penultimaEstacao = leiturasPoligonal.LastOrDefault()?.EstacaoOcupada
+                        ?? (sequenciaEstacoes.Count >= 2 ? sequenciaEstacoes[^2] : string.Empty);
+
+                    var leituraReSessao = ObterLeituraReSessaoFechamento(
+                        leituraFechamento,
+                        nomeEstacaoInicial,
+                        nomePontoReInicial,
+                        penultimaEstacao,
+                        todasEstacoes,
+                        todasLeituras);
+
+                    double hzRe = leituraReSessao?.AnguloHorizontal ?? 0.0;
+                    double hzVante = leituraFechamento.AnguloHorizontal;
+                    anguloFechamento = GeometriaTopograficaHelper.Normalizar360(hzVante - hzRe);
+                }
+                else
+                {
+                    anguloFechamento = leiturasRe.LastOrDefault()?.AnguloHorizontal ?? 0;
+                }
             }
             else
             {
@@ -779,6 +804,73 @@ namespace TopoGente.Core.Services
                 azimuteVigente = GeometriaTopograficaHelper.Normalizar360(azimuteVigente + 180);
             }
             return poligonalBruta;
+        }
+
+        private static bool EhLeituraRe(LeituraEstacaoTotal r)
+        {
+            return r.Tipo == TipoLeitura.Re ||
+                   r.Tipo == TipoLeitura.ReLocal ||
+                   string.Equals(r.Purpose, "re", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(r.Purpose, "ré", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static LeituraEstacaoTotal? ObterLeituraReSessaoFechamento(
+            LeituraEstacaoTotal leituraFechamento,
+            string nomeEstacaoInicial,
+            string nomePontoReInicial,
+            string penultimaEstacao,
+            List<Estacao> todasEstacoes,
+            List<LeituraEstacaoTotal> todasLeituras)
+        {
+            if (!string.IsNullOrWhiteSpace(leituraFechamento.SetupId))
+            {
+                var leituraReSetup = todasLeituras.FirstOrDefault(r =>
+                    r.Id != leituraFechamento.Id &&
+                    !ReferenceEquals(r, leituraFechamento) &&
+                    r.SetupId == leituraFechamento.SetupId &&
+                    (EhLeituraRe(r) || (!string.IsNullOrEmpty(penultimaEstacao) && string.Equals(r.PontoVisado, penultimaEstacao, StringComparison.OrdinalIgnoreCase))));
+
+                if (leituraReSetup != null) return leituraReSetup;
+            }
+
+            var estacaoFechamento = todasEstacoes.LastOrDefault(e =>
+                e.Leituras.Any(l => l.Id == leituraFechamento.Id || ReferenceEquals(l, leituraFechamento)));
+
+            if (estacaoFechamento != null)
+            {
+                bool ehReocupacao = estacaoFechamento.NumeroSessao > 1 ||
+                    !ReferenceEquals(estacaoFechamento, todasEstacoes.FirstOrDefault(e => string.Equals(e.Nome, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase)));
+
+                if (ehReocupacao)
+                {
+                    var leituraReNaEstacao = estacaoFechamento.Leituras.FirstOrDefault(r =>
+                        r.Id != leituraFechamento.Id &&
+                        !ReferenceEquals(r, leituraFechamento) &&
+                        (EhLeituraRe(r) || (!string.IsNullOrEmpty(penultimaEstacao) && string.Equals(r.PontoVisado, penultimaEstacao, StringComparison.OrdinalIgnoreCase))));
+
+                    if (leituraReNaEstacao != null) return leituraReNaEstacao;
+                }
+
+                var leiturasAntes = estacaoFechamento.Leituras
+                    .TakeWhile(r => r.Id != leituraFechamento.Id && !ReferenceEquals(r, leituraFechamento))
+                    .ToList();
+
+                var leituraReAntes = leiturasAntes.LastOrDefault(r =>
+                    !string.Equals(r.PontoVisado, nomePontoReInicial, StringComparison.OrdinalIgnoreCase) &&
+                    (EhLeituraRe(r) || (!string.IsNullOrEmpty(penultimaEstacao) && string.Equals(r.PontoVisado, penultimaEstacao, StringComparison.OrdinalIgnoreCase))));
+
+                if (leituraReAntes != null) return leituraReAntes;
+            }
+
+            var leiturasAntesGlobal = todasLeituras
+                .TakeWhile(r => r.Id != leituraFechamento.Id && !ReferenceEquals(r, leituraFechamento))
+                .ToList();
+
+            return leiturasAntesGlobal.LastOrDefault(r =>
+                (string.Equals(r.EstacaoOcupada, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase) ||
+                 todasEstacoes.Any(e => string.Equals(e.Nome, nomeEstacaoInicial, StringComparison.OrdinalIgnoreCase) && e.Leituras.Contains(r))) &&
+                !string.Equals(r.PontoVisado, nomePontoReInicial, StringComparison.OrdinalIgnoreCase) &&
+                (EhLeituraRe(r) || (!string.IsNullOrEmpty(penultimaEstacao) && string.Equals(r.PontoVisado, penultimaEstacao, StringComparison.OrdinalIgnoreCase))));
         }
     }
 }

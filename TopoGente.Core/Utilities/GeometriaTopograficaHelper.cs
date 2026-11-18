@@ -1,10 +1,32 @@
 using System;
 using TopoGente.Core.Entities;
+using TopoGENTE.Domain.Exceptions;
 
 namespace TopoGente.Core.Utilities
 {
     public static class GeometriaTopograficaHelper
     {
+        public const double ToleranciaZenitalGraus = 0.001;
+
+        public static void ValidarParametrosZenitais(double distanciaInclinada, double anguloVerticalGraus)
+        {
+            if (distanciaInclinada < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(distanciaInclinada), "A distância inclinada não pode ser negativa.");
+            }
+
+            if (double.IsNaN(anguloVerticalGraus) || double.IsInfinity(anguloVerticalGraus))
+            {
+                throw new ArgumentException("O ângulo vertical não pode ser indefinido.", nameof(anguloVerticalGraus));
+            }
+
+            double resto = Math.Abs(anguloVerticalGraus % 180.0);
+            if (resto < ToleranciaZenitalGraus || resto > (180.0 - ToleranciaZenitalGraus))
+            {
+                throw new SingularidadeGeometricaException(anguloVerticalGraus);
+            }
+        }
+
         public static double Normalizar360(double angulo)
         {
             angulo %= 360.0;
@@ -38,12 +60,14 @@ namespace TopoGente.Core.Utilities
 
         public static double CalcularDistanciaHorizontal(double distanciaInclinada, double anguloVerticalGraus)
         {
+            ValidarParametrosZenitais(distanciaInclinada, anguloVerticalGraus);
             double radianos = ConversorAngulos.ParaRadianos(anguloVerticalGraus);
             return distanciaInclinada * Math.Sin(radianos);
         }
 
         public static double CalcularDesnivel(double distanciaInclinada, double anguloVerticalGraus, double hi, double hp)
         {
+            ValidarParametrosZenitais(distanciaInclinada, anguloVerticalGraus);
             double radianos = ConversorAngulos.ParaRadianos(anguloVerticalGraus);
             return ((distanciaInclinada * Math.Cos(radianos)) + hi - hp);
         }

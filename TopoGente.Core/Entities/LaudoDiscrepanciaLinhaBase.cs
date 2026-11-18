@@ -41,10 +41,21 @@ namespace TopoGente.Core.Entities
         // ── Métricas derivadas ────────────────────────────────────────────────────
 
         /// <summary>
-        /// Erro escalar linear total (planimetria + altimetria), em milímetros:
-        /// e_l = sqrt(ΔE² + ΔN² + ΔZ²) × 1000
+        /// Erro linear planar (distância horizontal Euclidiana), em milímetros:
+        /// e_l = sqrt(ΔE² + ΔN²) × 1000
         /// </summary>
         public double ErroLinearMm { get; init; }
+
+        /// <summary>
+        /// Erro escalar espacial 3D Euclidiano (planimetria + altimetria), em milímetros:
+        /// e_3d = sqrt(ΔE² + ΔN² + ΔZ²) × 1000
+        /// </summary>
+        public double ErroEspacial3DMm { get; init; }
+
+        /// <summary>
+        /// Erro escalar espacial 3D Euclidiano, em metros.
+        /// </summary>
+        public double ErroEspacial3DMetros => ErroEspacial3DMm / 1000.0;
 
         /// <summary>
         /// Erro angular de fechamento, em segundos de arco:
@@ -76,9 +87,13 @@ namespace TopoGente.Core.Entities
 
         // ── Formatação padronizada ────────────────────────────────────────────────
 
-        /// <summary>Formata o erro linear no padrão "+12.4 mm" ou "−3.1 mm".</summary>
+        /// <summary>Formata o erro linear planar no padrão "+12.4 mm" ou "−3.1 mm".</summary>
         public string ErroLinearFormatado
             => $"{(ErroLinearMm >= 0 ? "+" : "")}{ErroLinearMm:F1} mm";
+
+        /// <summary>Formata o erro espacial 3D no padrão "+12.4 mm" ou "−3.1 mm".</summary>
+        public string ErroEspacial3DFormatado
+            => $"{(ErroEspacial3DMm >= 0 ? "+" : "")}{ErroEspacial3DMm:F1} mm";
 
         /// <summary>Formata o erro angular no padrão "06.5\"" (segundos com 1 decimal).</summary>
         public string ErroAngularFormatado

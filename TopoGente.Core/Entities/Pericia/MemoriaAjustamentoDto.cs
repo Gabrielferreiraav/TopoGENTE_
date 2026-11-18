@@ -21,6 +21,9 @@ namespace TopoGente.Core.Entities.Pericia
         public double PrecisaoRelativaObtida { get; init; }
         public bool LinearAprovado { get; init; } = true;
 
+        // Diagnóstico Espacial 3D
+        public double ErroEspacial3DMetros { get; init; }
+
         // Grandezas Altimétricas
         public double ErroAltimetricoMetros { get; init; }
         public double ToleranciaAltimetricaMetros { get; init; }

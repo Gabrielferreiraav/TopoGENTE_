@@ -39,6 +39,8 @@ namespace TopoGente.Core.Interfaces
     {
         List<Estacao> UnificarEstacoes(List<Estacao> todasEstacoes);
         List<LeituraEstacaoTotal> OrganizarPorVante(List<Estacao> todasEstacoes, string nomeEstacaoPartida);
+        ResultadoOrganizacaoCaminhamentoDto OrganizarSequencia(List<Estacao> todasEstacoes, string nomeEstacaoPartida);
+        Estacao? DetectarSessaoFechamento(List<Estacao> todasEstacoes, string nomeEstacaoPartida);
         TrilhaTopologicaDto ConstruirTrilhaTopologica(
             List<Estacao> estacoesBrutas,
             List<Estacao> estacoesUnificadas,

@@ -113,22 +113,25 @@ namespace TopoGente.Core.Strategies
             }
 
             double toleranciaAltimetrica = tolerancias.CalcularToleranciaAltimetricaMetros(elementos.PerimetroTotal);
-            if (Ultrapassa(Math.Abs(erroAltimetrico), toleranciaAltimetrica, PrecisaoRelativaEpsilon))
-            {
-                var memorialLances = CriarMemorialLances(entrada, elementos);
-                var rateiosNulos = CriarRateioNulo(entrada);
-                var memoriaAjuste = CriarMemoriaAjustamento(
-                    TipoEstrategiaAjustamento.Bowditch,
-                    erroAngular,
-                    erroLinearTotal,
-                    erroAltimetrico,
-                    precisaoRelativa,
-                    nEstacoes,
-                    elementos.PerimetroTotal,
-                    tolerancias,
-                    rateiosNulos,
-                    aprovadoGeral: false);
+            bool altimetricoExcedido = Ultrapassa(Math.Abs(erroAltimetrico), toleranciaAltimetrica, PrecisaoRelativaEpsilon);
 
+            var poligonalCompensada = ConstruirPoligonalCompensada(entrada, azimutesCompensados, elementos, erroX, erroY, erroAltimetrico);
+            var memorialLancesCompensado = CriarMemorialLances(entrada, elementos);
+            var rateiosAprovados = CriarRateioVertices(entrada, poligonalCompensada, elementos, erroX, erroY, erroAltimetrico);
+            var memoriaAjusteCompensado = CriarMemoriaAjustamento(
+                TipoEstrategiaAjustamento.Bowditch,
+                erroAngular,
+                erroLinearTotal,
+                erroAltimetrico,
+                precisaoRelativa,
+                nEstacoes,
+                elementos.PerimetroTotal,
+                tolerancias,
+                rateiosAprovados,
+                aprovadoGeral: !altimetricoExcedido);
+
+            if (altimetricoExcedido)
+            {
                 return new ResultadoCompensacaoDTO
                 {
                     ErroAngular = erroAngular,
@@ -139,29 +142,14 @@ namespace TopoGente.Core.Strategies
                     ErroAltimetrico = erroAltimetrico,
                     AprovadoNorma = false,
                     AlertaReprovacao = $"Erro Altimétrico ({Math.Abs(erroAltimetrico):F4} m) superou a tolerância da NBR 13.133 ({toleranciaAltimetrica:F4} m).",
-                    PoligonalCompensada = entrada.PoligonalBruta,
+                    PoligonalCompensada = poligonalCompensada,
                     Memorial = new MemorialRastreabilidadePericial
                     {
-                        Lances = memorialLances,
-                        Ajustamento = memoriaAjuste
+                        Lances = memorialLancesCompensado,
+                        Ajustamento = memoriaAjusteCompensado
                     }
                 };
             }
-
-            var poligonalCompensada = ConstruirPoligonalCompensada(entrada, azimutesCompensados, elementos, erroX, erroY, erroAltimetrico);
-            var memorialLancesAprovado = CriarMemorialLances(entrada, elementos);
-            var rateiosAprovados = CriarRateioVertices(entrada, poligonalCompensada, elementos, erroX, erroY, erroAltimetrico);
-            var memoriaAjusteAprovado = CriarMemoriaAjustamento(
-                TipoEstrategiaAjustamento.Bowditch,
-                erroAngular,
-                erroLinearTotal,
-                erroAltimetrico,
-                precisaoRelativa,
-                nEstacoes,
-                elementos.PerimetroTotal,
-                tolerancias,
-                rateiosAprovados,
-                aprovadoGeral: true);
 
             return new ResultadoCompensacaoDTO
             {
@@ -176,8 +164,8 @@ namespace TopoGente.Core.Strategies
                 PoligonalCompensada = poligonalCompensada,
                 Memorial = new MemorialRastreabilidadePericial
                 {
-                    Lances = memorialLancesAprovado,
-                    Ajustamento = memoriaAjusteAprovado
+                    Lances = memorialLancesCompensado,
+                    Ajustamento = memoriaAjusteCompensado
                 }
             };
         }
@@ -516,7 +504,7 @@ namespace TopoGente.Core.Strategies
 
             return new MemoriaAjustamentoDto
             {
-                Tipo = aprovadoGeral ? tipo : TipoEstrategiaAjustamento.SemAjustamento,
+                Tipo = (linearOk && angularOk) ? tipo : TipoEstrategiaAjustamento.SemAjustamento,
                 ErroFechamentoAngularSegundos = Math.Abs(erroAngular) * 3600.0,
                 ToleranciaAngularSegundos = tolAngularSegundos,
                 AngularAprovado = angularOk,
