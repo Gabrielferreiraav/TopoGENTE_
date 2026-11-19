@@ -3285,58 +3285,56 @@ public ObservableCollection<string> AvisosDiagnostico { get; } = [];
 
                     _pontosConhecidosGlobais = new Dictionary<string, PontoCoordenada>(result.PontosConhecidosGlobais, StringComparer.OrdinalIgnoreCase);
 
-
-
-                    // Auto-preenchimento da Ré e Azimute a partir da leitura de Ré (BS)
-
+                    // Auto-preenchimento da Ré e Azimute a partir da leitura de Ré (BS) ou de pontos de apoio conhecidos
                     var leituraRe = pe.Leituras
-
                         .FirstOrDefault(l => string.Equals(l.Purpose, "re", StringComparison.OrdinalIgnoreCase));
 
-                    if (leituraRe != null)
+                    PontoCoordenada? pontoRe = null;
+                    string? nomeReIdentificado = null;
 
+                    if (leituraRe != null && !string.IsNullOrWhiteSpace(leituraRe.PontoVisado))
                     {
+                        nomeReIdentificado = leituraRe.PontoVisado;
+                        _pontosConhecidosGlobais.TryGetValue(nomeReIdentificado, out pontoRe);
+                    }
 
-                        Poligonais[0].NomeRe = leituraRe.PontoVisado ?? string.Empty;
-
-
-
-                        if (pe.CoordenadaConhecida != null &&
-
-                            _pontosConhecidosGlobais.TryGetValue(leituraRe.PontoVisado ?? "", out var pontoRe) &&
-
-                            pontoRe != null)
-
+                    // Se não há visada polar explícita de ré, mas existe outro ponto conhecido no arquivo (ex: COORD;REF;...)
+                    if (pontoRe == null && _pontosConhecidosGlobais.Count > 1)
+                    {
+                        var outroPonto = _pontosConhecidosGlobais.Values
+                            .FirstOrDefault(p => !string.Equals(p.Nome, pe.Nome, StringComparison.OrdinalIgnoreCase));
+                        if (outroPonto != null)
                         {
+                            pontoRe = outroPonto;
+                            nomeReIdentificado = outroPonto.Nome;
+                        }
+                    }
 
-                            Poligonais[0].UsarCoordenadaRe = true;
+                    if (!string.IsNullOrWhiteSpace(nomeReIdentificado))
+                    {
+                        Poligonais[0].NomeRe = nomeReIdentificado;
+                    }
 
-                            Poligonais[0].ReX = pontoRe.X.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+                    if (pontoRe != null)
+                    {
+                        Poligonais[0].UsarCoordenadaRe = true;
+                        Poligonais[0].ReX = pontoRe.X.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+                        Poligonais[0].ReY = pontoRe.Y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+                        Poligonais[0].ReZ = pontoRe.Z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
 
-                            Poligonais[0].ReY = pontoRe.Y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
-
-                            Poligonais[0].ReZ = pontoRe.Z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
-
-
-
+                        if (pe.CoordenadaConhecida != null)
+                        {
                             var az = TopoGente.Core.Utilities.GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(
-
                                 pe.CoordenadaConhecida.X, pe.CoordenadaConhecida.Y, pontoRe.X, pontoRe.Y);
-
-                            Poligonais[0].Azimute = az.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-
+                            var azCompacto = TopoGente.Core.Utilities.ConversorAngulos.ParaFormatoCompacto(az);
+                            Poligonais[0].Azimute = azCompacto.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
                         }
-
-                        else if (leituraRe.AnguloHorizontal != 0)
-
-                        {
-
-                            Poligonais[0].UsarCoordenadaRe = false;
-
-                            Poligonais[0].Azimute = leituraRe.AnguloHorizontal.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-
-                        }
-
+                    }
+                    else if (leituraRe != null && leituraRe.AnguloHorizontal != 0)
+                    {
+                        Poligonais[0].UsarCoordenadaRe = false;
+                        var azCompacto = TopoGente.Core.Utilities.ConversorAngulos.ParaFormatoCompacto(leituraRe.AnguloHorizontal);
+                        Poligonais[0].Azimute = azCompacto.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
                     }
 
 

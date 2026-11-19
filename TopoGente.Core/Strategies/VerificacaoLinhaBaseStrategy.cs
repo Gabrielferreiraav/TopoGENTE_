@@ -65,16 +65,44 @@ namespace TopoGente.Core.Strategies
             double erroLinearTotalM  = Math.Sqrt((deltaE * deltaE) + (deltaN * deltaN) + (deltaZ * deltaZ));
             double erroLinearMm      = erroLinearPlanarM * 1000.0;   // FIX: era erroLinearTotalM — NBR 13.133 §7 define Tp sobre Dh, não D3D
 
+            // ── 7. Distância teórica da base ──────────────────────────────────────
+            double dxBase = pontoChegadaConhecido.X - entrada.PontoPartida.X;
+            double dyBase = pontoChegadaConhecido.Y - entrada.PontoPartida.Y;
+            double distanciaTeorica = Math.Sqrt((dxBase * dxBase) + (dyBase * dyBase));
+
             // ── 4. Erro angular (azimute teórico vs. medido), em segundos de arco ─
-            double azimuteTeórico = GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(
-                entrada.PontoPartida.X, entrada.PontoPartida.Y,
-                pontoChegadaConhecido.X, pontoChegadaConhecido.Y);
+            double azimuteTeorico;
+            double azimuteMedido;
+            double erroAngularSegundos;
+            double diferencaAngularGraus;
 
-            double azimuteMedido = pontoCalculado.AzimuteChegada;
+            if (distanciaTeorica < 1e-4)
+            {
+                // Condição de contorno: Poligonal Fechada em si mesma (Partida == Chegada, D == 0).
+                // Em um ponto singular não há vetor espacial; o fechamento angular pericial
+                // corresponde à consistência angular de retorno da poligonal à ré inicial.
+                double azimuteCalculadoFinal = poligonalTransportada[^1].AzimuteChegada;
+                double azimuteReRetorno = GeometriaTopograficaHelper.Normalizar360(azimuteCalculadoFinal + 180.0);
+                double azimuteCalculadoRetorno = GeometriaTopograficaHelper.Normalizar360(azimuteReRetorno + entrada.AnguloFechamento);
 
-            double diferencaAngularGraus = GeometriaTopograficaHelper.NormalizarErroAngular(
-                azimuteMedido - azimuteTeórico);
-            double erroAngularSegundos = Math.Abs(diferencaAngularGraus) * 3600.0;
+                diferencaAngularGraus = GeometriaTopograficaHelper.NormalizarErroAngular(azimuteCalculadoRetorno - entrada.AzimuteInicial);
+                erroAngularSegundos = Math.Abs(diferencaAngularGraus) * 3600.0;
+                azimuteTeorico = entrada.AzimuteInicial;
+                azimuteMedido = azimuteCalculadoRetorno;
+            }
+            else
+            {
+                // Caso canônico: Linha de Base entre 2 marcos distintos (D > 0).
+                azimuteTeorico = GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(
+                    entrada.PontoPartida.X, entrada.PontoPartida.Y,
+                    pontoChegadaConhecido.X, pontoChegadaConhecido.Y);
+
+                azimuteMedido = pontoCalculado.AzimuteChegada;
+
+                diferencaAngularGraus = GeometriaTopograficaHelper.NormalizarErroAngular(
+                    azimuteMedido - azimuteTeorico);
+                erroAngularSegundos = Math.Abs(diferencaAngularGraus) * 3600.0;
+            }
 
             // ── 5. Precisão relativa planar (1 : P) ───────────────────────────────
             double precisaoRelativa = (perimetroTotal > 0.0001 && erroLinearPlanarM > EpsilonLinear)
@@ -85,11 +113,6 @@ namespace TopoGente.Core.Strategies
             int nEstacoes = entrada.Leituras.Count;
             double toleranciaAngularSegundos = tolerancias.CalcularToleranciaAngularSegundos(nEstacoes);
             double toleranciaLinearMm        = tolerancias.CalcularToleranciaLinearMetros(perimetroTotal) * 1000.0;
-
-            // ── 7. Distância teórica da base ──────────────────────────────────────
-            double dxBase = pontoChegadaConhecido.X - entrada.PontoPartida.X;
-            double dyBase = pontoChegadaConhecido.Y - entrada.PontoPartida.Y;
-            double distanciaTeórica = Math.Sqrt((dxBase * dxBase) + (dyBase * dyBase));
 
             // ── 8. Avaliação de aprovação ─────────────────────────────────────────
             bool aprovadoLinear  = erroLinearMm        <= toleranciaLinearMm        + EpsilonAngular;
@@ -112,8 +135,8 @@ namespace TopoGente.Core.Strategies
             {
                 NomePontoPartida          = entrada.PontoPartida.Nome,
                 NomePontoChegada          = pontoChegadaConhecido.Nome,
-                DistanciaTeórica          = distanciaTeórica,
-                AzimuteTeóricoGraus       = azimuteTeórico,
+                DistanciaTeórica          = distanciaTeorica,
+                AzimuteTeóricoGraus       = azimuteTeorico,
                 AzimuteMedidoGraus        = azimuteMedido,
                 DeltaEsteMetros           = deltaE,
                 DeltaNorteMetros          = deltaN,
