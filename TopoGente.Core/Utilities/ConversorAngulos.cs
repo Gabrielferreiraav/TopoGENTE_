@@ -20,21 +20,111 @@ namespace TopoGente.Core.Utilities
 
         /// <summary>
         /// Converte o formato compacto "GGG.MMSS" para Graus Decimais.
+        /// Lança ArgumentOutOfRangeException caso os minutos ou segundos sejam superiores ou iguais a 60.
         /// </summary>
         public static double DeFormatoCompacto(double gggmmss)
         {
-            int graus = (int)Math.Truncate(gggmmss);
+            if (!TryDeFormatoCompacto(gggmmss, out double grausDecimais, out string? erro))
+            {
+                throw new ArgumentOutOfRangeException(nameof(gggmmss), erro);
+            }
 
+            return grausDecimais;
+        }
+
+        /// <summary>
+        /// Valida os componentes (Graus, Minutos, Segundos) de um valor no formato compacto GGG.MMSS.
+        /// </summary>
+        public static bool ValidarFormatoCompacto(double gggmmss, out int graus, out int minutos, out double segundos, out string? erro)
+        {
+            graus = (int)Math.Truncate(gggmmss);
             double resto = Math.Abs(gggmmss - graus);
 
             double minutosComSegundos = resto * 100.0;
             minutosComSegundos = Math.Round(minutosComSegundos, 6);
-            int minutos = (int)Math.Truncate(minutosComSegundos);
+            minutos = (int)Math.Truncate(minutosComSegundos);
 
-            double segundos = (minutosComSegundos - minutos) * 100.0;
+            segundos = (minutosComSegundos - minutos) * 100.0;
             segundos = Math.Round(segundos, 5);
 
-            return ParaDecimal(graus, minutos, segundos);
+            if (minutos >= 60)
+            {
+                erro = $"Minutos inválidos ({minutos} >= 60). No formato GGG.MMSS, os minutos devem estar entre 00 e 59.";
+                return false;
+            }
+
+            if (segundos >= 60.0)
+            {
+                erro = $"Segundos inválidos ({segundos:00.##} >= 60). No formato GGG.MMSS, os segundos devem estar entre 00 e 59.";
+                return false;
+            }
+
+            erro = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Tenta converter um valor numérico em formato compacto GGG.MMSS para Graus Decimais.
+        /// Retorna false e preenche a mensagem de erro caso minutos ou segundos sejam inválidos.
+        /// </summary>
+        public static bool TryDeFormatoCompacto(double gggmmss, out double grausDecimais, out string? erro)
+        {
+            if (!ValidarFormatoCompacto(gggmmss, out int graus, out int minutos, out double segundos, out erro))
+            {
+                grausDecimais = 0;
+                return false;
+            }
+
+            grausDecimais = ParaDecimal(graus, minutos, segundos);
+            return true;
+        }
+
+        /// <summary>
+        /// Tenta converter uma string digitada pelo usuário em formato compacto GGG.MMSS (aceita ponto ou vírgula)
+        /// para Graus Decimais e gera o texto legível correspondente (ex: 154° 30' 45.00").
+        /// </summary>
+        public static bool TryDeFormatoCompactoTexto(string? texto, out double grausDecimais, out string gmsFormatado, out string? erro)
+        {
+            grausDecimais = 0;
+            gmsFormatado = string.Empty;
+            erro = null;
+
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                gmsFormatado = "0° 00' 00.00\"";
+                return true;
+            }
+
+            string normalizado = texto.Trim().Replace(',', '.');
+            if (!double.TryParse(normalizado, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double valorCompacto))
+            {
+                erro = $"Formato numérico inválido: '{texto}'. Use o formato GGG.MMSS (ex: 154.3045).";
+                return false;
+            }
+
+            if (!ValidarFormatoCompacto(valorCompacto, out int graus, out int minutos, out double segundos, out erro))
+            {
+                return false;
+            }
+
+            grausDecimais = ParaDecimal(graus, minutos, segundos);
+            gmsFormatado = $"{graus}° {minutos:D2}' {segundos:00.00}\"";
+            return true;
+        }
+
+        /// <summary>
+        /// Converte Graus Decimais para o formato compacto GGG.MMSS (ex: 154.877722° -> 154.52398).
+        /// Essencial para preencher campos de azimute calculados analiticamente sem corromper a representação sexagesimal.
+        /// </summary>
+        public static double ParaFormatoCompacto(double decimalGraus)
+        {
+            // Normalizar para [0, 360)
+            double norm = decimalGraus % 360.0;
+            if (norm < 0) norm += 360.0;
+
+            var (graus, minutos, segundos) = ParaGMS(norm);
+            double resultado = graus + (minutos / 100.0) + (segundos / 10000.0);
+            return Math.Round(resultado, 6);
         }
 
         public static (int graus, int minutos, double segundos) ParaGMS(double decimalGraus)

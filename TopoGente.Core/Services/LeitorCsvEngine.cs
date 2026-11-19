@@ -315,6 +315,44 @@ public static class LeitorCsvEngine
 
         ReadOnlySpan<char> span = linha.AsSpan();
         int n = TokenizarLinha(span, config.Delimitador, tokens);
+        if (n == 0)
+        {
+            return new LinhaPreviewDTO(numLinha, "-", "-", linha, "-", "-", "-", "-", "Linha Vazia");
+        }
+
+        string primeiroToken = span[tokens[0]].Trim().Trim('"').ToString().ToUpperInvariant();
+
+        // ── Linha de Controle de Coordenadas Fixas / Ponto de Apoio (COORD;Nome;X;Y;Z ou NEZ;Nome;N;E;Z) ──
+        if ((primeiroToken == "COORD" || primeiroToken == "#COORD" || primeiroToken == "NEZ") && n >= 4)
+        {
+            string nomePt = span[tokens[1]].Trim().Trim('"').ToString();
+            ReadOnlySpan<char> c1 = span[tokens[2]].Trim().Trim('"');
+            ReadOnlySpan<char> c2 = span[tokens[3]].Trim().Trim('"');
+            ReadOnlySpan<char> c3 = n > 4 ? span[tokens[4]].Trim().Trim('"') : ReadOnlySpan<char>.Empty;
+
+            bool ok1 = ParseNumeroResiliente(c1, config, out double v1);
+            bool ok2 = ParseNumeroResiliente(c2, config, out double v2);
+            bool ok3 = c3.IsEmpty || ParseNumeroResiliente(c3, config, out double _);
+            double v3 = 0.0;
+            if (!c3.IsEmpty) ParseNumeroResiliente(c3, config, out v3);
+
+            double xCoord = (primeiroToken == "NEZ") ? v2 : v1;
+            double yCoord = (primeiroToken == "NEZ") ? v1 : v2;
+
+            string status = (ok1 && ok2 && ok3) ? "OK (Coordenada Fixa)" : "Erro Formato";
+
+            return new LinhaPreviewDTO(
+                numLinha,
+                nomePt,
+                "-",
+                "Ponto de Apoio (COORD)",
+                $"X: {xCoord:F3}",
+                $"-",
+                $"Y: {yCoord:F3}",
+                $"Z: {v3:F3}",
+                status
+            );
+        }
 
         if (n >= 8)
         {

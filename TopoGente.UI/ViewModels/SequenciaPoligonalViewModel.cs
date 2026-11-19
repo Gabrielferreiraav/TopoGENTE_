@@ -19,6 +19,8 @@ namespace TopoGente.UI.ViewModels
             _nome = "Nova Sequência";
             _ehPrincipal = false;
             Estacoes = new ObservableCollection<string>();
+            AtualizarPreviewAzimute();
+            AtualizarPreviewAzimuteChegada();
         }
 
         public string Id { get => _id; set => SetProperty(ref _id, value); }
@@ -41,10 +43,30 @@ namespace TopoGente.UI.ViewModels
         public bool MostrarPainelChegada => CenarioIndex == 0; // 0 = Enquadrada
 
         private string _partidaX = "1000,000";
-        public string PartidaX { get => _partidaX; set => SetProperty(ref _partidaX, value); }
+        public string PartidaX
+        {
+            get => _partidaX;
+            set
+            {
+                if (SetProperty(ref _partidaX, value))
+                {
+                    TentarAtualizarAzimutePorCoordenadas();
+                }
+            }
+        }
 
         private string _partidaY = "1000,000";
-        public string PartidaY { get => _partidaY; set => SetProperty(ref _partidaY, value); }
+        public string PartidaY
+        {
+            get => _partidaY;
+            set
+            {
+                if (SetProperty(ref _partidaY, value))
+                {
+                    TentarAtualizarAzimutePorCoordenadas();
+                }
+            }
+        }
 
         private string _partidaZ = "100,000";
         public string PartidaZ { get => _partidaZ; set => SetProperty(ref _partidaZ, value); }
@@ -57,6 +79,7 @@ namespace TopoGente.UI.ViewModels
             {
                 if (SetProperty(ref _usarAzimute, value))
                 {
+                    OnPropertyChanged(nameof(UsarCoordenadaRe));
                     OnPropertyChanged(nameof(MostrarPainelAzimute));
                     OnPropertyChanged(nameof(MostrarPainelCoordenadaRe));
                 }
@@ -73,13 +96,53 @@ namespace TopoGente.UI.ViewModels
         public bool MostrarPainelCoordenadaRe => !UsarAzimute;
 
         private string _azimute = "0";
-        public string Azimute { get => _azimute; set => SetProperty(ref _azimute, value); }
+        public string Azimute
+        {
+            get => _azimute;
+            set
+            {
+                if (SetProperty(ref _azimute, value))
+                {
+                    AtualizarPreviewAzimute();
+                }
+            }
+        }
+
+        private string _azimutePreview = "0° 00' 00.00\"";
+        public string AzimutePreview { get => _azimutePreview; private set => SetProperty(ref _azimutePreview, value); }
+
+        private bool _azimuteValido = true;
+        public bool AzimuteValido { get => _azimuteValido; private set { if (SetProperty(ref _azimuteValido, value)) OnPropertyChanged(nameof(AzimuteInvalido)); } }
+        public bool AzimuteInvalido => !AzimuteValido;
+
+        private string? _azimuteMensagemErro;
+        public string? AzimuteMensagemErro { get => _azimuteMensagemErro; private set => SetProperty(ref _azimuteMensagemErro, value); }
 
         private string _reX = "0";
-        public string ReX { get => _reX; set => SetProperty(ref _reX, value); }
+        public string ReX
+        {
+            get => _reX;
+            set
+            {
+                if (SetProperty(ref _reX, value))
+                {
+                    TentarAtualizarAzimutePorCoordenadas();
+                }
+            }
+        }
 
         private string _reY = "0";
-        public string ReY { get => _reY; set => SetProperty(ref _reY, value); }
+        public string ReY
+        {
+            get => _reY;
+            set
+            {
+                if (SetProperty(ref _reY, value))
+                {
+                    TentarAtualizarAzimutePorCoordenadas();
+                }
+            }
+        }
 
         private string _reZ = "0";
         public string ReZ { get => _reZ; set => SetProperty(ref _reZ, value); }
@@ -100,7 +163,85 @@ namespace TopoGente.UI.ViewModels
         public string NomeChegada { get => _nomeChegada; set => SetProperty(ref _nomeChegada, value); }
 
         private string _azimuteChegada = "0";
-        public string AzimuteChegada { get => _azimuteChegada; set => SetProperty(ref _azimuteChegada, value); }
+        public string AzimuteChegada
+        {
+            get => _azimuteChegada;
+            set
+            {
+                if (SetProperty(ref _azimuteChegada, value))
+                {
+                    AtualizarPreviewAzimuteChegada();
+                }
+            }
+        }
+
+        private string _azimuteChegadaPreview = "0° 00' 00.00\"";
+        public string AzimuteChegadaPreview { get => _azimuteChegadaPreview; private set => SetProperty(ref _azimuteChegadaPreview, value); }
+
+        private bool _azimuteChegadaValido = true;
+        public bool AzimuteChegadaValido { get => _azimuteChegadaValido; private set { if (SetProperty(ref _azimuteChegadaValido, value)) OnPropertyChanged(nameof(AzimuteChegadaInvalido)); } }
+        public bool AzimuteChegadaInvalido => !AzimuteChegadaValido;
+
+        private string? _azimuteChegadaMensagemErro;
+        public string? AzimuteChegadaMensagemErro { get => _azimuteChegadaMensagemErro; private set => SetProperty(ref _azimuteChegadaMensagemErro, value); }
+
+        private void AtualizarPreviewAzimute()
+        {
+            if (TopoGente.Core.Utilities.ConversorAngulos.TryDeFormatoCompactoTexto(_azimute, out _, out string formatado, out string? erro))
+            {
+                AzimutePreview = formatado;
+                AzimuteValido = true;
+                AzimuteMensagemErro = null;
+            }
+            else
+            {
+                AzimutePreview = "--";
+                AzimuteValido = false;
+                AzimuteMensagemErro = erro;
+            }
+        }
+
+        private void AtualizarPreviewAzimuteChegada()
+        {
+            if (TopoGente.Core.Utilities.ConversorAngulos.TryDeFormatoCompactoTexto(_azimuteChegada, out _, out string formatado, out string? erro))
+            {
+                AzimuteChegadaPreview = formatado;
+                AzimuteChegadaValido = true;
+                AzimuteChegadaMensagemErro = null;
+            }
+            else
+            {
+                AzimuteChegadaPreview = "--";
+                AzimuteChegadaValido = false;
+                AzimuteChegadaMensagemErro = erro;
+            }
+        }
+
+        public void TentarAtualizarAzimutePorCoordenadas()
+        {
+            if (TryParseDouble(PartidaX, out double px) &&
+                TryParseDouble(PartidaY, out double py) &&
+                TryParseDouble(ReX, out double rx) &&
+                TryParseDouble(ReY, out double ry))
+            {
+                if (Math.Abs(px - rx) > 1e-4 || Math.Abs(py - ry) > 1e-4)
+                {
+                    double azDecimal = TopoGente.Core.Utilities.GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(px, py, rx, ry);
+                    double azCompacto = TopoGente.Core.Utilities.ConversorAngulos.ParaFormatoCompacto(azDecimal);
+                    _azimute = azCompacto.ToString("F4", CultureInfo.InvariantCulture);
+                    OnPropertyChanged(nameof(Azimute));
+                    AtualizarPreviewAzimute();
+                }
+            }
+        }
+
+        private static bool TryParseDouble(string? s, out double val)
+        {
+            val = 0;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            string normalizado = s.Trim().Replace(',', '.');
+            return double.TryParse(normalizado, NumberStyles.Float, CultureInfo.InvariantCulture, out val);
+        }
 
         public ObservableCollection<string> Estacoes { get; }
 

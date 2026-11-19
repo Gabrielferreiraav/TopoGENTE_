@@ -372,88 +372,159 @@
 
 
                             <GroupBox Header="Estação de Partida (E0)" Margin="0,0,0,10">
-
                                 <StackPanel>
+                                    <TextBlock Text="Vértice da Estação:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" FontSize="11" Margin="0,0,0,2"/>
+                                    <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.EstacaoAncoragemNome}" Margin="0,0,0,8" ToolTip="Vértice inicial do caminhamento da poligonal"/>
 
-                                    <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.EstacaoAncoragemNome}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coordenadas Iniciais do Vértice:" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="6"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="6"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Este / X [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.PartidaX, UpdateSourceTrigger=PropertyChanged}" ToolTip="Coordenada Este / X em metros"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Norte / Y [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.PartidaY, UpdateSourceTrigger=PropertyChanged}" ToolTip="Coordenada Norte / Y em metros"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Cota Z [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.PartidaZ, UpdateSourceTrigger=PropertyChanged}" ToolTip="Cota ortométrica / altimétrica Z em metros"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                    <TextBlock Text="Coord X:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <!-- Painel de Amarração / Orientação à Ré -->
+                                    <Border Background="#252528" CornerRadius="4" Padding="8" Margin="0,0,0,4" BorderBrush="#3F3F46" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="Amarração e Orientação à Ré" FontWeight="Bold" FontSize="11" Margin="0,0,0,6"/>
 
-                                    <TextBox Text="{Binding PoligonalSelecionada.PartidaX, StringFormat=F3}" Margin="0,0,0,5"/>
+                                            <!-- Ponto de Ré: SEMPRE VISÍVEL -->
+                                            <TextBlock Text="Ponto de Ré (Referência):" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" FontSize="11" Margin="0,0,0,2"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.NomeRe, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"
+                                                     ToolTip="Nome ou código do marco/ponto visado de ré (ex: REF, M1, E0)"/>
 
-                                    <TextBlock Text="Coord Y:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <!-- Seletor de Modo de Orientação -->
+                                            <TextBlock Text="Definir Orientação Por:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" FontSize="10" Margin="0,0,0,3"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <RadioButton Content="Azimute Direto" IsChecked="{Binding PoligonalSelecionada.UsarAzimute}" Margin="0,0,12,0"
+                                                             ToolTip="Fornecer diretamente o azimute de partida no formato GGG.MMSS"/>
+                                                <RadioButton Content="Coordenadas da Ré" IsChecked="{Binding PoligonalSelecionada.UsarCoordenadaRe}"
+                                                             ToolTip="Calcular o azimute automaticamente com base nas coordenadas da estação de partida e do ponto de ré"/>
+                                            </StackPanel>
 
-                                    <TextBox Text="{Binding PoligonalSelecionada.PartidaY, StringFormat=F3}" Margin="0,0,0,5"/>
+                                            <!-- Modo Azimute -->
+                                            <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelAzimute, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Azimute de Partida [formato GGG.MMSS]:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" FontSize="11" Margin="0,0,0,2"/>
+                                                <TextBox Text="{Binding PoligonalSelecionada.Azimute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"
+                                                         ToolTip="Azimute em graus sexagesimais compactos (ex: 154.3045 = 154° 30' 45&quot;)"/>
+                                                
+                                                <!-- Live Preview Badge -->
+                                                <Border Background="#1E1E1E" CornerRadius="3" Padding="6,4" Margin="0,0,0,4" BorderBrush="#333337" BorderThickness="1">
+                                                    <StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Visibility="{Binding PoligonalSelecionada.AzimuteValido, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <TextBlock Text="Ângulo decodificado: " FontSize="10" Foreground="#9CDCFE"/>
+                                                            <TextBlock Text="{Binding PoligonalSelecionada.AzimutePreview}" FontSize="11" FontWeight="Bold" Foreground="#4EC9B0"/>
+                                                        </StackPanel>
+                                                        <StackPanel Visibility="{Binding PoligonalSelecionada.AzimuteInvalido, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <TextBlock Text="{Binding PoligonalSelecionada.AzimuteMensagemErro, StringFormat='⚠ {0}'}" FontSize="10" Foreground="#F44336" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="💡 Ex: 154.3045 = 154° 30' 45&quot; (Minutos e segundos devem ser &lt; 60)" FontSize="10" Foreground="#858585"/>
+                                            </StackPanel>
 
-                                    <TextBlock Text="Coord Z:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <!-- Modo Coordenadas da Ré -->
+                                            <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelCoordenadaRe, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Coordenadas Conhecidas da Ré:" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="6"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="6"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="Este / X [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                                        <TextBox Text="{Binding PoligonalSelecionada.ReX, UpdateSourceTrigger=PropertyChanged}" ToolTip="Coordenada Este / X da ré em metros"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="Norte / Y [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                                        <TextBox Text="{Binding PoligonalSelecionada.ReY, UpdateSourceTrigger=PropertyChanged}" ToolTip="Coordenada Norte / Y da ré em metros"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="4">
+                                                        <TextBlock Text="Cota Z [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                                        <TextBox Text="{Binding PoligonalSelecionada.ReZ, UpdateSourceTrigger=PropertyChanged}" ToolTip="Cota Z da ré em metros"/>
+                                                    </StackPanel>
+                                                </Grid>
 
-                                    <TextBox Text="{Binding PoligonalSelecionada.PartidaZ, StringFormat=F3}" Margin="0,0,0,5"/>
-
-
-
-                                    <TextBlock Text="Amarração à Ré" FontWeight="Bold" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Ponto de Ré (Referência):" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                    <TextBox Text="{Binding PoligonalSelecionada.NomeRe, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
-
-                                    <CheckBox IsChecked="{Binding PoligonalSelecionada.UsarCoordenadaRe}" Content="Usar Coordenada ao invés de Azimute" Margin="0,0,0,5"/>
-
-                                    <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelAzimute, Converter={StaticResource BooleanToVisibilityConverter}}">
-
-                                        <TextBlock Text="Azimute de Partida:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                        <TextBox Text="{Binding PoligonalSelecionada.Azimute, StringFormat=F4}" Margin="0,0,0,5"/>
-
-                                    </StackPanel>
-
-                                    <StackPanel Visibility="{Binding PoligonalSelecionada.MostrarPainelCoordenadaRe, Converter={StaticResource BooleanToVisibilityConverter}}">
-
-                                        <TextBlock Text="Coord X da Ré:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                        <TextBox Text="{Binding PoligonalSelecionada.ReX, StringFormat=F3}" Margin="0,0,0,5"/>
-
-                                        <TextBlock Text="Coord Y da Ré:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                        <TextBox Text="{Binding PoligonalSelecionada.ReY, StringFormat=F3}" Margin="0,0,0,5"/>
-
-                                    </StackPanel>
-
+                                                <!-- Live Preview do Azimute Calculado -->
+                                                <Border Background="#1E1E1E" CornerRadius="3" Padding="6,4" Margin="0,2,0,4" BorderBrush="#333337" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Azimute Calculado (E0 → Ré): " FontSize="10" Foreground="#9CDCFE"/>
+                                                        <TextBlock Text="{Binding PoligonalSelecionada.AzimutePreview}" FontSize="11" FontWeight="Bold" Foreground="#4EC9B0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
-
                             </GroupBox>
 
-
-
-                            <GroupBox Header="Estação de Chegada (En)" Visibility="{Binding PoligonalSelecionada.MostrarPainelChegada, Converter={StaticResource BooleanToVisibilityConverter}}">
-
+                            <GroupBox Header="Estação de Chegada (En)" Visibility="{Binding PoligonalSelecionada.MostrarPainelChegada, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,10">
                                 <StackPanel>
+                                    <TextBlock Text="Vértice de Chegada:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" FontSize="11" Margin="0,0,0,2"/>
+                                    <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.NomeChegada}" Margin="0,0,0,8" ToolTip="Vértice final da poligonal enquadrada"/>
 
-                                    <ComboBox ItemsSource="{Binding PoligonalSelecionada.Estacoes}" SelectedItem="{Binding PoligonalSelecionada.NomeChegada}" Margin="0,0,0,5"/>
+                                    <TextBlock Text="Coordenadas de Chegada:" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="6"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="6"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Este / X [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.ChegadaX, UpdateSourceTrigger=PropertyChanged}" ToolTip="Coordenada Este / X em metros"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Norte / Y [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.ChegadaY, UpdateSourceTrigger=PropertyChanged}" ToolTip="Coordenada Norte / Y em metros"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Cota Z [m]" FontSize="10" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                            <TextBox Text="{Binding PoligonalSelecionada.ChegadaZ, UpdateSourceTrigger=PropertyChanged}" ToolTip="Cota Z de chegada em metros"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                    <TextBlock Text="Coord X:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
+                                    <TextBlock Text="Azimute de Chegada [formato GGG.MMSS]:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}" FontSize="11" Margin="0,0,0,2"/>
+                                    <TextBox Text="{Binding PoligonalSelecionada.AzimuteChegada, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"
+                                             ToolTip="Azimute de fechamento da poligonal enquadrada (ex: 210.4510)"/>
 
-                                    <TextBox Text="{Binding PoligonalSelecionada.ChegadaX, StringFormat=F3}" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Coord Y:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                    <TextBox Text="{Binding PoligonalSelecionada.ChegadaY, StringFormat=F3}" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Coord Z:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                    <TextBox Text="{Binding PoligonalSelecionada.ChegadaZ, StringFormat=F3}" Margin="0,0,0,5"/>
-
-                                    <TextBlock Text="Azimute de Chegada:" Foreground="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"/>
-
-                                    <TextBox Text="{Binding PoligonalSelecionada.AzimuteChegada, StringFormat=F4}" Margin="0,0,0,5"/>
-
+                                    <!-- Live Preview Badge Chegada -->
+                                    <Border Background="#1E1E1E" CornerRadius="3" Padding="6,4" Margin="0,0,0,4" BorderBrush="#333337" BorderThickness="1">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding PoligonalSelecionada.AzimuteChegadaValido, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Ângulo decodificado: " FontSize="10" Foreground="#9CDCFE"/>
+                                                <TextBlock Text="{Binding PoligonalSelecionada.AzimuteChegadaPreview}" FontSize="11" FontWeight="Bold" Foreground="#4EC9B0"/>
+                                            </StackPanel>
+                                            <StackPanel Visibility="{Binding PoligonalSelecionada.AzimuteChegadaInvalido, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="{Binding PoligonalSelecionada.AzimuteChegadaMensagemErro, StringFormat='⚠ {0}'}" FontSize="10" Foreground="#F44336" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
-
                             </GroupBox>
 
-
-
-                            <Button Content="→ EXTRAIR CAMINHAMENTO" Command="{Binding ProcessarCommand}" Margin="0,10,0,10" Background="#2D2D30"/>
+                            <Button Content="→ EXTRAIR CAMINHAMENTO" Command="{Binding ProcessarCommand}" Margin="0,10,0,10" Height="36" FontWeight="Bold" Background="#0E639C" Foreground="White" BorderBrush="#1177BB" ToolTip="Monta a cadeia cinemática de ré, estação e vante e processa o caminhamento"/>
 
                             
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FluentAssertions;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Strategies;
 using TopoGente.Core.Utilities;
@@ -293,5 +294,55 @@ public sealed class VerificacaoLinhaBaseTests
         };
 
         Assert.Equal("1 : ∞", laudo.PrecisaoRelativaFormatada);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // 11. Condição de contorno: Poligonal Fechada sobre si mesma (Distância Teórica = 0)
+    // ──────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void VerificacaoLinhaBase_PoligonalFechadaSobreMesmoMarco_AdotaFechamentoAngularDaReERejeitaFalsoPositivo()
+    {
+        // Arrange: Poligonal triangular fechada A -> B -> C -> A (sem mystery guests, puro em memória)
+        var marcoA = new PontoCoordenada { Nome = "A", X = 721803.217, Y = 7702490.066, Z = 650.354 };
+
+        var leituras = new List<LeituraEstacaoTotal>
+        {
+            new() { EstacaoOcupada = "A", PontoVisado = "B", DistanciaInclinada = 50.662, AnguloVertical = ConversorAngulos.DeFormatoCompacto(90.5033), AnguloHorizontal = ConversorAngulos.DeFormatoCompacto(34.2821), AlturaInstrumento = 1.58, AlturaPrisma = 1.58, Tipo = TipoLeitura.Poligonal },
+            new() { EstacaoOcupada = "B", PontoVisado = "C", DistanciaInclinada = 61.282, AnguloVertical = ConversorAngulos.DeFormatoCompacto(88.1118), AnguloHorizontal = ConversorAngulos.DeFormatoCompacto(117.3823), AlturaInstrumento = 1.63, AlturaPrisma = 1.58, Tipo = TipoLeitura.Poligonal },
+            new() { EstacaoOcupada = "C", PontoVisado = "A", DistanciaInclinada = 95.897, AnguloVertical = ConversorAngulos.DeFormatoCompacto(90.4622), AnguloHorizontal = ConversorAngulos.DeFormatoCompacto(27.5417), AlturaInstrumento = 1.54, AlturaPrisma = 1.58, Tipo = TipoLeitura.Poligonal }
+        };
+
+        var input = new CompensacaoPoligonalInputDTO
+        {
+            PontoPartida   = marcoA,
+            PontoChegada   = marcoA, // Distância Teórica == 0.000 m (fechamento sobre o mesmo vértice)
+            AzimuteInicial = ConversorAngulos.DeFormatoCompacto(189.21008), // Azimute A -> B (189° 21' 00.8")
+            AnguloFechamento = 0.0,
+            Leituras       = leituras,
+            PoligonalBruta = new List<PontoCoordenada> { marcoA },
+            Tolerancias    = ParametrosTolerancia.PoligonalTrigonometrica,
+            Metadados      = new MetadadosCenario
+            {
+                TipoCenario = TipoCenarioPoligonal.VerificacaoLinhaBase,
+                PartidaX = marcoA.X, PartidaY = marcoA.Y, PartidaZ = marcoA.Z,
+                ChegadaX = marcoA.X, ChegadaY = marcoA.Y, ChegadaZ = marcoA.Z,
+                NomeChegada = "A"
+            }
+        };
+
+        var strategy = new VerificacaoLinhaBaseStrategy();
+
+        // Act
+        var resultado = strategy.Compensar(input);
+
+        // Assert com FluentAssertions e tolerâncias explícitas (NBR 13.133)
+        resultado.LaudoLinhaBase.Should().NotBeNull();
+        var laudo = resultado.LaudoLinhaBase!;
+
+        laudo.DistanciaTeórica.Should().BeLessThan(1e-4, "partida e chegada coincidem espacialmente");
+        laudo.ErroLinearMm.Should().BeLessThan(laudo.ToleranciaLinearMm, "erro linear de 12 mm deve ser conforme");
+        laudo.ErroAngularSegundos.Should().BeLessThan(laudo.ToleranciaAngularSegundos, "o erro angular deve refletir o fechamento da poligonal e não o vetor singular de 25 graus");
+        laudo.Aprovado.Should().BeTrue("a poligonal fechada atende perfeitamente às tolerâncias da NBR 13.133");
     }
 }

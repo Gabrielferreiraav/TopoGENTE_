@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FluentAssertions;
 using Xunit;
 using TopoGente.Core.Entities;
 using TopoGente.Core.Services;
@@ -50,6 +51,24 @@ namespace TopoGente.Test
             
             // Assert
             Assert.Equal(azimuteEsperado, azimuteCalculado, 3);
+        }
+
+        [Fact]
+        public void CalcularAzimutePorCoordenadas_CasoRealLevantamentoGp2_CalculaAzimuteExatoParaRef()
+        {
+            // Coordenadas reais de A e REF do arquivo levant_gp2_topo.csv
+            double estX = 721803.217, estY = 7702490.066;
+            double reX = 721810.622, reY = 7702474.274;
+
+            double azimuteDecimal = GeometriaTopograficaHelper.CalcularAzimutePorCoordenadas(estX, estY, reX, reY);
+
+            // deltaX = +7.405, deltaY = -15.792 -> Quadrante 2 (Sul-Sudeste)
+            // atan2(7.405, -15.792) = 154.877722° decimal
+            azimuteDecimal.Should().BeApproximately(154.8777, 1e-4);
+
+            // No formato compacto sexagesimal: 154° 52' 39.80" -> 154.5240
+            double azCompacto = ConversorAngulos.ParaFormatoCompacto(azimuteDecimal);
+            azCompacto.Should().BeApproximately(154.5240, 1e-4);
         }
 
         [Fact]
